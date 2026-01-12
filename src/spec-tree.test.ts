@@ -1,0 +1,161 @@
+import { describe, expect, test } from 'bun:test';
+import { buildSpecTree, renderTree } from './spec-tree';
+import type { Spec, SpecNode } from './types';
+
+function makeSpec(id: string, parent: string | null = null): Spec {
+  return {
+    id,
+    status: 'ready',
+    parent,
+    blocks: [],
+    title: `Spec ${id}`,
+    content: `# Spec: Spec ${id}`,
+    filePath: `/path/${id}.md`,
+  };
+}
+
+describe('buildSpecTree', () => {
+  test('returns empty array for empty input', () => {
+    const tree = buildSpecTree([]);
+    expect(tree).toEqual([]);
+  });
+
+  test('builds flat tree from specs without parents', () => {
+    const specs = [makeSpec('a1b2'), makeSpec('c3d4'), makeSpec('e5f6')];
+
+    const tree = buildSpecTree(specs);
+
+    expect(tree).toHaveLength(3);
+    expect(tree.every((node) => node.children.length === 0)).toBe(true);
+  });
+
+  test('nests children under parent', () => {
+    const specs = [
+      makeSpec('parent'),
+      makeSpec('child1', 'parent'),
+      makeSpec('child2', 'parent'),
+    ];
+
+    const tree = buildSpecTree(specs);
+
+    expect(tree).toHaveLength(1);
+
+    const parentNode = tree[0];
+    expect(parentNode).toBeDefined();
+    expect(parentNode?.spec.id).toBe('parent');
+    expect(parentNode?.children).toHaveLength(2);
+
+    const childIds = parentNode?.children.map((c) => c.spec.id).sort();
+    expect(childIds).toEqual(['child1', 'child2']);
+  });
+
+  test('builds multi-level tree', () => {
+    const specs = [
+      makeSpec('root'),
+      makeSpec('child', 'root'),
+      makeSpec('grandchild', 'child'),
+    ];
+
+    const tree = buildSpecTree(specs);
+
+    expect(tree).toHaveLength(1);
+
+    const root = tree[0];
+    expect(root?.spec.id).toBe('root');
+    expect(root?.children).toHaveLength(1);
+
+    const child = root?.children[0];
+    expect(child?.spec.id).toBe('child');
+    expect(child?.children).toHaveLength(1);
+
+    const grandchild = child?.children[0];
+    expect(grandchild?.spec.id).toBe('grandchild');
+    expect(grandchild?.children).toHaveLength(0);
+  });
+
+  test('handles orphan specs (parent not found)', () => {
+    const specs = [makeSpec('orphan', 'missing-parent')];
+
+    const tree = buildSpecTree(specs);
+
+    expect(tree).toHaveLength(1);
+    expect(tree[0]?.spec.id).toBe('orphan');
+  });
+
+  test('handles multiple root specs', () => {
+    const specs = [
+      makeSpec('root1'),
+      makeSpec('root2'),
+      makeSpec('child1', 'root1'),
+      makeSpec('child2', 'root2'),
+    ];
+
+    const tree = buildSpecTree(specs);
+
+    expect(tree).toHaveLength(2);
+    const rootIds = tree.map((n) => n.spec.id).sort();
+    expect(rootIds).toEqual(['root1', 'root2']);
+  });
+});
+
+describe('renderTree', () => {
+  test('renders empty tree', () => {
+    const result = renderTree([]);
+    expect(result).toBe('');
+  });
+
+  test('renders flat list', () => {
+    const tree: SpecNode[] = [
+      { spec: makeSpec('a1b2'), children: [] },
+      { spec: makeSpec('c3d4'), children: [] },
+    ];
+
+    const result = renderTree(tree);
+
+    expect(result).toContain('Spec a1b2');
+    expect(result).toContain('Spec c3d4');
+  });
+
+  test('renders nested tree with indentation', () => {
+    const tree: SpecNode[] = [
+      {
+        spec: makeSpec('root'),
+        children: [
+          {
+            spec: makeSpec('child'),
+            children: [{ spec: makeSpec('grandchild'), children: [] }],
+          },
+        ],
+      },
+    ];
+
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    expect(lines.some((l) => l.includes('Spec root'))).toBe(true);
+    expect(lines.some((l) => l.includes('  ') && l.includes('Spec child'))).toBe(
+      true
+    );
+    expect(
+      lines.some((l) => l.includes('    ') && l.includes('Spec grandchild'))
+    ).toBe(true);
+  });
+
+  test('includes status in output', () => {
+    const spec = makeSpec('a1b2');
+    spec.status = 'blocked';
+    const tree: SpecNode[] = [{ spec, children: [] }];
+
+    const result = renderTree(tree);
+
+    expect(result).toContain('blocked');
+  });
+
+  test('includes ID in output', () => {
+    const tree: SpecNode[] = [{ spec: makeSpec('xyz123'), children: [] }];
+
+    const result = renderTree(tree);
+
+    expect(result).toContain('xyz123');
+  });
+});
