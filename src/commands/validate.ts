@@ -7,6 +7,30 @@ import type { CommandHandler } from '../types';
 import { findSpecFile, readAllSpecs } from '../spec-filesystem';
 import { validateSpecRequirements, extractRequirements } from '../ears/validation';
 
+function displayRequirementResult(
+  result: { valid: boolean; pattern?: string; errors: string[]; suggestions: string[] },
+  requirement: string,
+  index: number
+): boolean {
+  const status = result.valid ? '✓' : '✗';
+  const patternInfo = result.pattern ? ` (${result.pattern})` : '';
+
+  console.log(`\n${status} Requirement ${index + 1}${patternInfo}`);
+  console.log(`  "${requirement.slice(0, 60)}${requirement.length > 60 ? '...' : ''}"`);
+
+  if (!result.valid) {
+    for (const error of result.errors) {
+      console.log(`  ⚠ ${error}`);
+    }
+    for (const suggestion of result.suggestions) {
+      console.log(`  → ${suggestion}`);
+    }
+    return true;
+  }
+
+  return false;
+}
+
 export const command: CommandHandler = {
   name: 'validate',
   description: 'Validate EARS format',
@@ -58,20 +82,9 @@ async function validateSingleSpec(specId: string): Promise<number> {
     const requirement = requirements[i];
     if (!result || !requirement) continue;
 
-    const status = result.valid ? '✓' : '✗';
-    const patternInfo = result.pattern ? ` (${result.pattern})` : '';
-
-    console.log(`\n${status} Requirement ${i + 1}${patternInfo}`);
-    console.log(`  "${requirement.slice(0, 60)}${requirement.length > 60 ? '...' : ''}"`);
-
-    if (!result.valid) {
+    const hasError = displayRequirementResult(result, requirement, i);
+    if (hasError) {
       hasErrors = true;
-      for (const error of result.errors) {
-        console.log(`  ⚠ ${error}`);
-      }
-      for (const suggestion of result.suggestions) {
-        console.log(`  → ${suggestion}`);
-      }
     }
   }
 

@@ -88,7 +88,7 @@ function findCircularDeps(specs: Spec[]): HealthIssue[] {
   return issues;
 }
 
-async function fixOrphan(spec: Spec, specs: Spec[]): Promise<void> {
+async function fixOrphan(spec: Spec, _specs: Spec[]): Promise<void> {
   const updated: Spec = { ...spec, parent: null };
   await writeSpec(updated);
 }

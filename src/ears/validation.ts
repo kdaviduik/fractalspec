@@ -39,26 +39,33 @@ function generateSuggestions(text: string): string[] {
   const suggestions: string[] = [];
   const lower = text.toLowerCase();
 
-  if (lower.includes('when') || lower.includes('click') || lower.includes('submit')) {
-    suggestions.push(
-      `Try event-driven: "${EARS_PATTERN_TEMPLATES.event_driven}"`
-    );
-  }
+  const patterns = [
+    {
+      keywords: ['when', 'click', 'submit'],
+      template: EARS_PATTERN_TEMPLATES.event_driven,
+      name: 'event-driven',
+    },
+    {
+      keywords: ['while', 'during', 'state'],
+      template: EARS_PATTERN_TEMPLATES.state_driven,
+      name: 'state-driven',
+    },
+    {
+      keywords: ['if', 'error', 'fail'],
+      template: EARS_PATTERN_TEMPLATES.unwanted,
+      name: 'unwanted behavior',
+    },
+    {
+      keywords: ['optional', 'feature', 'where'],
+      template: EARS_PATTERN_TEMPLATES.optional,
+      name: 'optional',
+    },
+  ];
 
-  if (lower.includes('while') || lower.includes('during') || lower.includes('state')) {
-    suggestions.push(
-      `Try state-driven: "${EARS_PATTERN_TEMPLATES.state_driven}"`
-    );
-  }
-
-  if (lower.includes('if') || lower.includes('error') || lower.includes('fail')) {
-    suggestions.push(
-      `Try unwanted behavior: "${EARS_PATTERN_TEMPLATES.unwanted}"`
-    );
-  }
-
-  if (lower.includes('optional') || lower.includes('feature') || lower.includes('where')) {
-    suggestions.push(`Try optional: "${EARS_PATTERN_TEMPLATES.optional}"`);
+  for (const pattern of patterns) {
+    if (pattern.keywords.some(keyword => lower.includes(keyword))) {
+      suggestions.push(`Try ${pattern.name}: "${pattern.template}"`);
+    }
   }
 
   if (suggestions.length === 0) {

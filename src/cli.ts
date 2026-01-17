@@ -4,7 +4,6 @@
  * Parses arguments and routes to command handlers.
  */
 
-import { parseArgs } from 'util';
 import { loadCommand, printHelp, printVersion } from './command-router';
 
 async function main(): Promise<number> {

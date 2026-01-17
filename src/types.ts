@@ -62,40 +62,49 @@ export interface ValidationResult {
   suggestions: string[];
 }
 
+function isInArray<T extends readonly unknown[]>(
+  array: T,
+  value: unknown
+): value is T[number] {
+  return array.includes(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
 export function isValidStatus(value: unknown): value is Status {
   if (typeof value !== 'string') {
     return false;
   }
-  return STATUSES.includes(value as Status);
+  return isInArray(STATUSES, value);
 }
 
 export function isValidEarsPattern(value: unknown): value is EarsPattern {
   if (typeof value !== 'string') {
     return false;
   }
-  return EARS_PATTERNS.includes(value as EarsPattern);
+  return isInArray(EARS_PATTERNS, value);
 }
 
 export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter {
-  if (value === null || typeof value !== 'object') {
+  if (!isRecord(value)) {
     return false;
   }
 
-  const obj = value as Record<string, unknown>;
-
-  if (typeof obj['id'] !== 'string' || obj['id'] === '') {
+  if (typeof value['id'] !== 'string' || value['id'] === '') {
     return false;
   }
 
-  if (!isValidStatus(obj['status'])) {
+  if (!isValidStatus(value['status'])) {
     return false;
   }
 
-  if (obj['parent'] !== null && typeof obj['parent'] !== 'string') {
+  if (value['parent'] !== null && typeof value['parent'] !== 'string') {
     return false;
   }
 
-  if (!Array.isArray(obj['blocks'])) {
+  if (!Array.isArray(value['blocks'])) {
     return false;
   }
 

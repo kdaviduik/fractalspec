@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { detectEarsPattern, EARS_PATTERN_TEMPLATES } from './patterns';
-import type { EarsPattern } from '../types';
 
 describe('EARS_PATTERN_TEMPLATES', () => {
   test('contains all 6 patterns', () => {

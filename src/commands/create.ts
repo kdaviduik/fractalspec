@@ -8,7 +8,6 @@ import type { CommandHandler, Spec } from '../types';
 import { generateId } from '../id-generation';
 import {
   createSpecDirectory,
-  getSpecsRoot,
   readAllSpecs,
   writeSpec,
 } from '../spec-filesystem';
