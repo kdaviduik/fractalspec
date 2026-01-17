@@ -61,14 +61,18 @@ When creating or editing specs, use EARS patterns for clear, testable requiremen
 
 ### Pattern Quick Reference
 
-| Pattern | Starts With | Use For |
-|---------|-------------|---------|
-| Ubiquitous | "The system shall..." | Always-true rules |
-| Event-driven | "When X, the system shall..." | User actions, triggers |
-| State-driven | "While X, the system shall..." | Behavior during states |
-| Unwanted | "If X, then the system shall..." | Errors, edge cases |
-| Optional | "Where X, the system shall..." | Feature-gated behavior |
-| Complex | "While X, when Y, the system shall..." | State + trigger combo |
+| Pattern | Format | Use For |
+|---------|--------|---------|
+| Ubiquitous | `[Component] shall <action>` | Always-true rules |
+| Event-driven | `When <trigger>, [component] shall <action>` | User actions, triggers |
+| State-driven | `While <state>, [component] shall <action>` | Behavior during states |
+| Unwanted | `If <condition>, then [component] shall <action>` | Errors, edge cases |
+| Optional | `Where <feature>, [component] shall <action>` | Feature-gated behavior |
+| Complex | `While <state>, when <trigger>, [component] shall <action>` | State + trigger combo |
+
+**Component Naming**: Use specific names ("Tier 1", "the auth module") over generic "the system". The validator warns about generic usage.
+
+**Validation**: Requirements must be specific and testable. Vague phrases like "shall work well", "shall be fast", "shall be user-friendly" will be rejected.
 
 ### Good vs Bad Examples
 
@@ -76,11 +80,12 @@ When creating or editing specs, use EARS patterns for clear, testable requiremen
 - "The login should be secure"
 - "Users can manage their profile"
 - "Handle errors appropriately"
+- "The system shall be fast" ← Rejected: not testable
 
 **Good (specific, testable):**
-- "The system shall hash passwords using bcrypt with cost factor 12."
-- "When the user clicks 'Edit Profile', the system shall display the profile form."
-- "If the API returns a 500 error, then the system shall display 'Service unavailable' and log the error."
+- "The auth module shall hash passwords using bcrypt with cost factor 12."
+- "When the user clicks 'Edit Profile', the profile view shall display the edit form within 50ms."
+- "If the API returns a 500 error, then the error handler shall display 'Service unavailable', log the error, and retry after 5 seconds."
 
 ### Converting Informal Requirements
 
@@ -89,6 +94,8 @@ Use `sc ears` to help convert informal text:
 ```bash
 sc ears "users should be able to login with email"
 ```
+
+The validator will suggest the appropriate EARS pattern and warn about vague language.
 
 ## Health Checks
 

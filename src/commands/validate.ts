@@ -66,7 +66,11 @@ With <id>: validates a single spec and shows detailed errors.
 Checks that each requirement matches one of the six EARS patterns:
   - Ubiquitous, Event-driven, State-driven, Optional, Unwanted, Complex
 
-Reports validation errors and suggests corrections.`,
+The validator distinguishes between errors and warnings:
+  - Errors: Missing EARS structure, vague responses ("shall work well"), empty requirements
+  - Warnings: Generic "system" usage, very long requirements (>200 chars)
+
+Validation passes with warnings but fails with errors.`,
       flags: [
         {
           flag: '--fix',
@@ -81,7 +85,8 @@ Reports validation errors and suggests corrections.`,
         'sc validate a1b2c3',
       ],
       notes: [
-        'Exits with code 1 if any validation errors are found.',
+        'Exits with code 1 if any validation errors (not warnings) are found.',
+        'Warnings indicate style improvements but do not fail validation.',
         'Use "sc ears" to see pattern reference and get conversion help.',
       ],
     };

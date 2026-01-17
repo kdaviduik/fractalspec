@@ -137,18 +137,27 @@ When you claim a spec, `sc` creates a dedicated git worktree for that work:
 
 ## EARS Patterns
 
-EARS (Easy Approach to Requirements Syntax) ensures requirements are testable and unambiguous. Each pattern has a specific structure.
+EARS (Easy Approach to Requirements Syntax) ensures requirements are testable and unambiguous.
 
 ### Pattern Templates
 
 | Pattern | Template | Use When |
 |---------|----------|----------|
-| **Ubiquitous** | `The <system> shall <response>` | Always-true constraints |
-| **Event-driven** | `When <trigger>, the <system> shall <response>` | Response to events |
-| **State-driven** | `While <state>, the <system> shall <response>` | Behavior during states |
-| **Optional** | `Where <feature>, the <system> shall <response>` | Feature-dependent behavior |
-| **Unwanted** | `If <condition>, then the <system> shall <response>` | Error/edge cases |
-| **Complex** | `While <state>, when <trigger>, the <system> shall <response>` | State + event combo |
+| **Ubiquitous** | `[Component] shall <response>` | Always-true constraints |
+| **Event-driven** | `When <trigger>, [component] shall <response>` | Response to events |
+| **State-driven** | `While <state>, [component] shall <response>` | Behavior during states |
+| **Optional** | `Where <feature>, [component] shall <response>` | Feature-dependent behavior |
+| **Unwanted** | `If <condition>, then [component] shall <response>` | Error/edge cases |
+| **Complex** | `While <state>, when <trigger>, [component] shall <response>` | State + event combo |
+
+**Component Naming**: Use specific component names ("Tier 1", "the backend server", "the auth module") instead of generic "the system" when components are defined in your architecture. The validator will warn about generic usage.
+
+### Validation Levels
+
+The validator distinguishes between critical errors and style warnings:
+
+- **Errors** (fail validation): Missing EARS structure, vague responses ("shall work well", "shall be fast"), empty requirements
+- **Warnings** (pass with suggestions): Generic "system" usage when specific components exist, very long requirements (>200 chars)
 
 ### Examples
 
@@ -156,21 +165,27 @@ EARS (Easy Approach to Requirements Syntax) ensures requirements are testable an
 ## Requirements
 
 ### Core Behavior (Ubiquitous)
-1. The system shall encrypt all data at rest using AES-256.
+1. Tier 1 shall encrypt all parsed data at rest using AES-256.
+2. The system shall log all authentication attempts.
 
 ### User Interactions (Event-driven)
-2. When the user clicks "Submit", the system shall validate all form fields.
-3. When validation succeeds, the system shall save the record and display confirmation.
+3. When the user clicks "Submit", the form validator shall check all 5 required fields.
+4. When validation succeeds, the backend server shall save the record within 200ms.
 
 ### Error Handling (Unwanted)
-4. If the database connection fails, then the system shall retry 3 times before displaying an error.
+5. If the database connection fails, then the retry handler shall attempt reconnection 3 times with exponential backoff before displaying an error.
 
 ### Session Management (State-driven)
-5. While the user is authenticated, the system shall display the navigation menu.
+6. While the user is authenticated, the navigation component shall display the user menu.
 
 ### Premium Features (Optional)
-6. Where the user has a premium subscription, the system shall enable advanced analytics.
+7. Where the user has a premium subscription, the analytics dashboard shall enable advanced filtering.
 ```
+
+**Vague Requirements (Rejected by Semantic Validation)**:
+- ❌ "The system shall work well" → Not testable
+- ❌ "The UI shall be fast" → Not measurable
+- ✅ "The UI shall render initial view within 100ms" → Specific, testable
 
 ## Agent Workflow
 
@@ -626,3 +641,58 @@ Study these commands for patterns:
 - [ ] Test subcommand help if applicable
 - [ ] Verify paging works for long output
 - [ ] Check that piped output skips pager
+
+## Documentation Maintenance Checklist
+
+Before marking any task as "done", verify you've updated all relevant documentation:
+
+### 1. Identify Documentation Dependencies
+
+For the code you modified, check if it affects:
+
+- [ ] **CLAUDE.md** - Project documentation, architecture, workflows
+- [ ] **Skills** (.claude/skills/*.md) - Agent workflow guides
+- [ ] **Command Help** (`getHelp()` methods in src/commands/*.ts) - CLI help text
+- [ ] **Global Help** (src/command-router.ts `printHelp()`) - Top-level command reference
+- [ ] **Templates** (e.g., create.ts spec template) - Example content shown to users
+- [ ] **README.md** - Public-facing project documentation
+
+### 2. Documentation Dependency Map
+
+| Code Change Type | Documentation to Check |
+|------------------|------------------------|
+| **New/modified CLI command** | Command's `getHelp()`, global help in command-router.ts, CLAUDE.md commands section |
+| **New/modified validation logic** | CLAUDE.md validation section, related skill files, command help for validation commands |
+| **New/modified workflow** | CLAUDE.md workflow section, .claude/skills/*-workflow.md |
+| **New pattern/syntax** | CLAUDE.md, skills, command help, create.ts template examples |
+| **New feature** | CLAUDE.md overview, README.md if user-facing |
+
+### 3. Update Checklist Questions
+
+Ask yourself:
+1. **Does this change how users interact with the system?** → Update CLAUDE.md, skills
+2. **Does this change command behavior or output?** → Update command `getHelp()`
+3. **Does this introduce new patterns or examples?** → Update all files showing examples
+4. **Does this change validation rules?** → Update validation docs, example templates
+5. **Does this affect agent workflow?** → Update skill files
+
+### 4. Cross-Reference Verification
+
+After updating documentation:
+- [ ] Search codebase for old terminology (e.g., if you changed "system shall" → "[component] shall", grep for remaining "system shall" in docs)
+- [ ] Check that examples in docs match what the code actually accepts/produces
+- [ ] Verify help text matches actual command behavior
+
+### 5. Follow Single Source of Truth Principle
+
+When documenting facts that might change:
+- **Code constants** (like EARS_PATTERN_TEMPLATES): Reference generically in prose, import in code
+- **Lists of items** (commands, patterns, features): Keep authoritative list in one file, reference with phrases like "various patterns" elsewhere
+- **Examples**: Keep in docs, but ensure they match what code validates/accepts
+
+## Git Commit Checklist for Documentation
+
+When committing changes:
+- [ ] Commit message mentions documentation updates (e.g., "feat: add X feature + update CLAUDE.md, skills")
+- [ ] All files touched in commit include both code AND related documentation
+- [ ] If you modified a pattern/syntax, you've searched for and updated all examples

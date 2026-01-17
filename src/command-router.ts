@@ -144,12 +144,14 @@ ${bold('COMMANDS')}
                            With text: detect pattern or suggest conversion
 
 ${bold('EARS PATTERNS')}
-  Ubiquitous       The <system> shall <response>
-  Event-driven     When <trigger>, the <system> shall <response>
-  State-driven     While <state>, the <system> shall <response>
-  Optional         Where <feature>, the <system> shall <response>
-  Unwanted         If <condition>, then the <system> shall <response>
-  Complex          While <state>, when <trigger>, the <system> shall <response>
+  Ubiquitous       [Component] shall <response>
+  Event-driven     When <trigger>, [component] shall <response>
+  State-driven     While <state>, [component] shall <response>
+  Optional         Where <feature>, [component] shall <response>
+  Unwanted         If <condition>, then [component] shall <response>
+  Complex          While <state>, when <trigger>, [component] shall <response>
+
+  Note: Prefer specific component names over generic "system"
 
   See 'sc ears' for full reference and conversion assistance.
 

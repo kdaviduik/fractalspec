@@ -39,21 +39,28 @@ function displayPatternSuggestions(text: string): void {
 
   if (lower.includes('when') || lower.includes('click') || lower.includes('submit')) {
     console.log('  Event-driven:');
-    console.log(`    When [trigger], the system shall [response].`);
+    console.log(`    When [trigger], [component] shall [response].`);
+    console.log(`    Example: When user clicks Submit, the form validator shall check all required fields.`);
   }
 
   if (lower.includes('if') || lower.includes('error') || lower.includes('fail')) {
     console.log('  Unwanted behavior:');
-    console.log(`    If [condition], then the system shall [response].`);
+    console.log(`    If [condition], then [component] shall [response].`);
+    console.log(`    Example: If validation fails, then the UI shall display field-specific error messages.`);
   }
 
   if (lower.includes('while') || lower.includes('during')) {
     console.log('  State-driven:');
-    console.log(`    While [state], the system shall [response].`);
+    console.log(`    While [state], [component] shall [response].`);
+    console.log(`    Example: While user is typing, the autocomplete component shall suggest matches.`);
   }
 
   console.log('  Ubiquitous (always true):');
-  console.log(`    The system shall [response].`);
+  console.log(`    [Component] shall [response].`);
+  console.log(`    Example: The auth module shall hash passwords using bcrypt.`);
+
+  console.log('\nNote: Use specific component names instead of "system" when possible.');
+  console.log('Avoid vague responses like "work well", "be fast" - use measurable criteria.');
 }
 
 export const command: CommandHandler = {
@@ -72,7 +79,11 @@ With text: detects if text is already in EARS format, or suggests conversion.
 EARS (Easy Approach to Requirements Syntax) ensures requirements are:
   - Unambiguous (single interpretation)
   - Testable (can verify compliance)
-  - Complete (specifies trigger and response)`,
+  - Complete (specifies trigger and response)
+
+The validator supports multi-word component names ("Tier 1 shall", "the backend
+server shall") and distinguishes between errors (missing EARS structure, vague
+responses) and warnings (generic "system" usage, very long requirements).`,
       examples: [
         '# Show EARS pattern reference',
         'sc ears',
@@ -81,11 +92,12 @@ EARS (Easy Approach to Requirements Syntax) ensures requirements are:
         'sc ears "users can login with email"',
         '',
         '# Check if already in EARS format',
-        'sc ears "When the user clicks submit, the system shall validate all fields"',
+        'sc ears "When the user clicks submit, the form validator shall validate all fields"',
       ],
       notes: [
         'The conversion uses AI to suggest EARS-formatted requirements.',
         'Always review suggested conversions for accuracy and completeness.',
+        'Prefer specific component names over generic "system" where possible.',
       ],
     };
   },
