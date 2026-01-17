@@ -1,36 +1,41 @@
 /**
  * Claim and release logic for specs.
- * Uses git branches to track claimed work.
+ * Uses git worktrees to track claimed work.
  */
 
 import {
-  branchExists,
-  createBranch,
+  createWorktree,
   deleteBranch,
+  findWorktreeByBranch,
+  getCurrentWorktree,
   getWorkBranchName,
+  getWorkWorktreePath,
+  removeWorktree,
 } from './git-operations';
 import { writeSpec } from './spec-filesystem';
 import type { Spec, ClaimResult } from './types';
 
 export async function isSpecClaimed(specId: string): Promise<boolean> {
   const branchName = getWorkBranchName(specId);
-  return branchExists(branchName);
+  const worktree = await findWorktreeByBranch(branchName);
+  return worktree !== null;
 }
 
 export async function claimSpec(spec: Spec): Promise<ClaimResult> {
   const branchName = getWorkBranchName(spec.id);
+  const worktreePath = getWorkWorktreePath(spec.id);
 
   const alreadyClaimed = await isSpecClaimed(spec.id);
   if (alreadyClaimed) {
     return {
       success: false,
       branchName,
-      error: `Spec ${spec.id} is already claimed (branch ${branchName} exists)`,
+      error: `Spec ${spec.id} is already claimed (worktree exists at ${worktreePath})`,
     };
   }
 
   try {
-    await createBranch(branchName);
+    await createWorktree(worktreePath, branchName);
 
     const updatedSpec: Spec = {
       ...spec,
@@ -52,36 +57,44 @@ export async function claimSpec(spec: Spec): Promise<ClaimResult> {
   }
 }
 
-export async function releaseSpec(spec: Spec): Promise<void> {
+async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed'): Promise<void> {
   const branchName = getWorkBranchName(spec.id);
+  const worktreePath = getWorkWorktreePath(spec.id);
 
-  const isClaimed = await isSpecClaimed(spec.id);
-  if (!isClaimed) {
-    throw new Error(`Spec ${spec.id} is not claimed (branch ${branchName} does not exist)`);
+  const worktree = await findWorktreeByBranch(branchName);
+  if (!worktree) {
+    throw new Error(`Spec ${spec.id} is not claimed (no worktree found)`);
   }
 
-  await deleteBranch(branchName);
+  const currentWorktree = await getCurrentWorktree();
+  const isInsideWorkWorktree = currentWorktree?.path === worktree.path;
 
-  const updatedSpec: Spec = {
-    ...spec,
-    status: 'ready',
-  };
-  await writeSpec(updatedSpec);
+  if (isInsideWorkWorktree) {
+    await deleteBranch(branchName);
+
+    const updatedSpec: Spec = {
+      ...spec,
+      status: newStatus,
+    };
+    await writeSpec(updatedSpec);
+
+    console.log(`\nNote: Cannot remove worktree from inside it.`);
+    console.log(`To clean up, run: cd ../main && rm -rf ${worktreePath}`);
+  } else {
+    await removeWorktree(worktreePath);
+
+    const updatedSpec: Spec = {
+      ...spec,
+      status: newStatus,
+    };
+    await writeSpec(updatedSpec);
+  }
+}
+
+export async function releaseSpec(spec: Spec): Promise<void> {
+  await cleanupClaim(spec, 'ready');
 }
 
 export async function completeSpec(spec: Spec): Promise<void> {
-  const branchName = getWorkBranchName(spec.id);
-
-  const isClaimed = await isSpecClaimed(spec.id);
-  if (!isClaimed) {
-    throw new Error(`Spec ${spec.id} is not claimed (branch ${branchName} does not exist)`);
-  }
-
-  await deleteBranch(branchName);
-
-  const updatedSpec: Spec = {
-    ...spec,
-    status: 'closed',
-  };
-  await writeSpec(updatedSpec);
+  await cleanupClaim(spec, 'closed');
 }

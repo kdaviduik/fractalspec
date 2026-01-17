@@ -33,7 +33,6 @@ export const command: CommandHandler = {
 
     console.log(`Completed: ${spec.title}`);
     console.log(`  Status: closed`);
-    console.log(`  Branch deleted: work/${spec.id}`);
 
     return 0;
   },

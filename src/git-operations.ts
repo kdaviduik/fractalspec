@@ -1,6 +1,8 @@
 /**
- * Git branch operations for spec claiming.
+ * Git branch and worktree operations for spec claiming.
  */
+
+import { resolve } from 'path';
 
 export class GitError extends Error {
   constructor(
@@ -10,6 +12,13 @@ export class GitError extends Error {
     super(message);
     this.name = 'GitError';
   }
+}
+
+interface WorktreeInfo {
+  path: string;
+  branch: string;
+  head: string;
+  isBare: boolean;
 }
 
 async function runGit(args: string[]): Promise<string> {
@@ -70,4 +79,71 @@ export async function checkoutBranch(branchName: string): Promise<void> {
 
 export async function mergeBranch(branchName: string): Promise<void> {
   await runGit(['merge', branchName, '--no-ff', '-m', `Merge ${branchName}`]);
+}
+
+async function listWorktrees(): Promise<WorktreeInfo[]> {
+  const output = await runGit(['worktree', 'list', '--porcelain']);
+  const worktrees: WorktreeInfo[] = [];
+
+  const lines = output.split('\n');
+  let currentWorktree: Partial<WorktreeInfo> = {};
+
+  for (const line of lines) {
+    if (line.startsWith('worktree ')) {
+      currentWorktree.path = line.substring('worktree '.length);
+    } else if (line.startsWith('HEAD ')) {
+      currentWorktree.head = line.substring('HEAD '.length);
+    } else if (line.startsWith('branch ')) {
+      currentWorktree.branch = line.substring('branch refs/heads/'.length);
+    } else if (line === 'bare') {
+      currentWorktree.isBare = true;
+    } else if (line === '') {
+      if (currentWorktree.path && currentWorktree.head) {
+        worktrees.push({
+          path: currentWorktree.path,
+          branch: currentWorktree.branch ?? '',
+          head: currentWorktree.head,
+          isBare: currentWorktree.isBare ?? false,
+        });
+      }
+      currentWorktree = {};
+    }
+  }
+
+  return worktrees;
+}
+
+export async function getCurrentWorktree(): Promise<WorktreeInfo | null> {
+  const cwd = process.cwd();
+  const worktrees = await listWorktrees();
+
+  for (const worktree of worktrees) {
+    const resolvedPath = resolve(worktree.path);
+    if (cwd.startsWith(resolvedPath)) {
+      return worktree;
+    }
+  }
+
+  return null;
+}
+
+export async function findWorktreeByBranch(branch: string): Promise<WorktreeInfo | null> {
+  const worktrees = await listWorktrees();
+  return worktrees.find(w => w.branch === branch) ?? null;
+}
+
+export async function createWorktree(path: string, branch: string): Promise<void> {
+  await runGit(['worktree', 'add', path, '-b', branch]);
+}
+
+export async function removeWorktree(path: string, force?: boolean): Promise<void> {
+  const args = ['worktree', 'remove', path];
+  if (force) {
+    args.push('--force');
+  }
+  await runGit(args);
+}
+
+export function getWorkWorktreePath(specId: string): string {
+  return `../work-${specId}`;
 }

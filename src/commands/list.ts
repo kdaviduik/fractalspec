@@ -7,6 +7,7 @@ import type { CommandHandler } from '../types';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
 import { findReadySpecs, getStatusSummary } from '../spec-query';
+import { getWorkWorktreePath } from '../git-operations';
 
 export const command: CommandHandler = {
   name: 'list',
@@ -71,7 +72,8 @@ export const command: CommandHandler = {
     console.log('═════════');
     for (const spec of specs) {
       const statusIcon = getStatusIcon(spec.status);
-      console.log(`  ${statusIcon} ${spec.id}  ${spec.title}`);
+      const suffix = spec.status === 'in_progress' ? ` [${getWorkWorktreePath(spec.id)}]` : '';
+      console.log(`  ${statusIcon} ${spec.id}  ${spec.title}${suffix}`);
     }
 
     return 0;

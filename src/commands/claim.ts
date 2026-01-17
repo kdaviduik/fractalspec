@@ -5,6 +5,7 @@
 import type { CommandHandler } from '../types';
 import { findSpecFile } from '../spec-filesystem';
 import { claimSpec } from '../claim-logic';
+import { getWorkWorktreePath } from '../git-operations';
 
 export const command: CommandHandler = {
   name: 'claim',
@@ -30,11 +31,12 @@ export const command: CommandHandler = {
       return 1;
     }
 
+    const worktreePath = getWorkWorktreePath(spec.id);
+
     console.log(`Claimed: ${spec.title}`);
-    console.log(`  Branch: ${result.branchName}`);
     console.log(`  Status: in_progress`);
-    console.log(`\nTo switch to the work branch:`);
-    console.log(`  git checkout ${result.branchName}`);
+    console.log(`\nTo start working:`);
+    console.log(`  cd ${worktreePath}`);
 
     return 0;
   },
