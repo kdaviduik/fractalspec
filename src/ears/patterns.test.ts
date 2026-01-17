@@ -128,4 +128,76 @@ describe('detectEarsPattern', () => {
       expect(result).toBe('event_driven');
     });
   });
+
+  describe('multi-word subjects', () => {
+    test('accepts "Tier 1" as subject (ubiquitous)', () => {
+      const result = detectEarsPattern(
+        'Tier 1 shall parse items synchronously extracting dates.'
+      );
+      expect(result).toBe('ubiquitous');
+    });
+
+    test('accepts "the backend server" as subject (ubiquitous)', () => {
+      const result = detectEarsPattern(
+        'The backend server shall authenticate via JWT within 100ms.'
+      );
+      expect(result).toBe('ubiquitous');
+    });
+
+    test('accepts "the Quick Capture component" as subject (ubiquitous)', () => {
+      const result = detectEarsPattern(
+        'The Quick Capture component shall display a floating action button.'
+      );
+      expect(result).toBe('ubiquitous');
+    });
+
+    test('accepts multi-word subject with event-driven pattern', () => {
+      const result = detectEarsPattern(
+        'When items are captured, Tier 1 shall parse synchronously.'
+      );
+      expect(result).toBe('event_driven');
+    });
+
+    test('accepts multi-word subject with state-driven pattern', () => {
+      const result = detectEarsPattern(
+        'While users type, the Quick Capture component shall run instant parsing.'
+      );
+      expect(result).toBe('state_driven');
+    });
+
+    test('accepts multi-word subject with optional pattern', () => {
+      const result = detectEarsPattern(
+        'Where premium features are enabled, the analytics dashboard shall show advanced metrics.'
+      );
+      expect(result).toBe('optional');
+    });
+
+    test('accepts multi-word subject with unwanted pattern', () => {
+      const result = detectEarsPattern(
+        'If the database connection fails, then the error handler shall retry 3 times.'
+      );
+      expect(result).toBe('unwanted');
+    });
+
+    test('accepts multi-word subject with complex pattern', () => {
+      const result = detectEarsPattern(
+        'While the cart contains items, when the user clicks Checkout, the payment processor shall initiate payment flow.'
+      );
+      expect(result).toBe('complex');
+    });
+
+    test('accepts hyphenated component names', () => {
+      const result = detectEarsPattern(
+        'The auto-save feature shall persist changes every 30 seconds.'
+      );
+      expect(result).toBe('ubiquitous');
+    });
+
+    test('still accepts single-word subjects', () => {
+      const result = detectEarsPattern(
+        'When X happens, the system shall respond.'
+      );
+      expect(result).toBe('event_driven');
+    });
+  });
 });

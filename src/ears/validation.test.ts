@@ -14,7 +14,28 @@ describe('validateRequirement', () => {
 
     expect(result.valid).toBe(true);
     expect(result.pattern).toBe('event_driven');
-    expect(result.errors).toHaveLength(0);
+    expect(result.issues.filter((i) => i.severity === 'error')).toHaveLength(0);
+  });
+
+  test('warns about generic "system" usage', () => {
+    const result = validateRequirement(
+      'When the user clicks submit, the system shall save the form.'
+    );
+
+    expect(result.valid).toBe(true);
+    const warnings = result.issues.filter((i) => i.severity === 'warning');
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]?.message).toContain('specific component name');
+  });
+
+  test('accepts specific component names without warning', () => {
+    const result = validateRequirement(
+      'When the user clicks submit, Tier 1 shall save the form.'
+    );
+
+    expect(result.valid).toBe(true);
+    const warnings = result.issues.filter((i) => i.severity === 'warning');
+    expect(warnings).toHaveLength(0);
   });
 
   test('returns invalid for non-EARS requirement', () => {
@@ -22,21 +43,36 @@ describe('validateRequirement', () => {
 
     expect(result.valid).toBe(false);
     expect(result.pattern).toBeUndefined();
-    expect(result.errors.length).toBeGreaterThan(0);
+    const errors = result.issues.filter((i) => i.severity === 'error');
+    expect(errors.length).toBeGreaterThan(0);
   });
 
   test('provides suggestion for non-EARS requirement', () => {
     const result = validateRequirement('The system should save data.');
 
     expect(result.valid).toBe(false);
-    expect(result.suggestions.length).toBeGreaterThan(0);
+    const errors = result.issues.filter((i) => i.severity === 'error');
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]?.suggestion).toBeDefined();
+  });
+
+  test('warns about very long requirements', () => {
+    const longReq =
+      'When the user submits the form, the system shall validate all fields including email, password, name, address, phone number, and any other custom fields that may have been added by the administrator and then save the data to the database after ensuring all constraints are met.';
+
+    const result = validateRequirement(longReq);
+
+    expect(result.valid).toBe(true);
+    const warnings = result.issues.filter((i) => i.severity === 'warning');
+    expect(warnings.some((w) => w.message.includes('very long'))).toBe(true);
   });
 
   test('handles empty string', () => {
     const result = validateRequirement('');
 
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Requirement is empty');
+    const errors = result.issues.filter((i) => i.severity === 'error');
+    expect(errors.some((e) => e.message === 'Requirement is empty')).toBe(true);
   });
 });
 

@@ -19,30 +19,37 @@ interface PatternMatcher {
   regex: RegExp;
 }
 
+/**
+ * Flexible subject pattern allowing multi-word component names.
+ * Optionally matches "the", then one or more words, spaces, or hyphens.
+ * Examples: "the system", "Tier 1", "the backend server", "the Quick Capture component"
+ */
+const SUBJECT_PATTERN = String.raw`(?:the\s+)?(?:[\w\s-]+?)`;
+
 const PATTERN_MATCHERS: PatternMatcher[] = [
   {
     pattern: 'complex',
-    regex: /^while\s+.+,\s*when\s+.+,\s*the\s+\w+\s+shall\s+/i,
+    regex: new RegExp(`^while\\s+.+,\\s*when\\s+.+,\\s*${SUBJECT_PATTERN}\\s+shall\\s+`, 'i'),
   },
   {
     pattern: 'state_driven',
-    regex: /^while\s+.+,\s*the\s+\w+\s+shall\s+/i,
+    regex: new RegExp(`^while\\s+.+,\\s*${SUBJECT_PATTERN}\\s+shall\\s+`, 'i'),
   },
   {
     pattern: 'event_driven',
-    regex: /^when\s+.+,\s*the\s+\w+\s+shall\s+/i,
+    regex: new RegExp(`^when\\s+.+,\\s*${SUBJECT_PATTERN}\\s+shall\\s+`, 'i'),
   },
   {
     pattern: 'optional',
-    regex: /^where\s+.+,\s*the\s+\w+\s+shall\s+/i,
+    regex: new RegExp(`^where\\s+.+,\\s*${SUBJECT_PATTERN}\\s+shall\\s+`, 'i'),
   },
   {
     pattern: 'unwanted',
-    regex: /^if\s+.+,\s*(then\s+)?the\s+\w+\s+shall\s+/i,
+    regex: new RegExp(`^if\\s+.+,\\s*(?:then\\s+)?${SUBJECT_PATTERN}\\s+shall\\s+`, 'i'),
   },
   {
     pattern: 'ubiquitous',
-    regex: /^the\s+\w+\s+shall\s+/i,
+    regex: new RegExp(`^${SUBJECT_PATTERN}\\s+shall\\s+`, 'i'),
   },
 ];
 

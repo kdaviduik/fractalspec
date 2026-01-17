@@ -4,34 +4,65 @@
  */
 
 import { detectEarsPattern, EARS_PATTERN_TEMPLATES } from './patterns';
-import type { Spec, ValidationResult } from '../types';
+import { performSemanticValidation } from './semantic-validator';
+import type { Spec, ValidationResult, ValidationIssue } from '../types';
 
 export function validateRequirement(text: string): ValidationResult {
   const trimmed = text.trim();
+  const issues: ValidationIssue[] = [];
 
   if (trimmed.length === 0) {
     return {
       valid: false,
-      errors: ['Requirement is empty'],
-      suggestions: [],
+      issues: [
+        {
+          severity: 'error',
+          message: 'Requirement is empty',
+        },
+      ],
     };
   }
 
   const pattern = detectEarsPattern(trimmed);
 
-  if (pattern) {
+  if (!pattern) {
+    const suggestions = generateSuggestions(trimmed);
     return {
-      valid: true,
-      pattern,
-      errors: [],
-      suggestions: [],
+      valid: false,
+      issues: [
+        {
+          severity: 'error',
+          message: 'Requirement does not follow EARS syntax',
+          suggestion: suggestions.join(' | '),
+        },
+      ],
     };
   }
 
+  const semanticIssues = performSemanticValidation(trimmed, pattern);
+  issues.push(...semanticIssues);
+
+  if (/(?:the\s+)?system\s+shall/i.test(trimmed)) {
+    issues.push({
+      severity: 'warning',
+      message: 'Consider using specific component name instead of "system"',
+      suggestion: 'Example: "Tier 1 shall" or "the backend server shall"',
+    });
+  }
+
+  if (trimmed.length > 200) {
+    issues.push({
+      severity: 'warning',
+      message: 'Requirement is very long - consider splitting into multiple requirements',
+    });
+  }
+
+  const hasErrors = issues.some((i) => i.severity === 'error');
+
   return {
-    valid: false,
-    errors: ['Requirement does not follow EARS syntax'],
-    suggestions: generateSuggestions(trimmed),
+    valid: !hasErrors,
+    pattern,
+    issues,
   };
 }
 

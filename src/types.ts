@@ -58,11 +58,18 @@ export interface ClaimResult {
   error?: string;
 }
 
+export type ValidationSeverity = 'error' | 'warning';
+
+export interface ValidationIssue {
+  severity: ValidationSeverity;
+  message: string;
+  suggestion?: string;
+}
+
 export interface ValidationResult {
   valid: boolean;
   pattern?: EarsPattern;
-  errors: string[];
-  suggestions: string[];
+  issues: ValidationIssue[];
 }
 
 function isInArray<T extends readonly unknown[]>(

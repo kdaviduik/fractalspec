@@ -3,31 +3,49 @@
  */
 
 import { parseArgs } from 'util';
-import type { CommandHandler } from '../types';
+import type { CommandHandler, ValidationResult } from '../types';
 import type { CommandHelp } from '../help.js';
+import { dim } from '../help.js';
 import { findSpecFile, readAllSpecs } from '../spec-filesystem';
 import { validateSpecRequirements, extractRequirements } from '../ears/validation';
 
 function displayRequirementResult(
-  result: { valid: boolean; pattern?: string; errors: string[]; suggestions: string[] },
+  result: ValidationResult,
   requirement: string,
   index: number
 ): boolean {
-  const status = result.valid ? '✓' : '✗';
+  const errors = result.issues.filter((i) => i.severity === 'error');
+  const warnings = result.issues.filter((i) => i.severity === 'warning');
   const patternInfo = result.pattern ? ` (${result.pattern})` : '';
 
-  console.log(`\n${status} Requirement ${index + 1}${patternInfo}`);
-  console.log(`  "${requirement.slice(0, 60)}${requirement.length > 60 ? '...' : ''}"`);
+  if (errors.length > 0) {
+    console.log(`\n✗ Requirement ${index + 1}${patternInfo}`);
+    console.log(`  "${requirement.slice(0, 60)}${requirement.length > 60 ? '...' : ''}"`);
 
-  if (!result.valid) {
-    for (const error of result.errors) {
-      console.log(`  ⚠ ${error}`);
-    }
-    for (const suggestion of result.suggestions) {
-      console.log(`  → ${suggestion}`);
+    for (const error of errors) {
+      console.log(`  ❌ ${error.message}`);
+      if (error.suggestion) {
+        console.log(`     → ${error.suggestion}`);
+      }
     }
     return true;
   }
+
+  if (warnings.length > 0) {
+    console.log(`\n⚠ Requirement ${index + 1}${patternInfo}`);
+    console.log(`  "${requirement.slice(0, 60)}${requirement.length > 60 ? '...' : ''}"`);
+
+    for (const warning of warnings) {
+      console.log(`  ${dim(`⚠️  ${warning.message}`)}`);
+      if (warning.suggestion) {
+        console.log(`     ${dim(`→ ${warning.suggestion}`)}`);
+      }
+    }
+    return false;
+  }
+
+  console.log(`\n✓ Requirement ${index + 1}${patternInfo}`);
+  console.log(`  "${requirement.slice(0, 60)}${requirement.length > 60 ? '...' : ''}"`);
 
   return false;
 }
