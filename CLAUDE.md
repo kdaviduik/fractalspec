@@ -12,6 +12,51 @@ CLI tool for managing recursive specification documents using EARS (Easy Approac
 - **Blocks**: Dependency relationships (spec A blocks spec B = B cannot start until A is done)
 - **EARS**: Structured requirement syntax ensuring testable, unambiguous requirements
 
+## Installation & Setup
+
+### Prerequisites
+- [Bun](https://bun.sh) runtime
+
+### Installation
+
+```bash
+# Clone repository (or navigate to existing clone)
+cd /path/to/sc
+
+# Install dependencies
+bun install
+
+# Build CLI
+bun run build
+
+# Link for global usage
+bun link
+
+# Verify installation
+sc --help
+```
+
+### Development Setup
+
+```bash
+# Install dependencies
+bun install
+
+# Run tests
+bun run test
+
+# Run linter
+bun run lint
+
+# Type check
+bun run typecheck
+```
+
+**Configuration:**
+- Specs are stored in `docs/specs/` directory
+- Each spec lives in `<slug>-<id>/<slug>-<id>.md`
+- Worktrees are created at `../work-<id>/` (sibling to main worktree)
+
 ## Quick Start
 
 ```bash
@@ -96,8 +141,8 @@ blocks: []
 ## Requirements (EARS format)
 
 ### User Authentication
-1. When the user submits valid credentials, the system shall create a session.
-2. If authentication fails, then the system shall display an error message.
+1. When the user submits valid credentials, the authentication module shall create a session.
+2. If authentication fails, then the login UI shall display an error message.
 
 ## Tasks
 - [ ] Implementation task 1
@@ -166,7 +211,7 @@ The validator distinguishes between critical errors and style warnings:
 
 ### Core Behavior (Ubiquitous)
 1. Tier 1 shall encrypt all parsed data at rest using AES-256.
-2. The system shall log all authentication attempts.
+2. The audit logger shall log all authentication attempts.
 
 ### User Interactions (Event-driven)
 3. When the user clicks "Submit", the form validator shall check all 5 required fields.
@@ -275,6 +320,38 @@ bun run lint:fix
 
 # Type check
 bun run typecheck
+```
+
+## Testing
+
+### Framework
+This project uses Bun's built-in test runner.
+
+### Test Location
+Tests are co-located with source files: `src/foo.ts` → `src/foo.test.ts`
+
+### Running Tests
+
+```bash
+# Run all tests
+bun run test
+
+# Run specific test file
+bun test src/ears/validation.test.ts
+
+# Run tests in watch mode
+bun test --watch
+```
+
+### Testing Standards
+- **Unit tests:** Test individual functions in isolation
+- **Integration tests:** Test command execution end-to-end
+- **Validation tests:** Ensure EARS patterns catch all error cases
+
+### Coverage
+Run tests with coverage reporting:
+```bash
+bun test --coverage
 ```
 
 ## Critical Type Definitions

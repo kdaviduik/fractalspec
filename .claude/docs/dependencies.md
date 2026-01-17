@@ -51,11 +51,12 @@ Quick lookup: "I changed X, what docs do I update?"
 
 ## Status Values
 
-**Code**: src/types.ts Status type
+**Code**: src/types.ts Status type, src/commands/list.ts getStatusIcon() function
 
 **Docs to Update**:
 - CLAUDE.md - Status Values table
 - src/command-router.ts - Status descriptions in help
+- src/commands/list.ts - Help text icon legend, getStatusIcon() mapping
 - .claude/skills/sc-spec-workflow.md - Status-related workflow steps
 
 ## Help System
@@ -73,3 +74,41 @@ Quick lookup: "I changed X, what docs do I update?"
 **Docs to Update**:
 - CLAUDE.md - File Structure section
 - CLAUDE.md - Spec Format section
+
+## ID Generation
+
+**Code**: src/id-generation.ts
+
+**Docs to Update**:
+- CLAUDE.md - Spec Format section (6-character alphanumeric reference)
+- CLAUDE.md - File Structure section (references to ID format)
+- src/commands/create.ts - Help notes about ID generation
+
+## Git Operations & Worktree Management
+
+**Code**: src/git-operations.ts, src/claim-logic.ts, src/release-logic.ts
+
+**Docs to Update**:
+- CLAUDE.md - Worktree Convention section
+- CLAUDE.md - Agent Workflow section (Claiming & Working, Completing Work, Abandoning Work)
+- .claude/skills/sc-spec-workflow.md - Workflow steps
+- src/commands/claim.ts - Help text about worktree creation
+- src/commands/done.ts - Help text about cleanup
+- src/commands/release.ts - Help text about cleanup
+- src/command-router.ts - Global help WORKTREE WORKFLOW section
+
+## Spec Frontmatter Schema
+
+**Code**: src/types.ts - SpecFrontmatter interface
+
+**Docs to Update**:
+- CLAUDE.md - Spec Format section (Frontmatter Schema table)
+- .claude/skills/sc-spec-workflow.md - Any references to frontmatter fields
+
+## Archive Directory
+
+**Location**: docs/archive/
+
+**Status**: Historical design documents, not actively maintained.
+
+**Note**: Content in docs/archive/ is kept for reference but not updated with code changes.

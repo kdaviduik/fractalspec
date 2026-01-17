@@ -6,12 +6,12 @@
 import type { EarsPattern } from '../types';
 
 export const EARS_PATTERN_TEMPLATES = {
-  ubiquitous: 'The <system> shall <response>',
-  state_driven: 'While <state>, the <system> shall <response>',
-  event_driven: 'When <trigger>, the <system> shall <response>',
-  optional: 'Where <feature>, the <system> shall <response>',
-  unwanted: 'If <condition>, then the <system> shall <response>',
-  complex: 'While <state>, when <trigger>, the <system> shall <response>',
+  ubiquitous: '[component] shall <response>',
+  state_driven: 'While <state>, [component] shall <response>',
+  event_driven: 'When <trigger>, [component] shall <response>',
+  optional: 'Where <feature>, [component] shall <response>',
+  unwanted: 'If <condition>, then [component] shall <response>',
+  complex: 'While <state>, when <trigger>, [component] shall <response>',
 } as const;
 
 interface PatternMatcher {
