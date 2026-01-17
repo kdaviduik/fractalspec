@@ -4,6 +4,7 @@
  */
 
 import type { CommandHandler } from './types';
+import { bold, underline, dim, displayWithPager } from './help.js';
 
 interface CommandModule {
   command: CommandHandler;
@@ -38,35 +39,163 @@ export async function loadCommand(name: string): Promise<CommandHandler | null> 
 }
 
 export function printHelp(): void {
-  console.log(`sc - Spec management CLI
+  const helpText = `${bold('NAME')}
+  sc - Recursive specification management with EARS requirements
 
-Usage:
-  sc <command> [options]
+${bold('DESCRIPTION')}
+  sc manages hierarchical specifications where complex features decompose into
+  smaller, testable units. Each spec contains requirements in EARS format
+  (Easy Approach to Requirements Syntax) ensuring unambiguous, verifiable criteria.
 
-Commands:
-  create [--parent <id>]        Create a new spec
-  show <id>                     Display spec details
-  edit <id>                     Edit spec in $EDITOR
-  list [--ready|--tree|--status] List specs
-  claim <id>                    Claim spec for work
-  release <id>                  Release claimed spec
-  done <id>                     Mark spec as complete
-  deps add|remove|list <id>     Manage dependencies
-  validate [id] [--fix]         Validate EARS format
-  doctor [--fix]                Check repository health
-  ears <text>                   Convert text to EARS format
+  Specs form a tree through parent/child relationships and can have blocking
+  dependencies. The tool uses dedicated git worktrees for each active spec,
+  providing workspace isolation and preventing concurrent edits.
 
-Options:
-  --help, -h                    Show this help message
-  --version, -v                 Show version
+  Status transitions: ready → in_progress → closed
+  Blocked specs cannot start until their blockers are closed.
 
-Examples:
-  sc create                     Create root spec
-  sc create --parent a1b2       Create child spec
-  sc list --ready               Show specs available for work
-  sc claim a1b2                 Start working on spec
-  sc done a1b2                  Complete spec
-`);
+${bold('FILE STRUCTURE')}
+  docs/specs/<slug>-<id>/<slug>-<id>.md
+
+  Example:
+    docs/specs/user-auth-a1b2c3/user-auth-a1b2c3.md
+
+  Each spec is a markdown file with YAML frontmatter containing:
+    - id: 6-character alphanumeric identifier
+    - status: ready | in_progress | blocked | closed | deferred | not_planned
+    - parent: parent spec ID or null
+    - blocks: array of blocker spec IDs
+
+${bold('STATUS ICONS')}
+  ○  ready       - No blockers, available for work
+  ◐  in_progress - Currently being worked on
+  ⊘  blocked     - Waiting on dependencies
+  ●  closed      - Complete
+  ◇  deferred    - Postponed
+  ✕  not_planned - Will not implement
+
+${bold('WORKTREE WORKFLOW')}
+  When claiming a spec, sc creates a dedicated git worktree at:
+    ../work-<spec-id>/
+
+  This checks out branch work/<spec-id> in the worktree. To work:
+    1. sc claim <id>              # Creates worktree, sets in_progress
+    2. cd ../work-<id>            # Switch to work worktree
+    3. [do the work, commit]
+    4. cd ../main                 # Return to main worktree
+    5. sc done <id>               # Mark complete, remove worktree
+
+  IMPORTANT: Run 'sc done' or 'sc release' from outside the work worktree
+  (typically from ../main) for automatic cleanup. Running from inside the
+  work worktree will update status but require manual worktree removal.
+
+${bold('COMMANDS')}
+  ${underline('Discovery & Viewing')}
+    ${underline('list')}                   List all specs
+      --ready              Show only specs available for work (no blockers)
+      --tree               Display hierarchical tree view
+      --status             Show status count summary
+
+    ${underline('show')} ${dim('<id>')}              Display full spec details including metadata
+
+  ${underline('Workflow')}
+    ${underline('claim')} ${dim('<id>')}             Claim spec for work
+                           - Creates worktree at ../work-<id>/
+                           - Creates branch work/<id>
+                           - Sets status to in_progress
+
+    ${underline('release')} ${dim('<id>')}           Abandon work and reset to ready
+                           - Removes worktree and branch
+                           - Resets status to ready
+
+    ${underline('done')} ${dim('<id>')}              Mark spec complete
+                           - Removes worktree and branch
+                           - Sets status to closed
+
+  ${underline('Creation & Editing')}
+    ${underline('create')}                 Create new spec (interactive)
+      --parent ${dim('<id>')}, -p    Create as child of specified parent
+      --title ${dim('<text>')}, -t   Set spec title (skips prompt)
+
+    ${underline('edit')} ${dim('<id>')}              Open spec in $EDITOR (defaults to vim)
+
+  ${underline('Dependencies')}
+    ${underline('deps list')} ${dim('<id>')}         Show blockers and specs that this blocks
+    ${underline('deps add')} ${dim('<id> <blocker>')}    Add blocking dependency
+                           Semantics: <id> is blocked by <blocker>
+                           <id> cannot start until <blocker> is closed
+    ${underline('deps remove')} ${dim('<id> <blocker>')} Remove blocking dependency
+
+  ${underline('Validation & Health')}
+    ${underline('validate')} ${dim('[id]')}          Validate EARS requirement format
+                           No args: validate all specs
+                           With <id>: validate single spec
+      --fix                ${dim('(Planned)')} Auto-fix format issues
+
+    ${underline('doctor')}                 Check repository health
+                           - Detect orphaned parent references
+                           - Find circular dependencies
+                           - Identify missing blocker specs
+      --fix                Auto-fix orphans and missing blockers
+                           Exits with code 1 if issues found
+
+    ${underline('ears')} ${dim('[text]')}            EARS format reference and conversion
+                           No args: display pattern reference
+                           With text: detect pattern or suggest conversion
+
+${bold('EARS PATTERNS')}
+  Ubiquitous       The <system> shall <response>
+  Event-driven     When <trigger>, the <system> shall <response>
+  State-driven     While <state>, the <system> shall <response>
+  Optional         Where <feature>, the <system> shall <response>
+  Unwanted         If <condition>, then the <system> shall <response>
+  Complex          While <state>, when <trigger>, the <system> shall <response>
+
+  See 'sc ears' for full reference and conversion assistance.
+
+${bold('EXAMPLES')}
+  # Finding work
+  sc list --status              # Check overall project health
+  sc list --ready               # Show available work
+  sc list --tree                # Understand hierarchy
+
+  # Working on a spec
+  sc claim a1b2c3               # Claim and create worktree
+  cd ../work-a1b2c3             # Switch to work area
+  # ... do work, git commit ...
+  cd ../main                    # Return to main before done
+  sc done a1b2c3                # Complete and cleanup
+
+  # Creating specs
+  sc create                     # Create root spec (prompted for title)
+  sc create -t "User Auth"      # Create with title
+  sc create -p a1b2 -t "OAuth"  # Create child of a1b2
+
+  # Managing dependencies
+  sc deps add b3c4 a1b2         # b3c4 blocked by a1b2
+  sc deps list b3c4             # Show all blockers and dependents
+  sc deps remove b3c4 a1b2      # Remove dependency
+
+  # Validation
+  sc validate                   # Check all specs
+  sc validate a1b2c3            # Check single spec
+  sc ears "users can login"     # Get EARS format suggestion
+
+  # Repository health
+  sc doctor                     # Check for issues
+  sc doctor --fix               # Auto-repair where possible
+
+${bold('ENVIRONMENT')}
+  EDITOR    Text editor for 'sc edit' command (default: vim)
+
+${bold('EXIT CODES')}
+  0  Success
+  1  Error (invalid arguments, spec not found, validation failure, etc.)
+`;
+
+  displayWithPager(helpText).catch(() => {
+    console.log(helpText);
+  });
 }
 
 export function printVersion(): void {

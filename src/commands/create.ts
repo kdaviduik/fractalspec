@@ -5,6 +5,7 @@
 import { parseArgs } from 'util';
 import { join } from 'path';
 import type { CommandHandler, Spec } from '../types';
+import type { CommandHelp } from '../help.js';
 import { generateId } from '../id-generation';
 import {
   createSpecDirectory,
@@ -68,6 +69,44 @@ function generateSpecTemplate(title: string): string {
 export const command: CommandHandler = {
   name: 'create',
   description: 'Create a new spec',
+
+  getHelp(): CommandHelp {
+    return {
+      name: 'sc create',
+      synopsis: 'sc create [--parent <id>] [--title <text>]',
+      description: `Create a new spec with auto-generated ID and template content.
+
+Without --parent, creates a root-level spec.
+With --parent, creates a child spec in the hierarchy.
+
+The spec is created with status 'ready' and populated with a standard template
+including sections for Overview, Requirements (EARS format), and Tasks.`,
+      flags: [
+        {
+          flag: '--parent <id>, -p',
+          description: 'Create as child of specified parent spec',
+        },
+        {
+          flag: '--title <text>, -t',
+          description: 'Set spec title (skips interactive prompt)',
+        },
+      ],
+      examples: [
+        '# Create root spec (prompted for title)',
+        'sc create',
+        '',
+        '# Create with title',
+        'sc create -t "User Authentication"',
+        '',
+        '# Create child spec',
+        'sc create -p a1b2c3 -t "OAuth Implementation"',
+      ],
+      notes: [
+        'IDs are auto-generated as 6-character alphanumeric identifiers.',
+        'File structure: docs/specs/<slug>-<id>/<slug>-<id>.md',
+      ],
+    };
+  },
 
   async execute(args: string[]): Promise<number> {
     const { values } = parseArgs({

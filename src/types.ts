@@ -3,6 +3,8 @@
  * Defines spec statuses, EARS patterns, and document structures.
  */
 
+import type { CommandHelp } from './help.js';
+
 export const STATUSES = [
   'ready',
   'in_progress',
@@ -47,6 +49,7 @@ export interface CommandHandler {
   name: string;
   description: string;
   execute: (args: string[]) => Promise<number>;
+  getHelp?: () => CommandHelp;
 }
 
 export interface ClaimResult {

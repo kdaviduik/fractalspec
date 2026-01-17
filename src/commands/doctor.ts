@@ -4,6 +4,7 @@
 
 import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
+import type { CommandHelp } from '../help.js';
 import { readAllSpecs, writeSpec } from '../spec-filesystem';
 
 interface HealthIssue {
@@ -103,6 +104,39 @@ async function fixMissingBlocker(spec: Spec, specs: Spec[]): Promise<void> {
 export const command: CommandHandler = {
   name: 'doctor',
   description: 'Check repository health',
+
+  getHelp(): CommandHelp {
+    return {
+      name: 'sc doctor',
+      synopsis: 'sc doctor [--fix]',
+      description: `Check repository health and detect structural issues.
+
+Detects:
+  - Orphaned parent references (parent spec doesn't exist)
+  - Missing blockers (blocker spec doesn't exist)
+  - Circular dependencies (A blocks B, B blocks A)
+
+Circular dependencies cannot be auto-fixed and must be resolved manually.`,
+      flags: [
+        {
+          flag: '--fix',
+          description: 'Automatically fix orphaned parents and missing blockers',
+        },
+      ],
+      examples: [
+        '# Check for issues',
+        'sc doctor',
+        '',
+        '# Check and auto-fix where possible',
+        'sc doctor --fix',
+      ],
+      notes: [
+        'Exits with code 1 if any issues are found (even after --fix if unfixable issues remain).',
+        'Orphan fix: Sets parent to null, making the spec a root.',
+        'Missing blocker fix: Removes the invalid blocker ID from the blocks array.',
+      ],
+    };
+  },
 
   async execute(args: string[]): Promise<number> {
     const { values } = parseArgs({

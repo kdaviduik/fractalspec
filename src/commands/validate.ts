@@ -4,6 +4,7 @@
 
 import { parseArgs } from 'util';
 import type { CommandHandler } from '../types';
+import type { CommandHelp } from '../help.js';
 import { findSpecFile, readAllSpecs } from '../spec-filesystem';
 import { validateSpecRequirements, extractRequirements } from '../ears/validation';
 
@@ -34,6 +35,39 @@ function displayRequirementResult(
 export const command: CommandHandler = {
   name: 'validate',
   description: 'Validate EARS format',
+
+  getHelp(): CommandHelp {
+    return {
+      name: 'sc validate',
+      synopsis: 'sc validate [id] [--fix]',
+      description: `Validate requirement statements against EARS format patterns.
+
+Without arguments: validates all specs in the repository.
+With <id>: validates a single spec and shows detailed errors.
+
+Checks that each requirement matches one of the six EARS patterns:
+  - Ubiquitous, Event-driven, State-driven, Optional, Unwanted, Complex
+
+Reports validation errors and suggests corrections.`,
+      flags: [
+        {
+          flag: '--fix',
+          description: '(Planned) Auto-fix format issues where possible',
+        },
+      ],
+      examples: [
+        '# Validate all specs',
+        'sc validate',
+        '',
+        '# Validate single spec with detailed output',
+        'sc validate a1b2c3',
+      ],
+      notes: [
+        'Exits with code 1 if any validation errors are found.',
+        'Use "sc ears" to see pattern reference and get conversion help.',
+      ],
+    };
+  },
 
   async execute(args: string[]): Promise<number> {
     const { values, positionals } = parseArgs({

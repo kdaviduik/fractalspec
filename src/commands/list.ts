@@ -4,6 +4,7 @@
 
 import { parseArgs } from 'util';
 import type { CommandHandler } from '../types';
+import type { CommandHelp } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
 import { findReadySpecs, getStatusSummary } from '../spec-query';
@@ -12,6 +13,49 @@ import { getWorkWorktreePath } from '../git-operations';
 export const command: CommandHandler = {
   name: 'list',
   description: 'List specs',
+
+  getHelp(): CommandHelp {
+    return {
+      name: 'sc list',
+      synopsis: 'sc list [--ready | --tree | --status]',
+      description: `List specs in various formats. By default, shows all specs with status icons.
+
+Status icons:
+  ○  ready       - No blockers, available for work
+  ◐  in_progress - Currently being worked on
+  ⊘  blocked     - Waiting on dependencies
+  ●  closed      - Complete
+  ◇  deferred    - Postponed
+  ✕  not_planned - Will not implement`,
+      flags: [
+        {
+          flag: '--ready',
+          description: 'Show only specs available for work (no blockers, status is ready)',
+        },
+        {
+          flag: '--tree',
+          description: 'Display hierarchical tree view showing parent-child relationships',
+        },
+        {
+          flag: '--status',
+          description: 'Show status count summary across all specs',
+        },
+      ],
+      examples: [
+        '# See all specs with status icons',
+        'sc list',
+        '',
+        '# Find available work',
+        'sc list --ready',
+        '',
+        '# Understand hierarchy',
+        'sc list --tree',
+        '',
+        '# Check overall project health',
+        'sc list --status',
+      ],
+    };
+  },
 
   async execute(args: string[]): Promise<number> {
     const { values } = parseArgs({

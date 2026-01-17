@@ -278,3 +278,351 @@ interface SpecFrontmatter {
   blocks: string[];
 }
 ```
+
+## Help System Standards
+
+The `sc` help system provides git-quality, self-documenting CLI help. When adding or updating commands, **you MUST implement and test comprehensive help documentation**.
+
+### Architecture Overview
+
+**Help Infrastructure** (`src/help.ts`):
+- `CommandHelp` interface defines help content structure
+- `SubcommandHelp` interface for commands with subcommands (e.g., `deps`)
+- ANSI formatting utilities: `bold()`, `underline()`, `dim()`
+- Automatic pager support via `displayWithPager()` (uses `less -R`)
+- Formatting utilities for sections, flags, and subcommands
+
+**Command Interface** (`src/types.ts`):
+```typescript
+interface CommandHandler {
+  name: string;
+  description: string;
+  execute: (args: string[]) => Promise<number>;
+  getHelp?: () => CommandHelp;  // Required for all commands
+}
+```
+
+**Help Detection** (`src/cli.ts`):
+- Detects `--help` and `-h` at any argument position
+- Supports both command help (`sc claim --help`) and subcommand help (`sc deps add --help`)
+- Falls back gracefully for commands without `getHelp()`
+
+### Requirements for New/Updated Commands
+
+#### 1. Implement `getHelp()` Method
+
+**Every command MUST provide a `getHelp()` method** that returns a `CommandHelp` object:
+
+```typescript
+import type { CommandHelp } from '../help.js';
+import { printCommandUsage } from '../help.js';
+
+export const command: CommandHandler = {
+  name: 'example',
+  description: 'Short one-line description',
+
+  getHelp(): CommandHelp {
+    return {
+      name: 'sc example',
+      synopsis: 'sc example <required> [optional] [--flag]',
+      description: `Detailed multi-line description.
+
+  Explain what the command does, when to use it, and its effects.
+  Use proper indentation for readability.`,
+
+      flags: [
+        {
+          flag: '--flag, -f',
+          description: 'What this flag does and when to use it',
+        },
+      ],
+
+      examples: [
+        '# Use case description',
+        'sc example foo',
+        '',
+        '# Another use case',
+        'sc example bar --flag',
+      ],
+
+      notes: [
+        'Important behavioral detail users should know.',
+        'Edge cases, cleanup requirements, or critical warnings.',
+      ],
+    };
+  },
+
+  async execute(args: string[]): Promise<number> {
+    // Use printCommandUsage for consistent error messages
+    if (!args[0]) {
+      printCommandUsage(this.getHelp!());
+      return 1;
+    }
+    // ... implementation
+  },
+};
+```
+
+#### 2. Commands with Subcommands
+
+For commands like `deps` with multiple subcommands, include `subcommands` in the help:
+
+```typescript
+getHelp(): CommandHelp {
+  return {
+    name: 'sc example',
+    synopsis: 'sc example <add|remove|list> <args>',
+    description: 'Manage example resources.',
+
+    subcommands: {
+      add: {
+        synopsis: 'sc example add <name> <value>',
+        description: 'Add a new example resource.',
+        examples: ['sc example add foo bar'],
+      },
+      remove: {
+        synopsis: 'sc example remove <name>',
+        description: 'Remove an example resource.',
+        examples: ['sc example remove foo'],
+      },
+      list: {
+        synopsis: 'sc example list',
+        description: 'List all example resources.',
+        examples: ['sc example list'],
+      },
+    },
+
+    examples: [
+      '# Add resource',
+      'sc example add myname myvalue',
+      '',
+      '# List all',
+      'sc example list',
+    ],
+  };
+},
+```
+
+Then in `execute()`, use subcommand-specific usage strings:
+
+```typescript
+async execute(args: string[]): Promise<number> {
+  const subcommand = args[0];
+
+  if (!subcommand) {
+    printCommandUsage(this.getHelp!());
+    return 1;
+  }
+
+  switch (subcommand) {
+    case 'add': {
+      if (!args[1] || !args[2]) {
+        const help = this.getHelp!();
+        console.error(`Usage: ${help.subcommands!['add'].synopsis}`);
+        return 1;
+      }
+      // ... implementation
+    }
+    // ... other cases
+  }
+}
+```
+
+### Content Standards
+
+#### Synopsis Format
+
+Use standard POSIX conventions:
+- `<required>` - Required argument
+- `[optional]` - Optional argument
+- `--flag` - Flag (boolean or with value)
+- `<choice1|choice2>` - Mutually exclusive choices
+- Use `dim()` formatting for optional parts in formatted output (handled automatically)
+
+#### Description Content
+
+**What to include:**
+1. **Primary purpose** - What the command does in 1-2 sentences
+2. **Effects** - What changes in the system (status updates, file operations, etc.)
+3. **Prerequisites** - What must be true before running (e.g., "spec must be claimed")
+4. **When to use** - Guidance on appropriate usage scenarios
+
+**Example:**
+```typescript
+description: `Claim a spec and prepare it for work. This command:
+  - Sets the spec status to 'in_progress'
+  - Creates a dedicated git worktree at ../work-<id>/
+  - Creates and checks out branch work/<id> in that worktree
+  - Ensures exclusive access (git prevents same branch in multiple worktrees)
+
+After claiming, switch to the work worktree to begin implementation.`
+```
+
+#### Examples Content
+
+**Guidelines:**
+- Group examples by use case with comment headers
+- Use realistic IDs (e.g., `a1b2c3`, not `foo`)
+- Show complete workflows, not just isolated commands
+- Include blank lines between distinct use cases for readability
+- Show both simple and complex usage patterns
+
+**Example:**
+```typescript
+examples: [
+  '# Basic usage',
+  'sc example a1b2c3',
+  '',
+  '# With optional flag',
+  'sc example a1b2c3 --verbose',
+  '',
+  '# Complete workflow',
+  'sc example create foo',
+  'sc example show foo',
+  'sc example delete foo',
+]
+```
+
+#### Notes Content
+
+**When to use notes:**
+- Critical warnings (data loss, destructive operations)
+- Important behavioral details not obvious from description
+- Cleanup requirements (e.g., "run from main worktree")
+- Edge cases that affect usage
+- Cross-references to related commands
+
+**Don't include:**
+- Implementation details users don't need
+- Redundant information already in description
+- Obvious statements
+
+### ANSI Formatting Standards
+
+The help system uses ANSI escape codes for improved readability:
+
+**Automatic formatting** (handled by help utilities):
+- Section headers (NAME, DESCRIPTION, etc.) → `bold()`
+- Command names in COMMANDS section → `underline()`
+- Optional parameters in synopsis → `dim()`
+
+**Respects user preferences:**
+- Checks `NO_COLOR` environment variable
+- Gracefully degrades when colors disabled
+- Preserves formatting through pager (`less -R`)
+
+**Don't manually add ANSI codes** - use the formatting functions:
+```typescript
+import { bold, underline, dim } from '../help.js';
+
+// Good
+const text = `${bold('SECTION')} ${underline('command')} ${dim('[optional]')}`;
+
+// Bad - don't hardcode escape sequences
+const text = '\x1b[1mSECTION\x1b[0m';
+```
+
+### Pager Behavior
+
+The `displayWithPager()` function automatically:
+- Detects if stdout is a TTY
+- Counts content lines vs terminal height
+- Pipes through `less -R` if content exceeds screen height
+- Skips pager when output is piped or redirected
+- Gracefully falls back if `less` unavailable
+
+**You don't need to handle paging manually** - it's automatic in `printCommandHelp()` and global `printHelp()`.
+
+### Testing Requirements
+
+**When adding or updating a command, you MUST test:**
+
+1. **Command help**: `bun run src/cli.ts <command> --help`
+   - Verify all sections present (synopsis, description, examples, etc.)
+   - Check formatting renders correctly
+   - Ensure content is accurate and complete
+
+2. **Subcommand help** (if applicable): `bun run src/cli.ts <command> <subcommand> --help`
+   - Verify subcommand-specific help displays
+   - Check synopsis is correct for that subcommand
+
+3. **Short flag**: `bun run src/cli.ts <command> -h`
+   - Same output as `--help`
+
+4. **Usage on error**: `bun run src/cli.ts <command>` (missing required args)
+   - Should print usage string and exit with code 1
+   - Usage should match synopsis from `getHelp()`
+
+5. **Pager behavior**:
+   - TTY output: Long help should automatically page
+   - Piped output: `bun run src/cli.ts <command> --help | cat` should skip pager
+
+**Test checklist example:**
+```bash
+# Test command help
+bun run src/cli.ts mycommand --help
+bun run src/cli.ts mycommand -h
+
+# Test subcommand help (if applicable)
+bun run src/cli.ts mycommand add --help
+bun run src/cli.ts mycommand remove --help
+
+# Test usage on error
+bun run src/cli.ts mycommand  # Should show usage
+
+# Test pager skip when piped
+bun run src/cli.ts mycommand --help | cat
+```
+
+### Global Help Maintenance
+
+When adding a new command, update `printHelp()` in `src/command-router.ts`:
+
+1. Add command to appropriate section (Discovery, Workflow, Creation, etc.)
+2. Include command name with `underline()` formatting
+3. Add synopsis with required/optional args using `dim()` for optional parts
+4. Include brief description of primary flags (if any)
+5. Add example usage in EXAMPLES section
+6. Keep consistent indentation and spacing
+
+**Example addition:**
+```typescript
+  ${underline('Validation & Health')}
+    ${underline('mycommand')} ${dim('[id]')}         Check something useful
+                           No args: check all
+                           With <id>: check specific item
+      --fix                Auto-fix issues found
+```
+
+### Design Decisions Reference
+
+**Why these choices:**
+
+1. **Pager by default** - Matches git behavior; long help is readable without scrolling
+2. **ANSI formatting** - Improves scannability; respects NO_COLOR for accessibility
+3. **Subcommand help** - `sc deps add --help` is more discoverable than reading full `sc deps --help`
+4. **Consistent usage errors** - `printCommandUsage()` ensures errors match help docs
+5. **Separation of content and presentation** - `CommandHelp` data can later generate man pages, JSON, web docs
+
+**Reference implementations:**
+
+Study these commands for patterns:
+- **Simple command**: `show`, `edit` - basic help with examples
+- **Command with flags**: `list` - multiple mutually exclusive flags
+- **Command with subcommands**: `deps` - hierarchical help structure
+- **Workflow command**: `claim`, `done`, `release` - critical notes about cleanup
+
+### Quick Checklist for New Commands
+
+- [ ] Implement `getHelp()` method returning `CommandHelp`
+- [ ] Import `printCommandUsage` from `help.js`
+- [ ] Replace hardcoded usage strings with `printCommandUsage(this.getHelp!())`
+- [ ] Include all help sections: synopsis, description, examples
+- [ ] Add flags section if command has flags
+- [ ] Add subcommands section if command has subcommands
+- [ ] Add notes section for critical warnings or edge cases
+- [ ] Update `printHelp()` in `command-router.ts` with new command
+- [ ] Test `--help`, `-h`, and usage-on-error behavior
+- [ ] Test subcommand help if applicable
+- [ ] Verify paging works for long output
+- [ ] Check that piped output skips pager

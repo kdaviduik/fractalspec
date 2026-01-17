@@ -5,6 +5,7 @@
  */
 
 import { loadCommand, printHelp, printVersion } from './command-router';
+import { printCommandHelp, printSubcommandHelp } from './help.js';
 
 async function main(): Promise<number> {
   const args = process.argv.slice(2);
@@ -22,6 +23,39 @@ async function main(): Promise<number> {
   const commandName = args[0];
   if (!commandName) {
     printHelp();
+    return 0;
+  }
+
+  // Check for help flags at any position
+  const helpIndex = args.findIndex(arg => arg === '--help' || arg === '-h');
+
+  if (helpIndex !== -1) {
+    const command = await loadCommand(commandName);
+
+    if (!command) {
+      console.error(`Unknown command: ${commandName}`);
+      console.error('Run "sc --help" for usage information.');
+      return 1;
+    }
+
+    if (command.getHelp) {
+      const help = command.getHelp();
+
+      // Check for subcommand help (e.g., sc deps add --help)
+      const subcommand = helpIndex > 1 ? args[1] : undefined;
+
+      if (subcommand && help.subcommands?.[subcommand]) {
+        printSubcommandHelp(commandName, subcommand, help.subcommands[subcommand]);
+        return 0;
+      }
+
+      // Show full command help
+      printCommandHelp(help);
+      return 0;
+    }
+
+    // Fallback for commands without getHelp()
+    console.log(`Usage: sc ${commandName} ...`);
     return 0;
   }
 

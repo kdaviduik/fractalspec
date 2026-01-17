@@ -3,6 +3,7 @@
  */
 
 import type { CommandHandler } from '../types';
+import type { CommandHelp } from '../help.js';
 import { detectEarsPattern, EARS_PATTERN_TEMPLATES } from '../ears/patterns';
 import { convertToEars } from '../ears/conversion';
 
@@ -58,6 +59,36 @@ function displayPatternSuggestions(text: string): void {
 export const command: CommandHandler = {
   name: 'ears',
   description: 'Convert text to EARS format',
+
+  getHelp(): CommandHelp {
+    return {
+      name: 'sc ears',
+      synopsis: 'sc ears [text]',
+      description: `EARS format reference and conversion tool.
+
+Without arguments: displays the six EARS patterns with templates.
+With text: detects if text is already in EARS format, or suggests conversion.
+
+EARS (Easy Approach to Requirements Syntax) ensures requirements are:
+  - Unambiguous (single interpretation)
+  - Testable (can verify compliance)
+  - Complete (specifies trigger and response)`,
+      examples: [
+        '# Show EARS pattern reference',
+        'sc ears',
+        '',
+        '# Convert informal text to EARS',
+        'sc ears "users can login with email"',
+        '',
+        '# Check if already in EARS format',
+        'sc ears "When the user clicks submit, the system shall validate all fields"',
+      ],
+      notes: [
+        'The conversion uses AI to suggest EARS-formatted requirements.',
+        'Always review suggested conversions for accuracy and completeness.',
+      ],
+    };
+  },
 
   async execute(args: string[]): Promise<number> {
     const text = args.join(' ');
