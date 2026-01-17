@@ -44,9 +44,9 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc claim <id>` | Claim spec, set to `in_progress`, create branch | `sc claim ABC123` |
-| `sc done <id>` | Mark complete, set to `closed`, delete branch | `sc done ABC123` |
-| `sc release <id>` | Abandon work, reset to `ready`, delete branch | `sc release ABC123` |
+| `sc claim <id>` | Claim spec, set to `in_progress`, create worktree | `sc claim ABC123` |
+| `sc done <id>` | Mark complete, set to `closed`, remove worktree | `sc done ABC123` |
+| `sc release <id>` | Abandon work, reset to `ready`, remove worktree | `sc release ABC123` |
 
 ### Creation & Editing
 
@@ -124,6 +124,17 @@ blocks: []
 | `deferred` | ◇ | Postponed |
 | `not_planned` | ✕ | Will not be implemented |
 
+## Worktree Convention
+
+When you claim a spec, `sc` creates a dedicated git worktree for that work:
+
+- **Location**: `../work-<spec-id>/` (sibling to the main worktree)
+- **Branch**: `work/<spec-id>` (checked out in the worktree)
+- **Isolation**: Git prevents the same branch from being checked out in multiple worktrees, ensuring exclusive access
+- **Cleanup**: Running `sc done` or `sc release` from outside the work worktree automatically removes both the worktree and branch
+
+**Best Practice**: Always return to the main worktree (`cd ../main`) before running `sc done` or `sc release` for automatic cleanup.
+
 ## EARS Patterns
 
 EARS (Easy Approach to Requirements Syntax) ensures requirements are testable and unambiguous. Each pattern has a specific structure.
@@ -179,31 +190,44 @@ sc list --tree
 ### Claiming & Working
 
 ```bash
-# 1. Claim the spec (creates work/<id> branch, sets status to in_progress)
+# 1. Claim the spec (creates worktree at ../work-ABC123, sets status to in_progress)
 sc claim ABC123
 
-# 2. Switch to the work branch
-git checkout work/ABC123
+# 2. Switch to the work worktree
+cd ../work-ABC123
 
 # 3. Do the work...
 
 # 4. Commit changes
 git add . && git commit -m "feat: implement feature per ABC123"
+
+# 5. Return to main worktree when done working
+cd ../main
 ```
 
 ### Completing Work
 
 ```bash
-# Mark complete (sets status to closed, deletes work branch)
+# Make sure you're in the main worktree (not inside ../work-ABC123)
+cd ../main
+
+# Mark complete (sets status to closed, removes worktree)
 sc done ABC123
 ```
+
+**Note:** If you run `sc done` from inside the work worktree, the branch will be deleted and status updated, but you'll need to manually clean up the worktree directory after returning to main.
 
 ### Abandoning Work
 
 ```bash
-# Release back to pool (resets to ready, deletes work branch)
+# Make sure you're in the main worktree (not inside ../work-ABC123)
+cd ../main
+
+# Release back to pool (resets to ready, removes worktree)
 sc release ABC123
 ```
+
+**Note:** Same as above—run from the main worktree for automatic cleanup.
 
 ## File Structure
 

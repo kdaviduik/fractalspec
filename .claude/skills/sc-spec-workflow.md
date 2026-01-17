@@ -16,10 +16,10 @@ Pick a spec with no blockers. If unsure which to prioritize, check the tree view
 
 ```bash
 sc claim <spec-id>
-git checkout work/<spec-id>
+cd ../work-<spec-id>
 ```
 
-This sets status to `in_progress` and creates a dedicated branch.
+This sets status to `in_progress` and creates a dedicated worktree at `../work-<spec-id>`.
 
 ### 3. Understand Requirements
 
@@ -49,10 +49,11 @@ bun run lint           # No lint errors
 ### 6. Complete
 
 ```bash
+cd ../main  # Make sure you're in the main worktree
 sc done <spec-id>
 ```
 
-This sets status to `closed` and cleans up the work branch.
+This sets status to `closed` and removes the work worktree. **Important:** Run this from the main worktree for automatic cleanup.
 
 ## Writing EARS Requirements
 
@@ -100,6 +101,9 @@ Use `sc doctor --fix` to auto-repair orphans and missing blockers.
 
 ## Common Pitfalls
 
+### Always Return to Main Worktree Before Done/Release
+Before running `sc done` or `sc release`, make sure you're in the main worktree (`cd ../main`). If you run these commands from inside the work worktree, the branch will be deleted and status updated, but you'll need to manually clean up the worktree directory.
+
 ### Don't Skip Claiming
 Always `sc claim` before starting work. This prevents conflicts and tracks work in progress.
 
@@ -118,9 +122,9 @@ sc deps list <spec-id>
 ### Validate Early
 Run `sc validate` before marking complete. Invalid EARS requirements indicate unclear specifications.
 
-## Branch Convention
+## Worktree Convention
 
-When you claim a spec, `sc` creates a branch named `work/<spec-id>`. Always work on this branch. The branch is automatically deleted when you run `sc done` or `sc release`.
+When you claim a spec, `sc` creates a dedicated git worktree at `../work-<spec-id>` with branch `work/<spec-id>`. Always work in this worktree. The worktree and branch are automatically removed when you run `sc done` or `sc release` from the main worktree.
 
 ## See Also
 
