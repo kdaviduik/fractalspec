@@ -184,22 +184,18 @@ function usePager(content: string): Promise<void> {
   });
 }
 
-export function printCommandHelp(help: CommandHelp): void {
+export async function printCommandHelp(help: CommandHelp): Promise<void> {
   const formatted = formatCommandHelp(help);
-  displayWithPager(formatted).catch(() => {
-    console.log(formatted);
-  });
+  await displayWithPager(formatted);
 }
 
-export function printSubcommandHelp(
+export async function printSubcommandHelp(
   commandName: string,
   subcommandName: string,
   help: SubcommandHelp
-): void {
+): Promise<void> {
   const formatted = formatSubcommandHelp(commandName, subcommandName, help);
-  displayWithPager(formatted).catch(() => {
-    console.log(formatted);
-  });
+  await displayWithPager(formatted);
 }
 
 export function printCommandUsage(help: CommandHelp): void {

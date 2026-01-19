@@ -11,7 +11,7 @@ async function main(): Promise<number> {
   const args = process.argv.slice(2);
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-    printHelp();
+    await printHelp();
     return 0;
   }
 
@@ -22,7 +22,7 @@ async function main(): Promise<number> {
 
   const commandName = args[0];
   if (!commandName) {
-    printHelp();
+    await printHelp();
     return 0;
   }
 
@@ -45,12 +45,12 @@ async function main(): Promise<number> {
       const subcommand = helpIndex > 1 ? args[1] : undefined;
 
       if (subcommand && help.subcommands?.[subcommand]) {
-        printSubcommandHelp(commandName, subcommand, help.subcommands[subcommand]);
+        await printSubcommandHelp(commandName, subcommand, help.subcommands[subcommand]);
         return 0;
       }
 
       // Show full command help
-      printCommandHelp(help);
+      await printCommandHelp(help);
       return 0;
     }
 

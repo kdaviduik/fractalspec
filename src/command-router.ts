@@ -38,7 +38,7 @@ export async function loadCommand(name: string): Promise<CommandHandler | null> 
   return module.command;
 }
 
-export function printHelp(): void {
+export async function printHelp(): Promise<void> {
   const helpText = `${bold('NAME')}
   sc - Recursive specification management with EARS requirements
 
@@ -195,9 +195,7 @@ ${bold('EXIT CODES')}
   1  Error (invalid arguments, spec not found, validation failure, etc.)
 `;
 
-  displayWithPager(helpText).catch(() => {
-    console.log(helpText);
-  });
+  await displayWithPager(helpText);
 }
 
 export function printVersion(): void {
