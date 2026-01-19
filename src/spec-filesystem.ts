@@ -8,15 +8,19 @@ import { join, basename, dirname } from 'path';
 import { parseSpec } from './spec-parser';
 import { serializeSpec } from './spec-serializer';
 import type { Spec } from './types';
+import { findGitRoot } from './git-operations';
 
-let specsRoot = 'docs/specs';
+let cachedSpecsRoot: string | null = null;
 
-export function getSpecsRoot(): string {
-  return specsRoot;
+export async function getSpecsRoot(): Promise<string> {
+  if (cachedSpecsRoot) return cachedSpecsRoot;
+  const gitRoot = await findGitRoot();
+  cachedSpecsRoot = join(gitRoot, 'docs', 'specs');
+  return cachedSpecsRoot;
 }
 
 export function setSpecsRoot(path: string): void {
-  specsRoot = path;
+  cachedSpecsRoot = path;
 }
 
 export async function createSpecDirectory(
@@ -26,7 +30,7 @@ export async function createSpecDirectory(
 ): Promise<string> {
   const dirName = `${slug}-${id}`;
 
-  let basePath = specsRoot;
+  let basePath = await getSpecsRoot();
   if (parentId) {
     const allSpecs = await readAllSpecs();
     const parent = allSpecs.find((s) => s.id === parentId);
@@ -75,7 +79,8 @@ async function findSpecFilesRecursive(dir: string): Promise<string[]> {
 }
 
 export async function readAllSpecs(): Promise<Spec[]> {
-  const specFiles = await findSpecFilesRecursive(specsRoot);
+  const specsRootPath = await getSpecsRoot();
+  const specFiles = await findSpecFilesRecursive(specsRootPath);
   const specs: Spec[] = [];
 
   for (const filePath of specFiles) {

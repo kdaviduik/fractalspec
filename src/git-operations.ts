@@ -38,6 +38,15 @@ async function runGit(args: string[]): Promise<string> {
   return stdout.trim();
 }
 
+let cachedGitRoot: string | null = null;
+
+export async function findGitRoot(): Promise<string> {
+  if (cachedGitRoot) return cachedGitRoot;
+  const gitRoot = await runGit(['rev-parse', '--show-toplevel']);
+  cachedGitRoot = gitRoot;
+  return cachedGitRoot;
+}
+
 export function getWorkBranchName(specId: string): string {
   return `work/${specId}`;
 }
@@ -144,6 +153,7 @@ export async function removeWorktree(path: string, force?: boolean): Promise<voi
   await runGit(args);
 }
 
-export function getWorkWorktreePath(specId: string): string {
-  return `../work-${specId}`;
+export async function getWorkWorktreePath(specId: string): Promise<string> {
+  const gitRoot = await findGitRoot();
+  return resolve(gitRoot, '..', `work-${specId}`);
 }

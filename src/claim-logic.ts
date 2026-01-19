@@ -23,7 +23,7 @@ export async function isSpecClaimed(specId: string): Promise<boolean> {
 
 export async function claimSpec(spec: Spec): Promise<ClaimResult> {
   const branchName = getWorkBranchName(spec.id);
-  const worktreePath = getWorkWorktreePath(spec.id);
+  const worktreePath = await getWorkWorktreePath(spec.id);
 
   const alreadyClaimed = await isSpecClaimed(spec.id);
   if (alreadyClaimed) {
@@ -59,7 +59,7 @@ export async function claimSpec(spec: Spec): Promise<ClaimResult> {
 
 async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed'): Promise<void> {
   const branchName = getWorkBranchName(spec.id);
-  const worktreePath = getWorkWorktreePath(spec.id);
+  const worktreePath = await getWorkWorktreePath(spec.id);
 
   const worktree = await findWorktreeByBranch(branchName);
   if (!worktree) {

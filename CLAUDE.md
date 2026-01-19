@@ -53,9 +53,9 @@ bun run typecheck
 ```
 
 **Configuration:**
-- Specs are stored in `docs/specs/` directory
+- Specs are stored in `docs/specs/` directory (resolved from git repository root)
 - Each spec lives in `<slug>-<id>/<slug>-<id>.md`
-- Worktrees are created at `../work-<id>/` (sibling to main worktree)
+- Worktrees are created at `<repo-root>/../work-<id>/` (sibling to repository root)
 
 ## Quick Start
 
@@ -177,12 +177,13 @@ blocks: []
 
 When you claim a spec, `sc` creates a dedicated git worktree for that work:
 
-- **Location**: `../work-<spec-id>/` (sibling to the main worktree)
+- **Location**: `<repo-root>/../work-<spec-id>/` (sibling to repository root)
 - **Branch**: `work/<spec-id>` (checked out in the worktree)
 - **Isolation**: Git prevents the same branch from being checked out in multiple worktrees, ensuring exclusive access
-- **Cleanup**: Running `sc done` or `sc release` from outside the work worktree automatically removes both the worktree and branch
+- **Cleanup**: Running `sc done` or `sc release` automatically removes both the worktree and branch
+- **Command execution**: Commands can be run from any directory in the repository
 
-**Best Practice**: Always return to the main worktree (`cd ../main`) before running `sc done` or `sc release` for automatic cleanup.
+**Note**: If you run `sc done` or `sc release` from inside the work worktree being removed, you will be left in a deleted directory. Navigate elsewhere if this happens.
 
 ## EARS Patterns
 
@@ -254,7 +255,7 @@ sc list --tree
 ### Claiming & Working
 
 ```bash
-# 1. Claim the spec (creates worktree at ../work-ABC123, sets status to in_progress)
+# 1. Claim the spec (creates worktree as sibling to repo root)
 sc claim ABC123
 
 # 2. Switch to the work worktree
@@ -272,26 +273,22 @@ cd ../main
 ### Completing Work
 
 ```bash
-# Make sure you're in the main worktree (not inside ../work-ABC123)
-cd ../main
-
 # Mark complete (sets status to closed, removes worktree)
+# Can be run from any directory in the repository
 sc done ABC123
 ```
 
-**Note:** If you run `sc done` from inside the work worktree, the branch will be deleted and status updated, but you'll need to manually clean up the worktree directory after returning to main.
+**Note:** If run from inside the work worktree being removed, you will be left in a deleted directory. Navigate to a different directory afterward if needed.
 
 ### Abandoning Work
 
 ```bash
-# Make sure you're in the main worktree (not inside ../work-ABC123)
-cd ../main
-
 # Release back to pool (resets to ready, removes worktree)
+# Can be run from any directory in the repository
 sc release ABC123
 ```
 
-**Note:** Same as above—run from the main worktree for automatic cleanup.
+**Note:** If run from inside the work worktree being removed, you will be left in a deleted directory. Navigate to a different directory afterward if needed.
 
 ## File Structure
 
@@ -584,8 +581,8 @@ examples: [
 **When to use notes:**
 - Critical warnings (data loss, destructive operations)
 - Important behavioral details not obvious from description
-- Cleanup requirements (e.g., "run from main worktree")
-- Edge cases that affect usage
+- Edge cases (e.g., "running from inside work worktree")
+- Cleanup or post-operation guidance when relevant
 - Cross-references to related commands
 
 **Don't include:**

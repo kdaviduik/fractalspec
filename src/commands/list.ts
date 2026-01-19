@@ -116,7 +116,11 @@ Status icons:
     console.log('═════════');
     for (const spec of specs) {
       const statusIcon = getStatusIcon(spec.status);
-      const suffix = spec.status === 'in_progress' ? ` [${getWorkWorktreePath(spec.id)}]` : '';
+      let suffix = '';
+      if (spec.status === 'in_progress') {
+        const worktreePath = await getWorkWorktreePath(spec.id);
+        suffix = ` [${worktreePath}]`;
+      }
       console.log(`  ${statusIcon} ${spec.id}  ${spec.title}${suffix}`);
     }
 

@@ -36,8 +36,8 @@ afterEach(async () => {
 });
 
 describe('getSpecsRoot and setSpecsRoot', () => {
-  test('returns configured specs root', () => {
-    expect(getSpecsRoot()).toBe(specsDir);
+  test('returns configured specs root', async () => {
+    expect(await getSpecsRoot()).toBe(specsDir);
   });
 });
 

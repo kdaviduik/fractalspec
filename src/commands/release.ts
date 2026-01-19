@@ -19,17 +19,18 @@ export const command: CommandHandler = {
       description: `Abandon work on a claimed spec and make it available again. This command:
   - Resets the spec status to 'ready'
   - Deletes the work branch work/<id>
-  - Removes the worktree at ../work-<id>/
+  - Removes the worktree (relative to repository root, as sibling to repo)
 
-Use this when you need to stop working on a spec without completing it.`,
+Use this when you need to stop working on a spec without completing it.
+Commands can be run from any directory in the repository.`,
       examples: [
-        '# Abandon work and reset spec',
-        'cd ../main              # Return to main worktree first',
-        'sc release a1b2c3       # Reset and cleanup',
+        '# Abandon work and reset spec from anywhere in repo',
+        'sc release a1b2c3',
       ],
       notes: [
-        'IMPORTANT: Run this command from the main worktree (not from inside ../work-<id>) for automatic cleanup.',
+        'Commands work from any directory in the repository.',
         'Uncommitted work in the worktree will be lost. Commit changes to preserve them before releasing.',
+        'If run from inside the work worktree being removed, you will be left in a deleted directory after cleanup.',
       ],
     };
   },

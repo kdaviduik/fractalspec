@@ -1,10 +1,13 @@
 import { describe, expect, test, afterEach } from 'bun:test';
+import { resolve } from 'path';
 import {
   branchExists,
   createBranch,
   deleteBranch,
   getCurrentBranch,
   getWorkBranchName,
+  findGitRoot,
+  getWorkWorktreePath,
 } from './git-operations';
 
 const TEST_BRANCH_PREFIX = 'test-sc-git-';
@@ -80,5 +83,51 @@ describe('createBranch and deleteBranch', () => {
 
   test('deleteBranch throws if branch does not exist', async () => {
     await expect(deleteBranch('nonexistent-branch-xyz')).rejects.toThrow();
+  });
+});
+
+describe('findGitRoot', () => {
+  test('returns a non-empty string', async () => {
+    const gitRoot = await findGitRoot();
+    expect(typeof gitRoot).toBe('string');
+    expect(gitRoot.length).toBeGreaterThan(0);
+  });
+
+  test('returned path is absolute', async () => {
+    const gitRoot = await findGitRoot();
+    expect(resolve(gitRoot)).toBe(gitRoot);
+  });
+
+  test('contains .git directory or file', async () => {
+    const gitRoot = await findGitRoot();
+    const gitPath = resolve(gitRoot, '.git');
+    const file = Bun.file(gitPath);
+    expect(await file.exists()).toBe(true);
+  });
+});
+
+describe('getWorkWorktreePath', () => {
+  test('returns absolute path', async () => {
+    const path = await getWorkWorktreePath('a1b2');
+    expect(resolve(path)).toBe(path);
+  });
+
+  test('path contains spec ID', async () => {
+    const path = await getWorkWorktreePath('a1b2');
+    expect(path).toContain('work-a1b2');
+  });
+
+  test('path is sibling to git root', async () => {
+    const gitRoot = await findGitRoot();
+    const expectedParent = resolve(gitRoot, '..');
+    const path = await getWorkWorktreePath('test-id');
+    const actualParent = resolve(path, '..');
+    expect(actualParent).toBe(expectedParent);
+  });
+
+  test('different spec IDs produce different paths', async () => {
+    const path1 = await getWorkWorktreePath('a1b2');
+    const path2 = await getWorkWorktreePath('c3d4');
+    expect(path1).not.toBe(path2);
   });
 });

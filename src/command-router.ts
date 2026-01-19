@@ -75,19 +75,17 @@ ${bold('STATUS ICONS')}
   ✕  not_planned - Will not implement
 
 ${bold('WORKTREE WORKFLOW')}
-  When claiming a spec, sc creates a dedicated git worktree at:
-    ../work-<spec-id>/
+  When claiming a spec, sc creates a dedicated git worktree (sibling to repo root)
+  with branch work/<spec-id>. Commands work from any directory in the repository:
 
-  This checks out branch work/<spec-id> in the worktree. To work:
     1. sc claim <id>              # Creates worktree, sets in_progress
     2. cd ../work-<id>            # Switch to work worktree
     3. [do the work, commit]
     4. cd ../main                 # Return to main worktree
     5. sc done <id>               # Mark complete, remove worktree
 
-  IMPORTANT: Run 'sc done' or 'sc release' from outside the work worktree
-  (typically from ../main) for automatic cleanup. Running from inside the
-  work worktree will update status but require manual worktree removal.
+  NOTE: If run from inside the work worktree being removed, you will be left
+  in a deleted directory. Navigate to a different directory afterward if needed.
 
 ${bold('COMMANDS')}
   ${underline('Discovery & Viewing')}

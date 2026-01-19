@@ -19,17 +19,17 @@ export const command: CommandHandler = {
       description: `Mark a claimed spec as complete. This command:
   - Sets the spec status to 'closed'
   - Deletes the work branch work/<id>
-  - Removes the worktree at ../work-<id>/
+  - Removes the worktree (relative to repository root, as sibling to repo)
 
-The spec must already be claimed (status: in_progress) before marking it done.`,
+The spec must already be claimed (status: in_progress) before marking it done.
+Commands can be run from any directory in the repository.`,
       examples: [
-        '# Complete a spec',
-        'cd ../main              # Return to main worktree first',
-        'sc done a1b2c3          # Mark complete and cleanup',
+        '# Complete a spec from anywhere in repo',
+        'sc done a1b2c3',
       ],
       notes: [
-        'IMPORTANT: Run this command from the main worktree (not from inside ../work-<id>) for automatic cleanup.',
-        'If run from inside the work worktree, the branch will be deleted but the worktree directory will require manual removal.',
+        'Commands work from any directory in the repository.',
+        'If run from inside the work worktree being removed, you will be left in a deleted directory after cleanup.',
       ],
     };
   },
