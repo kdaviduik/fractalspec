@@ -69,6 +69,9 @@ sc claim ABC123
 # View spec details
 sc show ABC123
 
+# Create a new spec with specific status
+sc create --status blocked -t "Future Implementation"
+
 # When done
 sc done ABC123
 ```
@@ -100,6 +103,7 @@ sc done ABC123
 | `sc create` | Create new spec (interactive) | `sc create` |
 | `sc create -t "Title"` | Create with title | `sc create -t "User Auth"` |
 | `sc create -p PARENT_ID` | Create as child of parent | `sc create -p ABC123 -t "OAuth Flow"` |
+| `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
 ### Dependencies
@@ -154,7 +158,7 @@ blocks: []
 | Field | Type | Values | Description |
 |-------|------|--------|-------------|
 | `id` | string | 6-char alphanumeric | Unique identifier |
-| `status` | string | see below | Current state |
+| `status` | string | see below | Current state (settable at creation via 'sc create --status') |
 | `parent` | string\|null | spec ID or null | Parent spec for hierarchy |
 | `blocks` | string[] | spec IDs | Specs that must complete first |
 

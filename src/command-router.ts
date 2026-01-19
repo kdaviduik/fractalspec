@@ -114,6 +114,7 @@ ${bold('COMMANDS')}
 
   ${underline('Creation & Editing')}
     ${underline('create')}                 Create new spec (interactive)
+      --status ${dim('<status>')}, -s Set initial status (default: ready)
       --parent ${dim('<id>')}, -p    Create as child of specified parent
       --title ${dim('<text>')}, -t   Set spec title (skips prompt)
 
@@ -172,6 +173,7 @@ ${bold('EXAMPLES')}
   sc create                     # Create root spec (prompted for title)
   sc create -t "User Auth"      # Create with title
   sc create -p a1b2 -t "OAuth"  # Create child of a1b2
+  sc create -s blocked -t "Future work"  # Create with specific status
 
   # Managing dependencies
   sc deps add b3c4 a1b2         # b3c4 blocked by a1b2

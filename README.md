@@ -19,6 +19,9 @@ bun link
 # Create your first spec
 sc create -t "My First Spec"
 
+# Create spec with specific status (optional)
+sc create -s blocked -t "Future Feature"
+
 # View all specs
 sc list
 
@@ -35,7 +38,7 @@ sc claim <spec-id>
 - **Dependency tracking** - Specs can block other specs
 - **EARS validation** - Structured requirement syntax ensures testable, unambiguous requirements
 - **Git worktree workflow** - Isolated work environments per spec
-- **Status tracking** - ready, in_progress, blocked, closed, deferred, not_planned
+- **Status tracking** - Multiple status states including ready, in_progress, closed, and more (see CLAUDE.md)
 
 ## Documentation
 

@@ -5,7 +5,9 @@
 import { parseArgs } from 'util';
 import { join } from 'path';
 import type { CommandHandler, Spec } from '../types';
+import { STATUSES, isValidStatus } from '../types';
 import type { CommandHelp } from '../help.js';
+import { printCommandUsage } from '../help.js';
 import { generateId } from '../id-generation';
 import {
   createSpecDirectory,
@@ -80,15 +82,19 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc create',
-      synopsis: 'sc create [--parent <id>] [--title <text>]',
+      synopsis: 'sc create [--status <status>] [--parent <id>] [--title <text>]',
       description: `Create a new spec with auto-generated ID and template content.
 
 Without --parent, creates a root-level spec.
 With --parent, creates a child spec in the hierarchy.
 
-The spec is created with status 'ready' and populated with a standard template
+The spec is created with a status (default: ready) and populated with a standard template
 including sections for Overview, Requirements (EARS format), and Tasks.`,
       flags: [
+        {
+          flag: '--status <status>, -s',
+          description: `Set initial spec status (default: ready). Valid: ${STATUSES.join(', ')}`,
+        },
         {
           flag: '--parent <id>, -p',
           description: 'Create as child of specified parent spec',
@@ -105,12 +111,16 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
         '# Create with title',
         'sc create -t "User Authentication"',
         '',
-        '# Create child spec',
-        'sc create -p a1b2c3 -t "OAuth Implementation"',
+        '# Create spec with specific status',
+        'sc create --status blocked -t "Future Implementation"',
+        '',
+        '# Create child spec with custom status',
+        'sc create -p a1b2c3 --status deferred -t "Deferred Task"',
       ],
       notes: [
         'IDs are auto-generated as 6-character alphanumeric identifiers.',
         'File structure: docs/specs/<slug>-<id>/<slug>-<id>.md',
+        'If --status is invalid, shows available options and exits with error.',
       ],
     };
   },
@@ -121,9 +131,21 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
       options: {
         parent: { type: 'string', short: 'p' },
         title: { type: 'string', short: 't' },
+        status: { type: 'string', short: 's' },
       },
       allowPositionals: true,
     });
+
+    // Validate status if provided
+    const statusInput = values.status ?? 'ready';
+    if (!isValidStatus(statusInput)) {
+      console.error(`Error: "${values.status}" is not a valid status\n`);
+      console.error('Valid statuses are:');
+      STATUSES.forEach((s) => console.error(`  ${s}`));
+      printCommandUsage(this.getHelp!());
+      return 1;
+    }
+    // TypeScript now knows statusInput is a valid Status (type narrowing)
 
     const title = values.title ?? (await promptForTitle());
     if (!title) {
@@ -143,7 +165,7 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
 
     const spec: Spec = {
       id,
-      status: 'ready',
+      status: statusInput,
       parent: values.parent ?? null,
       blocks: [],
       title,
