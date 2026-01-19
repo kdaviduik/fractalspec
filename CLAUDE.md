@@ -69,6 +69,9 @@ sc claim ABC123
 # View spec details
 sc show ABC123
 
+# Create a new spec with context message
+sc create -t "User Auth" -m "PR: https://github.com/org/repo/pull/123"
+
 # Create a new spec with specific status
 sc create --status blocked -t "Future Implementation"
 
@@ -104,6 +107,7 @@ sc done ABC123
 | `sc create -t "Title"` | Create with title | `sc create -t "User Auth"` |
 | `sc create -p PARENT_ID` | Create as child of parent | `sc create -p ABC123 -t "OAuth Flow"` |
 | `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
+| `sc create -m "message"` | Add context line to Overview (repeatable) | `sc create -t "API Refactor" -m "Blocks dashboard work" -m "PR: https://github.com/org/repo/pull/456"` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
 ### Dependencies

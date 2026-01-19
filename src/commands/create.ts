@@ -15,6 +15,9 @@ import {
   writeSpec,
 } from '../spec-filesystem';
 
+const MAX_MESSAGE_COUNT = 100;
+const MAX_MESSAGE_LENGTH_BYTES = 10_000;
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -33,11 +36,51 @@ async function promptForTitle(): Promise<string> {
   return 'untitled';
 }
 
-function generateSpecTemplate(title: string): string {
+export function validateMessages(messages: string[] | undefined): string[] {
+  if (!messages || messages.length === 0) {
+    return [];
+  }
+
+  if (messages.length > MAX_MESSAGE_COUNT) {
+    console.error(`Error: Maximum ${MAX_MESSAGE_COUNT} messages allowed`);
+    process.exit(1);
+  }
+
+  const validated: string[] = [];
+  for (const msg of messages) {
+    const trimmed = msg.trim();
+
+    if (trimmed === '') {
+      console.error('Error: -m flag value cannot be empty or whitespace');
+      process.exit(1);
+    }
+
+    if (trimmed.length > MAX_MESSAGE_LENGTH_BYTES) {
+      console.error(
+        `Error: Message exceeds ${MAX_MESSAGE_LENGTH_BYTES} character limit`,
+      );
+      process.exit(1);
+    }
+
+    validated.push(trimmed);
+  }
+
+  return validated;
+}
+
+export function generateSpecTemplate(
+  title: string,
+  messages?: string[],
+): string {
+  let overview = `## Overview\n[2-3 sentences: what this is and why it matters]`;
+  if (messages && messages.length > 0) {
+    overview += '\n\n' + messages.join('\n');
+  }
+  overview += '\n';
+
   return `# Spec: ${title}
 
-## Overview
-[2-3 sentences: what this is and why it matters]
+${overview}
 
 ## Background & Context
 [Why this is being built now. Business context, user pain points.]
@@ -82,14 +125,17 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc create',
-      synopsis: 'sc create [--status <status>] [--parent <id>] [--title <text>]',
+      synopsis:
+        'sc create [--status <status>] [--parent <id>] [--title <text>] [--message <text>]',
       description: `Create a new spec with auto-generated ID and template content.
 
 Without --parent, creates a root-level spec.
 With --parent, creates a child spec in the hierarchy.
 
 The spec is created with a status (default: ready) and populated with a standard template
-including sections for Overview, Requirements (EARS format), and Tasks.`,
+including sections for Overview, Requirements (EARS format), and Tasks.
+
+Optional --message flags append context lines to the Overview section (e.g., PR links, issue references).`,
       flags: [
         {
           flag: '--status <status>, -s',
@@ -103,24 +149,37 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
           flag: '--title <text>, -t',
           description: 'Set spec title (skips interactive prompt)',
         },
+        {
+          flag: '--message <text>, -m',
+          description:
+            'Add context line to Overview section (repeatable). Each -m adds a separate line after the placeholder.',
+        },
       ],
       examples: [
-        '# Create root spec (prompted for title)',
+        '# Interactive creation (prompts for title)',
         'sc create',
         '',
         '# Create with title',
-        'sc create -t "User Authentication"',
+        'sc create -t "Implement OAuth Flow"',
+        '',
+        '# Create with title and context message',
+        'sc create -t "Database Migration" -m "Required for schema v2"',
+        '',
+        '# Multiple context messages (like git commit -m)',
+        'sc create -t "API Rate Limiting" -m "PR: https://github.com/org/repo/pull/789" -m "Blocks user dashboard work"',
         '',
         '# Create spec with specific status',
-        'sc create --status blocked -t "Future Implementation"',
+        'sc create --status blocked -t "Premium Features" -m "Waiting on payment gateway integration"',
         '',
-        '# Create child spec with custom status',
-        'sc create -p a1b2c3 --status deferred -t "Deferred Task"',
+        '# Create as child spec with parent ID',
+        'sc create -p a1b2c3 -t "OAuth Callback Handler" -m "Child of OAuth Flow spec"',
       ],
       notes: [
         'IDs are auto-generated as 6-character alphanumeric identifiers.',
         'File structure: docs/specs/<slug>-<id>/<slug>-<id>.md',
         'If --status is invalid, shows available options and exits with error.',
+        'Messages are appended after the Overview placeholder and preserved as literal text.',
+        `Empty or whitespace-only messages are rejected. Max ${MAX_MESSAGE_COUNT} messages, ${MAX_MESSAGE_LENGTH_BYTES / 1000}KB each.`,
       ],
     };
   },
@@ -132,6 +191,7 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
         parent: { type: 'string', short: 'p' },
         title: { type: 'string', short: 't' },
         status: { type: 'string', short: 's' },
+        message: { type: 'string', short: 'm', multiple: true },
       },
       allowPositionals: true,
     });
@@ -142,7 +202,10 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
       console.error(`Error: "${values.status}" is not a valid status\n`);
       console.error('Valid statuses are:');
       STATUSES.forEach((s) => console.error(`  ${s}`));
-      printCommandUsage(this.getHelp!());
+      const help = this.getHelp?.();
+      if (help) {
+        printCommandUsage(help);
+      }
       return 1;
     }
     // TypeScript now knows statusInput is a valid Status (type narrowing)
@@ -163,13 +226,15 @@ including sections for Overview, Requirements (EARS format), and Tasks.`,
     const fileName = `${slug}-${id}.md`;
     const filePath = join(dirPath, fileName);
 
+    const validatedMessages = validateMessages(values.message);
+
     const spec: Spec = {
       id,
       status: statusInput,
       parent: values.parent ?? null,
       blocks: [],
       title,
-      content: generateSpecTemplate(title),
+      content: generateSpecTemplate(title, validatedMessages),
       filePath,
     };
 

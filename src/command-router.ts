@@ -114,6 +114,8 @@ ${bold('COMMANDS')}
       --status ${dim('<status>')}, -s Set initial status (default: ready)
       --parent ${dim('<id>')}, -p    Create as child of specified parent
       --title ${dim('<text>')}, -t   Set spec title (skips prompt)
+      --message ${dim('<text>')}, -m Add context line to Overview (repeatable)
+                           Each -m adds a line after the placeholder
 
     ${underline('edit')} ${dim('<id>')}              Open spec in $EDITOR (defaults to vim)
 
@@ -167,9 +169,10 @@ ${bold('EXAMPLES')}
 
   # Creating specs
   sc create                     # Create root spec (prompted for title)
-  sc create -t "User Auth"      # Create with title
-  sc create -p a1b2 -t "OAuth"  # Create child of a1b2
-  sc create -s blocked -t "Future work"  # Create with specific status
+  sc create -t "OAuth Flow"     # Create with title
+  sc create -t "Database Migration" -m "Required for schema v2"  # Add context
+  sc create -p a1b2 -t "OAuth Callback Handler"  # Create child of a1b2
+  sc create -s blocked -t "Premium Features" -m "Waiting on payment gateway"  # With status and context
 
   # Managing dependencies
   sc deps add b3c4 a1b2         # b3c4 blocked by a1b2
