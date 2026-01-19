@@ -79,7 +79,7 @@ async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed'): Promise<
     await writeSpec(updatedSpec);
 
     console.log(`\nNote: Cannot remove worktree from inside it.`);
-    console.log(`To clean up, run: cd ../main && rm -rf ${worktreePath}`);
+    console.log(`To clean up from outside this directory, run: rm -rf ${worktreePath}`);
   } else {
     await removeWorktree(worktreePath);
 

@@ -108,7 +108,7 @@ Use `sc doctor --fix` to auto-repair orphans and missing blockers.
 ## Common Pitfalls
 
 ### Running Done/Release from Inside Work Worktree
-If you run `sc done` or `sc release` from inside the work worktree being removed, the command will complete successfully, but you'll be left in a deleted directory. Navigate to a different directory (`cd ../main`) after the command completes to avoid working in the deleted directory.
+If you run `sc done` or `sc release` from inside the work worktree being removed, the command will complete successfully, but you'll be left in a deleted directory. Navigate to a different directory (e.g., `cd ..`) after the command completes to avoid working in the deleted directory.
 
 ### Don't Skip Claiming
 Always `sc claim` before starting work. This prevents conflicts and tracks work in progress.
