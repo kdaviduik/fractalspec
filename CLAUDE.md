@@ -544,11 +544,12 @@ Use standard POSIX conventions:
 ```typescript
 description: `Claim a spec and prepare it for work. This command:
   - Sets the spec status to 'in_progress'
-  - Creates a dedicated git worktree at ../work-<id>/
+  - Creates a dedicated git worktree (sibling to repository root)
   - Creates and checks out branch work/<id> in that worktree
   - Ensures exclusive access (git prevents same branch in multiple worktrees)
 
-After claiming, switch to the work worktree to begin implementation.`
+After claiming, switch to the work worktree to begin implementation.
+Commands can be run from any directory in the repository.`
 ```
 
 #### Examples Content
