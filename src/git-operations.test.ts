@@ -25,9 +25,35 @@ afterEach(async () => {
 });
 
 describe('getWorkBranchName', () => {
-  test('returns work/<id> format', () => {
-    expect(getWorkBranchName('a1b2')).toBe('work/a1b2');
-    expect(getWorkBranchName('test-id')).toBe('work/test-id');
+  test('returns work-<slug>-<id> format (hyphens, no slashes)', () => {
+    expect(getWorkBranchName('a1b2', 'User Authentication')).toBe('work-user-authentication-a1b2');
+    expect(getWorkBranchName('test', 'My Feature')).toBe('work-my-feature-test');
+  });
+
+  test('handles special characters in title', () => {
+    expect(getWorkBranchName('abc1', 'Add OAuth 2.0 Support!')).toBe('work-add-oauth-2-0-support-abc1');
+  });
+
+  test('truncates long titles to 30 chars', () => {
+    const longTitle = 'This is a very long title that exceeds thirty characters';
+    const result = getWorkBranchName('xyz9', longTitle);
+    expect(result).toBe('work-this-is-a-very-long-title-that-xyz9');
+  });
+
+  test('handles empty title with untitled fallback', () => {
+    expect(getWorkBranchName('a1b2', '')).toBe('work-untitled-a1b2');
+  });
+
+  test('handles all-special-character title with untitled fallback', () => {
+    expect(getWorkBranchName('a1b2', '!@#$%')).toBe('work-untitled-a1b2');
+  });
+
+  test('handles whitespace-only title with untitled fallback', () => {
+    expect(getWorkBranchName('a1b2', '   ')).toBe('work-untitled-a1b2');
+  });
+
+  test('handles single character title', () => {
+    expect(getWorkBranchName('a1b2', 'a')).toBe('work-a-a1b2');
   });
 });
 
@@ -107,27 +133,34 @@ describe('findGitRoot', () => {
 });
 
 describe('getWorkWorktreePath', () => {
-  test('returns absolute path', async () => {
-    const path = await getWorkWorktreePath('a1b2');
+  test('returns absolute path with slug and id', async () => {
+    const path = await getWorkWorktreePath('a1b2', 'User Auth');
     expect(resolve(path)).toBe(path);
+    expect(path).toContain('work-user-auth-a1b2');
   });
 
-  test('path contains spec ID', async () => {
-    const path = await getWorkWorktreePath('a1b2');
-    expect(path).toContain('work-a1b2');
+  test('handles empty title with untitled fallback', async () => {
+    const path = await getWorkWorktreePath('a1b2', '');
+    expect(path).toContain('work-untitled-a1b2');
   });
 
   test('path is sibling to git root', async () => {
     const gitRoot = await findGitRoot();
     const expectedParent = resolve(gitRoot, '..');
-    const path = await getWorkWorktreePath('test-id');
+    const path = await getWorkWorktreePath('test-id', 'Test Spec');
     const actualParent = resolve(path, '..');
     expect(actualParent).toBe(expectedParent);
   });
 
   test('different spec IDs produce different paths', async () => {
-    const path1 = await getWorkWorktreePath('a1b2');
-    const path2 = await getWorkWorktreePath('c3d4');
+    const path1 = await getWorkWorktreePath('a1b2', 'Feature A');
+    const path2 = await getWorkWorktreePath('c3d4', 'Feature B');
+    expect(path1).not.toBe(path2);
+  });
+
+  test('different titles with same ID produce different paths', async () => {
+    const path1 = await getWorkWorktreePath('a1b2', 'Feature A');
+    const path2 = await getWorkWorktreePath('a1b2', 'Feature B');
     expect(path1).not.toBe(path2);
   });
 });

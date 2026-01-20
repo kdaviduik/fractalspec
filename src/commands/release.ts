@@ -18,7 +18,7 @@ export const command: CommandHandler = {
       synopsis: 'sc release <id>',
       description: `Abandon work on a claimed spec and make it available again. This command:
   - Resets the spec status to 'ready'
-  - Deletes the work branch work/<id>
+  - Deletes the work branch work-<slug>-<id>
   - Removes the worktree (relative to repository root, as sibling to repo)
 
 Use this when you need to stop working on a spec without completing it.
@@ -48,7 +48,7 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const claimed = await isSpecClaimed(spec.id);
+    const claimed = await isSpecClaimed(spec);
     if (!claimed) {
       console.error(`Spec ${spec.id} is not claimed.`);
       return 1;

@@ -77,10 +77,10 @@ ${bold('STATUS ICONS')}
 
 ${bold('WORKTREE WORKFLOW')}
   When claiming a spec, sc creates a dedicated git worktree (sibling to repository root)
-  with branch work/<spec-id>. Commands work from any directory in the repository:
+  with branch work-<slug>-<spec-id>. Commands work from any directory in the repository:
 
     1. sc claim <id>              # Creates worktree, sets in_progress
-    2. cd ../work-<id>            # Switch to work worktree
+    2. cd ../work-<slug>-<id>     # Switch to work worktree
     3. [do the work, commit]
     4. sc done <id>               # Mark complete, remove worktree (works from anywhere)
 
@@ -99,7 +99,7 @@ ${bold('COMMANDS')}
   ${underline('Workflow')}
     ${underline('claim')} ${dim('<id>')}             Claim spec for work
                            - Creates worktree (sibling to repository root)
-                           - Creates branch work/<id>
+                           - Creates branch work-<slug>-<id>
                            - Sets status to in_progress
 
     ${underline('release')} ${dim('<id>')}           Abandon work and reset to ready
@@ -170,9 +170,9 @@ ${bold('EXAMPLES')}
   sc list --ready               # Show available work
   sc list --tree                # Understand hierarchy
 
-  # Working on a spec
+  # Working on a spec (example: spec titled "User Auth")
   sc claim a1b2c3               # Claim and create worktree
-  cd ../work-a1b2c3             # Switch to work area
+  cd ../work-user-auth-a1b2c3   # Switch to work area
   # ... do work, git commit ...
   sc done a1b2c3                # Complete (works from any directory)
 

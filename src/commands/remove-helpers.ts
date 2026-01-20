@@ -29,13 +29,13 @@ export async function validateRemovalPreconditions(
   allSpecs: Spec[]
 ): Promise<ValidationResult> {
   const reasons: string[] = [];
-  const isClaimed = await isSpecClaimed(spec.id);
+  const isClaimed = await isSpecClaimed(spec);
   const dependents = allSpecs.filter((s) => s.blocks.includes(spec.id));
   const children = allSpecs.filter((s) => s.parent === spec.id);
 
   const childrenClaimed: string[] = [];
   for (const child of children) {
-    const claimed = await isSpecClaimed(child.id);
+    const claimed = await isSpecClaimed(child);
     if (claimed) {
       childrenClaimed.push(child.id);
     }

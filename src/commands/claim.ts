@@ -20,15 +20,15 @@ export const command: CommandHandler = {
       description: `Claim a spec and prepare it for work. This command:
   - Sets the spec status to 'in_progress'
   - Creates a dedicated git worktree (sibling to repository root)
-  - Creates and checks out branch work/<id> in that worktree
+  - Creates and checks out branch work-<slug>-<id> in that worktree
   - Ensures exclusive access (git prevents same branch in multiple worktrees)
 
 After claiming, switch to the work worktree to begin implementation.
 Commands can be run from any directory in the repository.`,
       examples: [
-        '# Claim spec and start working',
+        '# Claim spec and start working (example: spec titled "OAuth Flow")',
         'sc claim a1b2c3',
-        'cd ../work-a1b2c3',
+        'cd ../work-oauth-flow-a1b2c3',
         '# ... do work, commit changes ...',
         'sc done a1b2c3  # Works from any directory',
       ],
@@ -59,7 +59,7 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const worktreePath = await getWorkWorktreePath(spec.id);
+    const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
 
     console.log(`Claimed: ${spec.title}`);
     console.log(`  Status: in_progress`);

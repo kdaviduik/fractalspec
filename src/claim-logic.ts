@@ -15,17 +15,17 @@ import {
 import { writeSpec } from './spec-filesystem';
 import type { Spec, ClaimResult } from './types';
 
-export async function isSpecClaimed(specId: string): Promise<boolean> {
-  const branchName = getWorkBranchName(specId);
+export async function isSpecClaimed(spec: Spec): Promise<boolean> {
+  const branchName = getWorkBranchName(spec.id, spec.title);
   const worktree = await findWorktreeByBranch(branchName);
   return worktree !== null;
 }
 
 export async function claimSpec(spec: Spec): Promise<ClaimResult> {
-  const branchName = getWorkBranchName(spec.id);
-  const worktreePath = await getWorkWorktreePath(spec.id);
+  const branchName = getWorkBranchName(spec.id, spec.title);
+  const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
 
-  const alreadyClaimed = await isSpecClaimed(spec.id);
+  const alreadyClaimed = await isSpecClaimed(spec);
   if (alreadyClaimed) {
     return {
       success: false,
@@ -58,8 +58,8 @@ export async function claimSpec(spec: Spec): Promise<ClaimResult> {
 }
 
 async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed'): Promise<void> {
-  const branchName = getWorkBranchName(spec.id);
-  const worktreePath = await getWorkWorktreePath(spec.id);
+  const branchName = getWorkBranchName(spec.id, spec.title);
+  const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
 
   const worktree = await findWorktreeByBranch(branchName);
   if (!worktree) {
@@ -82,6 +82,7 @@ async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed'): Promise<
     console.log(`To clean up from outside this directory, run: rm -rf ${worktreePath}`);
   } else {
     await removeWorktree(worktreePath);
+    await deleteBranch(branchName);
 
     const updatedSpec: Spec = {
       ...spec,

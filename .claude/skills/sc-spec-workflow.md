@@ -16,10 +16,10 @@ Pick a spec with no blockers. If unsure which to prioritize, check the tree view
 
 ```bash
 sc claim <spec-id>
-cd ../work-<spec-id>
+cd ../work-<slug>-<spec-id>
 ```
 
-This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root).
+This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root). The `<slug>` is derived from the spec's title.
 
 ### 3. Understand Requirements
 
@@ -130,7 +130,7 @@ Run `sc validate` before marking complete. Invalid EARS requirements indicate un
 
 ## Worktree Convention
 
-When you claim a spec, `sc` creates a dedicated git worktree (sibling to repository root) with branch `work/<spec-id>`. Always work in this worktree. The worktree and branch are automatically removed when you run `sc done` or `sc release`. Commands can be run from any directory in the repository.
+When you claim a spec, `sc` creates a dedicated git worktree (sibling to repository root) with branch `work-<slug>-<spec-id>`. Always work in this worktree. The worktree and branch are automatically removed when you run `sc done` or `sc release`. Commands can be run from any directory in the repository.
 
 ## See Also
 

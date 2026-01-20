@@ -18,7 +18,7 @@ export const command: CommandHandler = {
       synopsis: 'sc done <id>',
       description: `Mark a claimed spec as complete. This command:
   - Sets the spec status to 'closed'
-  - Deletes the work branch work/<id>
+  - Deletes the work branch work-<slug>-<id>
   - Removes the worktree (relative to repository root, as sibling to repo)
 
 The spec must already be claimed (status: in_progress) before marking it done.
@@ -47,7 +47,7 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const claimed = await isSpecClaimed(spec.id);
+    const claimed = await isSpecClaimed(spec);
     if (!claimed) {
       console.error(`Spec ${spec.id} is not claimed. Claim it first with: sc claim ${spec.id}`);
       return 1;

@@ -47,8 +47,18 @@ export async function findGitRoot(): Promise<string> {
   return cachedGitRoot;
 }
 
-export function getWorkBranchName(specId: string): string {
-  return `work/${specId}`;
+function slugify(text: string): string {
+  const slug = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 30);
+  return slug || 'untitled';
+}
+
+export function getWorkBranchName(specId: string, title: string): string {
+  const slug = slugify(title);
+  return `work-${slug}-${specId}`;
 }
 
 export async function getCurrentBranch(): Promise<string> {
@@ -119,6 +129,16 @@ async function listWorktrees(): Promise<WorktreeInfo[]> {
     }
   }
 
+  // Handle final worktree entry (no trailing empty line after trim())
+  if (currentWorktree.path && currentWorktree.head) {
+    worktrees.push({
+      path: currentWorktree.path,
+      branch: currentWorktree.branch ?? '',
+      head: currentWorktree.head,
+      isBare: currentWorktree.isBare ?? false,
+    });
+  }
+
   return worktrees;
 }
 
@@ -153,7 +173,8 @@ export async function removeWorktree(path: string, force?: boolean): Promise<voi
   await runGit(args);
 }
 
-export async function getWorkWorktreePath(specId: string): Promise<string> {
+export async function getWorkWorktreePath(specId: string, title: string): Promise<string> {
+  const slug = slugify(title);
   const gitRoot = await findGitRoot();
-  return resolve(gitRoot, '..', `work-${specId}`);
+  return resolve(gitRoot, '..', `work-${slug}-${specId}`);
 }

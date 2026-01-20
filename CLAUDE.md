@@ -55,7 +55,7 @@ bun run typecheck
 **Configuration:**
 - Specs are stored in `docs/specs/` directory (resolved from repository root)
 - Each spec lives in `<slug>-<id>/<slug>-<id>.md`
-- Worktrees are created as siblings to the repository root at `../work-<id>/`
+- Worktrees are created as siblings to the repository root at `../work-<slug>-<id>/`
 
 ## Quick Start
 
@@ -187,8 +187,8 @@ blocks: []
 
 When you claim a spec, `sc` creates a dedicated git worktree for that work:
 
-- **Location**: Sibling to repository root at `../work-<spec-id>/`
-- **Branch**: `work/<spec-id>` (checked out in the worktree)
+- **Location**: Sibling to repository root at `../work-<slug>-<spec-id>/`
+- **Branch**: `work-<slug>-<spec-id>` (checked out in the worktree)
 - **Isolation**: Git prevents the same branch from being checked out in multiple worktrees, ensuring exclusive access
 - **Cleanup**: Running `sc done` or `sc release` automatically removes both the worktree and branch
 - **Command execution**: Commands can be run from any directory in the repository
@@ -268,8 +268,8 @@ sc list --tree
 # 1. Claim the spec (creates worktree as sibling to repository root)
 sc claim ABC123
 
-# 2. Switch to the work worktree
-cd ../work-ABC123
+# 2. Switch to the work worktree (example: spec titled "Feature Name")
+cd ../work-feature-name-ABC123
 
 # 3. Do the work...
 
@@ -576,7 +576,7 @@ Use standard POSIX conventions:
 description: `Claim a spec and prepare it for work. This command:
   - Sets the spec status to 'in_progress'
   - Creates a dedicated git worktree (sibling to repository root)
-  - Creates and checks out branch work/<id> in that worktree
+  - Creates and checks out branch work-<slug>-<id> in that worktree
   - Ensures exclusive access (git prevents same branch in multiple worktrees)
 
 After claiming, switch to the work worktree to begin implementation.
