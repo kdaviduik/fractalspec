@@ -90,3 +90,22 @@ Quick lookup: "I changed X, what docs do I update?"
 - CLAUDE.md - File Structure section
 - CLAUDE.md - Spec Format section
 - .claude/skills/sc-spec-workflow.md (if it shows file examples)
+
+## Spec Removal (remove command)
+
+**Code**:
+- src/commands/remove.ts
+- src/spec-filesystem.ts (deleteSpec function)
+- src/claim-logic.ts (uses isSpecClaimed)
+
+**Docs to Update**:
+- CLAUDE.md - Commands Reference table (Maintenance section)
+- CLAUDE.md - "Removing Specs" workflow section
+- src/commands/remove.ts - getHelp() documentation
+- src/command-router.ts - Global help printHelp() function (Maintenance section)
+- .docs/dependencies.md - this file (update after implementation)
+
+**Related Commands** (users should consult before removal):
+- `sc deps list <id>` - Check what specs depend on this one
+- `sc list --tree` - Visualize parent-child hierarchy
+- `sc doctor --fix` - Recover from partial deletion failures

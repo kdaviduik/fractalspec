@@ -3,7 +3,7 @@
  * Handles reading, writing, and finding spec files.
  */
 
-import { mkdir, readdir } from 'fs/promises';
+import { mkdir, readdir, rm } from 'fs/promises';
 import { join, basename, dirname } from 'path';
 import { parseSpec } from './spec-parser';
 import { serializeSpec } from './spec-serializer';
@@ -115,4 +115,9 @@ export async function findSpecFile(idPrefix: string): Promise<Spec | null> {
   }
 
   return null;
+}
+
+export async function deleteSpec(spec: Spec): Promise<void> {
+  const specDir = dirname(spec.filePath);
+  await rm(specDir, { recursive: true, force: true });
 }

@@ -22,6 +22,7 @@ const COMMANDS: Record<string, () => Promise<CommandModule>> = {
   validate: () => import('./commands/validate'),
   doctor: () => import('./commands/doctor'),
   ears: () => import('./commands/ears'),
+  remove: () => import('./commands/remove'),
 };
 
 export function getAvailableCommands(): string[] {
@@ -142,6 +143,14 @@ ${bold('COMMANDS')}
     ${underline('ears')} ${dim('[text]')}            EARS format reference and conversion
                            No args: display pattern reference
                            With text: detect pattern or suggest conversion
+
+  ${underline('Maintenance')}
+    ${underline('remove')} ${dim('<id> [--cascade | --reparent <id>] [--dry-run]')}
+                           Permanently delete a spec (UNRECOVERABLE)
+                           ALWAYS requires confirmation (capital Y)
+      --cascade            Delete spec and all descendants
+      --reparent ${dim('<id>')}      Move children to specified parent
+      --dry-run            Preview deletion without executing
 
 ${bold('EARS PATTERNS')}
   Ubiquitous       [Component] shall <response>

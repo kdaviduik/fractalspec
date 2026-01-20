@@ -129,6 +129,12 @@ sc done ABC123
 | `sc ears` | Show EARS pattern reference | `sc ears` |
 | `sc ears "<text>"` | Convert text to EARS format | `sc ears "users can login"` |
 
+### Maintenance
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `sc remove <id> [--cascade \| --reparent <id>] [--dry-run]` | Permanently delete spec (UNRECOVERABLE - always requires confirmation) | `sc remove abc123 --dry-run` |
+
 ## Spec Format
 
 Specs are stored as markdown files with YAML frontmatter:
@@ -290,6 +296,30 @@ sc release ABC123
 ```
 
 **Note:** If run from inside the work worktree being removed, you will be left in a deleted directory. Navigate to a different directory afterward if needed.
+
+### Removing Specs
+
+```bash
+# Check dependencies BEFORE attempting removal
+sc deps list abc123
+sc list --tree  # Visualize hierarchy
+
+# Remove leaf spec (no children, no dependents)
+sc remove abc123
+
+# Remove parent, promote children up one level
+sc remove abc123
+
+# Remove parent and all descendants
+sc remove abc123 --cascade
+
+# Preview what would be deleted
+sc remove abc123 --cascade --dry-run
+
+# If spec is currently claimed, must release/complete first
+sc release abc123
+sc remove abc123
+```
 
 ## File Structure
 
