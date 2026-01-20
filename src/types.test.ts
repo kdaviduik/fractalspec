@@ -2,9 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import {
   isValidStatus,
   isValidEarsPattern,
+  isValidPriority,
   isValidSpecFrontmatter,
   STATUSES,
   EARS_PATTERNS,
+  PRIORITIES,
 } from './types';
 
 describe('Status validation', () => {
@@ -72,6 +74,41 @@ describe('EARS pattern validation', () => {
     expect(EARS_PATTERNS).toContain('optional');
     expect(EARS_PATTERNS).toContain('unwanted');
     expect(EARS_PATTERNS).toContain('complex');
+  });
+});
+
+describe('Priority validation', () => {
+  test('accepts all valid priorities', () => {
+    const validPriorities = ['critical', 'high', 'normal', 'low'];
+
+    for (const priority of validPriorities) {
+      expect(isValidPriority(priority)).toBe(true);
+    }
+  });
+
+  test('rejects invalid priorities', () => {
+    expect(isValidPriority('invalid')).toBe(false);
+    expect(isValidPriority('')).toBe(false);
+    expect(isValidPriority('CRITICAL')).toBe(false);
+    expect(isValidPriority('HIGH')).toBe(false);
+    expect(isValidPriority('medium')).toBe(false);
+    expect(isValidPriority('urgent')).toBe(false);
+  });
+
+  test('rejects non-string values', () => {
+    expect(isValidPriority(null)).toBe(false);
+    expect(isValidPriority(undefined)).toBe(false);
+    expect(isValidPriority(1)).toBe(false);
+    expect(isValidPriority({})).toBe(false);
+    expect(isValidPriority(['normal'])).toBe(false);
+  });
+
+  test('PRIORITIES constant contains all valid priorities in order', () => {
+    expect(PRIORITIES).toHaveLength(4);
+    expect(PRIORITIES[0]).toBe('critical');
+    expect(PRIORITIES[1]).toBe('high');
+    expect(PRIORITIES[2]).toBe('normal');
+    expect(PRIORITIES[3]).toBe('low');
   });
 });
 

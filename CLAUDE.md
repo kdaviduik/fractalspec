@@ -10,6 +10,7 @@ CLI tool for managing recursive specification documents using EARS (Easy Approac
 - **Spec**: A markdown document with YAML frontmatter defining a unit of work
 - **Parent/child**: Hierarchical relationship for decomposition
 - **Blocks**: Dependency relationships (spec A blocks spec B = B cannot start until A is done)
+- **Priority**: Categorical priority levels (critical, high, normal, low) for ordering work
 - **EARS**: Structured requirement syntax ensuring testable, unambiguous requirements
 
 ## Installation & Setup
@@ -60,8 +61,11 @@ bun run typecheck
 ## Quick Start
 
 ```bash
-# Find available work
+# Find available work (sorted by priority)
 sc list --ready
+
+# Get THE next task to work on
+sc list --ready --limit 1
 
 # Claim a spec and start working
 sc claim ABC123
@@ -71,6 +75,9 @@ sc show ABC123
 
 # Create a new spec with context message
 sc create -t "User Auth" -m "PR: https://github.com/org/repo/pull/123"
+
+# Create a high-priority spec
+sc create -t "Critical Bug Fix" --priority critical
 
 # Create a new spec with specific status
 sc create --status blocked -t "Future Implementation"
@@ -86,7 +93,9 @@ sc done ABC123
 | Command | Description | Example |
 |---------|-------------|---------|
 | `sc list` | List all specs | `sc list` |
-| `sc list --ready` | Show specs ready for work | `sc list --ready` |
+| `sc list --ready` | Show specs ready for work (sorted by priority) | `sc list --ready` |
+| `sc list --ready --limit N` | Get top N ready specs | `sc list --ready --limit 1` |
+| `sc list --ready --priority P` | Filter by priority level | `sc list --ready --priority high` |
 | `sc list --tree` | Show hierarchical tree view | `sc list --tree` |
 | `sc list --status` | Show status counts | `sc list --status` |
 | `sc show <id>` | Display spec details | `sc show ABC123` |
@@ -105,8 +114,9 @@ sc done ABC123
 |---------|-------------|---------|
 | `sc create` | Create new spec (interactive) | `sc create` |
 | `sc create -t "Title"` | Create with title | `sc create -t "User Auth"` |
-| `sc create -p PARENT_ID` | Create as child of parent | `sc create -p ABC123 -t "OAuth Flow"` |
+| `sc create -p PARENT_ID` | Create as child of parent (inherits parent priority) | `sc create -p ABC123 -t "OAuth Flow"` |
 | `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
+| `sc create --priority <level>` | Create with specific priority | `sc create --priority critical -t "Security Fix"` |
 | `sc create -m "message"` | Add context line to Overview (repeatable) | `sc create -t "API Refactor" -m "Blocks dashboard work" -m "PR: https://github.com/org/repo/pull/456"` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
@@ -124,7 +134,7 @@ sc done ABC123
 |---------|-------------|---------|
 | `sc validate` | Validate all specs' EARS format | `sc validate` |
 | `sc validate <id>` | Validate single spec | `sc validate ABC123` |
-| `sc doctor` | Check repo health (orphans, cycles) | `sc doctor` |
+| `sc doctor` | Check repo health (orphans, cycles, uncommitted specs) | `sc doctor` |
 | `sc doctor --fix` | Auto-fix issues where possible | `sc doctor --fix` |
 | `sc ears` | Show EARS pattern reference | `sc ears` |
 | `sc ears "<text>"` | Convert text to EARS format | `sc ears "users can login"` |
@@ -145,6 +155,7 @@ id: ABC123
 status: ready
 parent: null
 blocks: []
+priority: normal
 ---
 
 # Spec: Feature Title
@@ -171,6 +182,7 @@ blocks: []
 | `status` | string | see below | Current state (settable at creation via 'sc create --status') |
 | `parent` | string\|null | spec ID or null | Parent spec for hierarchy |
 | `blocks` | string[] | spec IDs | Specs that must complete first |
+| `priority` | string | see below | Priority level (default: inherits from parent, or 'normal' for root) |
 
 ### Status Values
 
@@ -182,6 +194,17 @@ blocks: []
 | `closed` | ● | Completed |
 | `deferred` | ◇ | Postponed |
 | `not_planned` | ✕ | Will not be implemented |
+
+### Priority Values
+
+| Priority | Meaning | Usage |
+|----------|---------|-------|
+| `critical` | Highest priority | Human-assigned only, for urgent work |
+| `high` | Important work | Should be addressed soon |
+| `normal` | Standard priority | Default for most specs |
+| `low` | Lower priority | Can wait for higher-priority work |
+
+**Sorting behavior**: `sc list --ready` sorts specs by priority (critical > high > normal > low), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
 
 ## Worktree Convention
 
@@ -393,6 +416,8 @@ From `src/types.ts`:
 ```typescript
 type Status = 'ready' | 'in_progress' | 'blocked' | 'closed' | 'deferred' | 'not_planned';
 
+type Priority = 'critical' | 'high' | 'normal' | 'low';
+
 type EarsPattern = 'ubiquitous' | 'state_driven' | 'event_driven' | 'optional' | 'unwanted' | 'complex';
 
 interface SpecFrontmatter {
@@ -400,6 +425,7 @@ interface SpecFrontmatter {
   status: Status;
   parent: string | null;
   blocks: string[];
+  priority: Priority;
 }
 ```
 

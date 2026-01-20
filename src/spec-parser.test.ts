@@ -6,6 +6,7 @@ id: a1b2
 status: ready
 parent: null
 blocks: []
+priority: normal
 ---
 
 # Spec: My Feature
@@ -24,6 +25,7 @@ parent: a1b2
 blocks:
   - e5f6
   - g7h8
+priority: high
 ---
 
 # Spec: Child Feature
@@ -54,6 +56,7 @@ describe('parseSpec', () => {
     expect(result.status).toBe('ready');
     expect(result.parent).toBeNull();
     expect(result.blocks).toEqual([]);
+    expect(result.priority).toBe('normal');
     expect(result.title).toBe('My Feature');
     expect(result.filePath).toBe('/path/to/spec.md');
     expect(result.content).toContain('## Overview');
@@ -67,7 +70,41 @@ describe('parseSpec', () => {
     expect(result.status).toBe('blocked');
     expect(result.parent).toBe('a1b2');
     expect(result.blocks).toEqual(['e5f6', 'g7h8']);
+    expect(result.priority).toBe('high');
     expect(result.title).toBe('Child Feature');
+  });
+
+  test('defaults priority to normal when missing', () => {
+    const specWithoutPriority = `---
+id: x1y2
+status: ready
+parent: null
+blocks: []
+---
+
+# Spec: No Priority
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithoutPriority);
+    expect(result.priority).toBe('normal');
+  });
+
+  test('defaults priority to normal for invalid priority value', () => {
+    const specWithInvalidPriority = `---
+id: x1y2
+status: ready
+parent: null
+blocks: []
+priority: invalid_priority
+---
+
+# Spec: Invalid Priority
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithInvalidPriority);
+    expect(result.priority).toBe('normal');
   });
 
   test('throws ParseError for spec without frontmatter', () => {

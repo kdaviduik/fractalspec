@@ -7,10 +7,17 @@ Guide for working with the `sc` spec management CLI. Use this skill when impleme
 ### 1. Find Available Work
 
 ```bash
+# See all ready specs (sorted by priority)
 sc list --ready
+
+# Get THE next highest-priority task
+sc list --ready --limit 1
+
+# Filter to specific priority level
+sc list --ready --priority high
 ```
 
-Pick a spec with no blockers. If unsure which to prioritize, check the tree view (`sc list --tree`) to understand dependencies.
+Specs are automatically sorted by priority (critical > high > normal > low), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
 
 ### 2. Claim the Spec
 
@@ -53,6 +60,25 @@ sc done <spec-id>
 ```
 
 This sets status to `closed` and removes the work worktree. Commands can be run from any directory in the repository.
+
+## Creating Specs with Priority
+
+When creating specs, you can set priority explicitly or rely on inheritance:
+
+```bash
+# Create with explicit priority
+sc create -t "Critical Security Fix" --priority critical
+
+# Child specs inherit parent's priority by default
+sc create -p ABC123 -t "Sub-task"
+
+# Override inherited priority
+sc create -p ABC123 -t "Low-priority cleanup" --priority low
+```
+
+**Priority levels** (highest to lowest): `critical`, `high`, `normal`, `low`
+
+**Default behavior**: Root specs default to `normal`. Child specs inherit their parent's priority unless overridden with `--priority`.
 
 ## Writing EARS Requirements
 

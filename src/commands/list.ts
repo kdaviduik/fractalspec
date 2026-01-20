@@ -3,11 +3,12 @@
  */
 
 import { parseArgs } from 'util';
-import type { CommandHandler } from '../types';
+import type { CommandHandler, Spec } from '../types';
+import { PRIORITIES, isValidPriority } from '../types';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
-import { findReadySpecs, getStatusSummary } from '../spec-query';
+import { findReadySpecsSorted, getStatusSummary } from '../spec-query';
 import { getWorkWorktreePath } from '../git-operations';
 
 export const command: CommandHandler = {
@@ -17,7 +18,7 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc list',
-      synopsis: 'sc list [--ready | --tree | --status]',
+      synopsis: 'sc list [--ready] [--tree] [--status] [--limit <n>] [--priority <level>]',
       description: `List specs in various formats. By default, shows all specs with status icons.
 
 Status icons:
@@ -26,11 +27,13 @@ Status icons:
   ⊘  blocked     - Waiting on dependencies
   ●  closed      - Complete
   ◇  deferred    - Postponed
-  ✕  not_planned - Will not implement`,
+  ✕  not_planned - Will not implement
+
+Priority levels (highest to lowest): critical, high, normal, low`,
       flags: [
         {
           flag: '--ready',
-          description: 'Show only specs available for work (no blockers, status is ready)',
+          description: 'Show only specs available for work (no blockers, status is ready). Sorted by priority, then depth (deepest first), then title.',
         },
         {
           flag: '--tree',
@@ -40,13 +43,30 @@ Status icons:
           flag: '--status',
           description: 'Show status count summary across all specs',
         },
+        {
+          flag: '--limit <n>',
+          description: 'Limit output to top N specs (requires --ready). Use --limit 1 for "next task" behavior.',
+        },
+        {
+          flag: '--priority <level>',
+          description: `Filter by priority level (requires --ready). Valid: ${PRIORITIES.join(', ')}`,
+        },
       ],
       examples: [
         '# See all specs with status icons',
         'sc list',
         '',
-        '# Find available work',
+        '# Find available work (sorted by priority)',
         'sc list --ready',
+        '',
+        '# Get THE next task to work on',
+        'sc list --ready --limit 1',
+        '',
+        '# Get top 5 highest priority ready specs',
+        'sc list --ready --limit 5',
+        '',
+        '# Show only high-priority ready specs',
+        'sc list --ready --priority high',
         '',
         '# Understand hierarchy',
         'sc list --tree',
@@ -64,6 +84,8 @@ Status icons:
         ready: { type: 'boolean' },
         tree: { type: 'boolean' },
         status: { type: 'boolean' },
+        limit: { type: 'string' },
+        priority: { type: 'string' },
       },
       allowPositionals: false,
     });
@@ -76,55 +98,23 @@ Status icons:
     }
 
     if (values.status) {
-      const summary = getStatusSummary(specs);
-      console.log('\nSpec Status Summary');
-      console.log('═══════════════════');
-      console.log(`  Ready:       ${summary.ready}`);
-      console.log(`  In Progress: ${summary.in_progress}`);
-      console.log(`  Blocked:     ${summary.blocked}`);
-      console.log(`  Closed:      ${summary.closed}`);
-      console.log(`  Deferred:    ${summary.deferred}`);
-      console.log(`  Not Planned: ${summary.not_planned}`);
-      console.log(`  ─────────────────`);
-      console.log(`  Total:       ${summary.total}`);
-      return 0;
+      return printStatusSummary(specs);
     }
 
     if (values.ready) {
-      const ready = findReadySpecs(specs);
-      if (ready.length === 0) {
-        console.log('No specs ready for work.');
-        return 0;
-      }
-      console.log('\nSpecs Ready for Work');
-      console.log('════════════════════');
-      for (const spec of ready) {
-        console.log(`  ${spec.id}  ${spec.title}`);
-      }
-      return 0;
+      return printReadySpecs(specs, values.limit, values.priority);
+    }
+
+    if (values.limit !== undefined || values.priority !== undefined) {
+      console.error('Error: --limit and --priority require --ready flag');
+      return 1;
     }
 
     if (values.tree) {
-      const tree = buildSpecTree(specs);
-      console.log('\nSpec Tree');
-      console.log('═════════');
-      console.log(renderTree(tree));
-      return 0;
+      return printTreeView(specs);
     }
 
-    console.log('\nAll Specs');
-    console.log('═════════');
-    for (const spec of specs) {
-      const statusIcon = getStatusIcon(spec.status);
-      let suffix = '';
-      if (spec.status === 'in_progress') {
-        const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
-        suffix = ` [${worktreePath}]`;
-      }
-      console.log(`  ${statusIcon} ${spec.id}  ${spec.title}${suffix}`);
-    }
-
-    return 0;
+    return printAllSpecs(specs);
   },
 };
 
@@ -138,4 +128,95 @@ function getStatusIcon(status: string): string {
     not_planned: '✕',
   };
   return icons[status] ?? '?';
+}
+
+function printStatusSummary(specs: Spec[]): number {
+  const summary = getStatusSummary(specs);
+  console.log('\nSpec Status Summary');
+  console.log('═══════════════════');
+  console.log(`  Ready:       ${summary.ready}`);
+  console.log(`  In Progress: ${summary.in_progress}`);
+  console.log(`  Blocked:     ${summary.blocked}`);
+  console.log(`  Closed:      ${summary.closed}`);
+  console.log(`  Deferred:    ${summary.deferred}`);
+  console.log(`  Not Planned: ${summary.not_planned}`);
+  console.log(`  ─────────────────`);
+  console.log(`  Total:       ${summary.total}`);
+  return 0;
+}
+
+function parseLimit(limitStr: string | undefined): number | undefined {
+  if (limitStr === undefined) {
+    return undefined;
+  }
+  const parsed = parseInt(limitStr, 10);
+  if (isNaN(parsed) || parsed < 1) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function printReadySpecs(
+  specs: Spec[],
+  limitStr: string | undefined,
+  priorityStr: string | undefined
+): number {
+  const limitValue = limitStr !== undefined ? parseLimit(limitStr) : undefined;
+
+  if (limitStr !== undefined && limitValue === undefined) {
+    console.error('Error: --limit must be a positive integer');
+    return 1;
+  }
+
+  if (priorityStr !== undefined && !isValidPriority(priorityStr)) {
+    console.error(`Error: "${priorityStr}" is not a valid priority`);
+    console.error(`Valid priorities: ${PRIORITIES.join(', ')}`);
+    return 1;
+  }
+
+  const priorityFilter = isValidPriority(priorityStr) ? priorityStr : undefined;
+
+  const ready = findReadySpecsSorted(specs, {
+    limit: limitValue,
+    priorityFilter,
+  });
+
+  if (ready.length === 0) {
+    const filterMsg = priorityFilter ? ` with priority "${priorityFilter}"` : '';
+    console.log(`No specs ready for work${filterMsg}.`);
+    return 0;
+  }
+
+  const limitMsg = limitValue ? ` (top ${limitValue})` : '';
+  const priorityMsg = priorityFilter ? ` [${priorityFilter} priority]` : '';
+  console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}`);
+  console.log('════════════════════');
+  for (const spec of ready) {
+    const priorityIndicator = spec.priority !== 'normal' ? ` [${spec.priority}]` : '';
+    console.log(`  ${spec.id}  ${spec.title}${priorityIndicator}`);
+  }
+  return 0;
+}
+
+function printTreeView(specs: Spec[]): number {
+  const tree = buildSpecTree(specs);
+  console.log('\nSpec Tree');
+  console.log('═════════');
+  console.log(renderTree(tree));
+  return 0;
+}
+
+async function printAllSpecs(specs: Spec[]): Promise<number> {
+  console.log('\nAll Specs');
+  console.log('═════════');
+  for (const spec of specs) {
+    const statusIcon = getStatusIcon(spec.status);
+    let suffix = '';
+    if (spec.status === 'in_progress') {
+      const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
+      suffix = ` [${worktreePath}]`;
+    }
+    console.log(`  ${statusIcon} ${spec.id}  ${spec.title}${suffix}`);
+  }
+  return 0;
 }

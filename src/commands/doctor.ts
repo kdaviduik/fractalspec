@@ -5,13 +5,54 @@
 import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
 import type { CommandHelp } from '../help.js';
-import { readAllSpecs, writeSpec } from '../spec-filesystem';
+import { readAllSpecs, writeSpec, getSpecsRoot } from '../spec-filesystem';
+import { findGitRoot } from '../git-operations';
+import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted';
   specId: string;
   message: string;
   fixable: boolean;
+}
+
+interface UncommittedSpec {
+  path: string;
+  status: 'modified' | 'untracked';
+}
+
+async function findUncommittedSpecs(): Promise<UncommittedSpec[]> {
+  const gitRoot = await findGitRoot();
+  const specsRoot = await getSpecsRoot();
+  const specsRelative = relative(gitRoot, specsRoot);
+
+  const proc = Bun.spawn(['git', 'status', '--porcelain', specsRelative], {
+    cwd: gitRoot,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+
+  const stdout = await new Response(proc.stdout).text();
+  await proc.exited;
+
+  const uncommitted: UncommittedSpec[] = [];
+  const lines = stdout.trim().split('\n').filter(Boolean);
+
+  for (const line of lines) {
+    const statusCode = line.slice(0, 2);
+    const filePath = line.slice(3);
+
+    if (!filePath.endsWith('.md')) {
+      continue;
+    }
+
+    const status: 'modified' | 'untracked' =
+      statusCode.includes('?') ? 'untracked' : 'modified';
+
+    uncommitted.push({ path: filePath, status });
+  }
+
+  return uncommitted;
 }
 
 async function findOrphans(specs: Spec[]): Promise<HealthIssue[]> {
@@ -115,8 +156,9 @@ Detects:
   - Orphaned parent references (parent spec doesn't exist)
   - Missing blockers (blocker spec doesn't exist)
   - Circular dependencies (A blocks B, B blocks A)
+  - Uncommitted spec changes (modified or untracked specs)
 
-Circular dependencies cannot be auto-fixed and must be resolved manually.`,
+Circular dependencies and uncommitted changes cannot be auto-fixed.`,
       flags: [
         {
           flag: '--fix',
@@ -134,6 +176,7 @@ Circular dependencies cannot be auto-fixed and must be resolved manually.`,
         'Exits with code 1 if any issues are found (even after --fix if unfixable issues remain).',
         'Orphan fix: Sets parent to null, making the spec a root.',
         'Missing blocker fix: Removes the invalid blocker ID from the blocks array.',
+        'Uncommitted specs are warnings only and do not cause exit code 1.',
       ],
     };
   },
@@ -155,11 +198,26 @@ Circular dependencies cannot be auto-fixed and must be resolved manually.`,
     const orphans = await findOrphans(specs);
     const missingBlockers = await findMissingBlockers(specs);
     const circular = findCircularDeps(specs);
+    const uncommittedSpecs = await findUncommittedSpecs();
 
     const allIssues = [...orphans, ...missingBlockers, ...circular];
 
-    if (allIssues.length === 0) {
+    if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');
+      return 0;
+    }
+
+    if (uncommittedSpecs.length > 0) {
+      console.log(`⚠ Warning: ${uncommittedSpecs.length} spec(s) have uncommitted changes`);
+      for (const spec of uncommittedSpecs) {
+        console.log(`  - ${spec.path} (${spec.status})`);
+      }
+      console.log('');
+      console.log('Run: git add docs/specs/ && git commit -m "spec: update specs"');
+      console.log('');
+    }
+
+    if (allIssues.length === 0) {
       return 0;
     }
 

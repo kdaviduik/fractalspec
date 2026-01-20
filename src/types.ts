@@ -16,6 +16,11 @@ export const STATUSES = [
 
 export type Status = (typeof STATUSES)[number];
 
+// Priority order from highest to lowest - array index determines sort rank
+export const PRIORITIES = ['critical', 'high', 'normal', 'low'] as const;
+
+export type Priority = (typeof PRIORITIES)[number];
+
 export const EARS_PATTERNS = [
   'ubiquitous',
   'state_driven',
@@ -32,6 +37,7 @@ export interface SpecFrontmatter {
   status: Status;
   parent: string | null;
   blocks: string[];
+  priority: Priority;
 }
 
 export interface Spec extends SpecFrontmatter {
@@ -95,6 +101,13 @@ export function isValidEarsPattern(value: unknown): value is EarsPattern {
     return false;
   }
   return isInArray(EARS_PATTERNS, value);
+}
+
+export function isValidPriority(value: unknown): value is Priority {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return isInArray(PRIORITIES, value);
 }
 
 export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter {

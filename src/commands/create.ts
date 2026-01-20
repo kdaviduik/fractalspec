@@ -4,8 +4,8 @@
 
 import { parseArgs } from 'util';
 import { join } from 'path';
-import type { CommandHandler, Spec } from '../types';
-import { STATUSES, isValidStatus } from '../types';
+import type { CommandHandler, Spec, Priority } from '../types';
+import { STATUSES, PRIORITIES, isValidStatus, isValidPriority } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { generateId } from '../id-generation';
@@ -68,6 +68,23 @@ export function validateMessages(messages: string[] | undefined): string[] {
   return validated;
 }
 
+export function determinePriority(
+  explicitPriority: string | undefined,
+  parentId: string | undefined,
+  allSpecs: Spec[]
+): Priority {
+  if (explicitPriority && isValidPriority(explicitPriority)) {
+    return explicitPriority;
+  }
+  if (parentId) {
+    const parentSpec = allSpecs.find((s) => s.id === parentId);
+    if (parentSpec) {
+      return parentSpec.priority;
+    }
+  }
+  return 'normal';
+}
+
 export function generateSpecTemplate(
   title: string,
   messages?: string[],
@@ -126,7 +143,7 @@ export const command: CommandHandler = {
     return {
       name: 'sc create',
       synopsis:
-        'sc create [--status <status>] [--parent <id>] [--title <text>] [--message <text>]',
+        'sc create [--status <status>] [--priority <level>] [--parent <id>] [--title <text>] [--message <text>]',
       description: `Create a new spec with auto-generated ID and template content.
 
 Without --parent, creates a root-level spec.
@@ -140,6 +157,10 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         {
           flag: '--status <status>, -s',
           description: `Set initial spec status (default: ready). Valid: ${STATUSES.join(', ')}`,
+        },
+        {
+          flag: '--priority <level>',
+          description: `Set initial priority (default: inherits from parent, or 'normal' for root specs). Valid: ${PRIORITIES.join(', ')}`,
         },
         {
           flag: '--parent <id>, -p',
@@ -162,6 +183,9 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         '# Create with title',
         'sc create -t "Implement OAuth Flow"',
         '',
+        '# Create high-priority spec',
+        'sc create -t "Critical Bug Fix" --priority critical',
+        '',
         '# Create with title and context message',
         'sc create -t "Database Migration" -m "Required for schema v2"',
         '',
@@ -171,7 +195,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         '# Create spec with specific status',
         'sc create --status blocked -t "Premium Features" -m "Waiting on payment gateway integration"',
         '',
-        '# Create as child spec with parent ID',
+        '# Create as child spec with parent ID (inherits parent priority)',
         'sc create -p a1b2c3 -t "OAuth Callback Handler" -m "Child of OAuth Flow spec"',
       ],
       notes: [
@@ -191,6 +215,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         parent: { type: 'string', short: 'p' },
         title: { type: 'string', short: 't' },
         status: { type: 'string', short: 's' },
+        priority: { type: 'string' },
         message: { type: 'string', short: 'm', multiple: true },
       },
       allowPositionals: true,
@@ -208,7 +233,14 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
       }
       return 1;
     }
-    // TypeScript now knows statusInput is a valid Status (type narrowing)
+
+    // Validate priority if provided
+    if (values.priority !== undefined && !isValidPriority(values.priority)) {
+      console.error(`Error: "${values.priority}" is not a valid priority\n`);
+      console.error('Valid priorities are:');
+      PRIORITIES.forEach((p) => console.error(`  ${p}`));
+      return 1;
+    }
 
     const title = values.title ?? (await promptForTitle());
     if (!title) {
@@ -227,12 +259,14 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
     const filePath = join(dirPath, fileName);
 
     const validatedMessages = validateMessages(values.message);
+    const priority = determinePriority(values.priority, values.parent, specs);
 
     const spec: Spec = {
       id,
       status: statusInput,
       parent: values.parent ?? null,
       blocks: [],
+      priority,
       title,
       content: generateSpecTemplate(title, validatedMessages),
       filePath,
@@ -240,9 +274,14 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
 
     await writeSpec(spec);
 
-    console.log(`Created spec: ${spec.title}`);
+    console.log(`✓ Created: ${spec.filePath}`);
     console.log(`  ID: ${spec.id}`);
-    console.log(`  Path: ${spec.filePath}`);
+    console.log(`  Title: ${spec.title}`);
+    console.log(`  Priority: ${spec.priority}`);
+    console.log('');
+    console.log('📝 Remember to commit your new spec:');
+    console.log(`   git add ${dirPath}/`);
+    console.log(`   git commit -m "spec: add ${slug}"`);
 
     return 0;
   },

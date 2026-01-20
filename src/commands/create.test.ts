@@ -3,8 +3,10 @@ import {
   command,
   validateMessages,
   generateSpecTemplate,
+  determinePriority,
 } from './create';
 import { STATUSES } from '../types';
+import type { Spec } from '../types';
 
 describe('create command - status flag', () => {
   it('should provide help documentation with --status flag', () => {
@@ -221,5 +223,68 @@ describe('generateSpecTemplate', () => {
   it('should have blank line between placeholder and first message', () => {
     const result = generateSpecTemplate('Test Title', ['First message']);
     expect(result).toMatch(/\[2-3 sentences: what this is and why it matters\]\n\nFirst message/);
+  });
+});
+
+describe('determinePriority', () => {
+  function makeSpec(id: string, priority: 'critical' | 'high' | 'normal' | 'low'): Spec {
+    return {
+      id,
+      status: 'ready',
+      parent: null,
+      blocks: [],
+      priority,
+      title: `Spec ${id}`,
+      content: `# Spec: Spec ${id}`,
+      filePath: `/path/${id}.md`,
+    };
+  }
+
+  it('should use explicit priority when provided', () => {
+    const specs: Spec[] = [];
+    const result = determinePriority('high', undefined, specs);
+    expect(result).toBe('high');
+  });
+
+  it('should use explicit priority even when parent exists', () => {
+    const specs = [makeSpec('parent', 'critical')];
+    const result = determinePriority('low', 'parent', specs);
+    expect(result).toBe('low');
+  });
+
+  it('should inherit priority from parent when no explicit priority', () => {
+    const specs = [makeSpec('parent', 'high')];
+    const result = determinePriority(undefined, 'parent', specs);
+    expect(result).toBe('high');
+  });
+
+  it('should inherit critical priority from parent', () => {
+    const specs = [makeSpec('parent', 'critical')];
+    const result = determinePriority(undefined, 'parent', specs);
+    expect(result).toBe('critical');
+  });
+
+  it('should default to normal when no parent and no explicit priority', () => {
+    const specs: Spec[] = [];
+    const result = determinePriority(undefined, undefined, specs);
+    expect(result).toBe('normal');
+  });
+
+  it('should default to normal when parent does not exist', () => {
+    const specs = [makeSpec('other', 'high')];
+    const result = determinePriority(undefined, 'nonexistent', specs);
+    expect(result).toBe('normal');
+  });
+
+  it('should ignore invalid priority and inherit from parent', () => {
+    const specs = [makeSpec('parent', 'high')];
+    const result = determinePriority('invalid', 'parent', specs);
+    expect(result).toBe('high');
+  });
+
+  it('should ignore invalid priority and default to normal when no parent', () => {
+    const specs: Spec[] = [];
+    const result = determinePriority('invalid', undefined, specs);
+    expect(result).toBe('normal');
   });
 });

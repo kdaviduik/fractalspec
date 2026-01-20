@@ -23,6 +23,7 @@ export function serializeSpec(spec: Spec): string {
     `status: ${spec.status}`,
     `parent: ${parentValue}`,
     `blocks: ${blocksValue}`,
+    `priority: ${spec.priority}`,
     '---',
   ].join('\n');
 

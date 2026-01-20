@@ -139,6 +139,7 @@ describe('validateSpecRequirements', () => {
       status: 'ready',
       parent: null,
       blocks: [],
+      priority: 'normal',
       title: 'Test',
       content: `# Spec: Test
 
@@ -163,6 +164,7 @@ describe('validateSpecRequirements', () => {
       status: 'ready',
       parent: null,
       blocks: [],
+      priority: 'normal',
       title: 'Test',
       content: '# Spec: Test\n\nNo requirements here.',
       filePath: '/test.md',

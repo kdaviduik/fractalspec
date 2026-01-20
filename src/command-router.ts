@@ -66,6 +66,7 @@ ${bold('FILE STRUCTURE')}
     - status: ready | in_progress | blocked | closed | deferred | not_planned
     - parent: parent spec ID or null
     - blocks: array of blocker spec IDs
+    - priority: critical | high | normal | low (default: inherits from parent, or normal)
 
 ${bold('STATUS ICONS')}
   ○  ready       - No blockers, available for work
@@ -90,7 +91,9 @@ ${bold('WORKTREE WORKFLOW')}
 ${bold('COMMANDS')}
   ${underline('Discovery & Viewing')}
     ${underline('list')}                   List all specs
-      --ready              Show only specs available for work (no blockers)
+      --ready              Show specs available for work (sorted by priority)
+      --limit ${dim('<n>')}          Limit to top N specs (requires --ready)
+      --priority ${dim('<level>')}   Filter by priority level (requires --ready)
       --tree               Display hierarchical tree view
       --status             Show status count summary
 
@@ -113,6 +116,7 @@ ${bold('COMMANDS')}
   ${underline('Creation & Editing')}
     ${underline('create')}                 Create new spec (interactive)
       --status ${dim('<status>')}, -s Set initial status (default: ready)
+      --priority ${dim('<level>')}   Set priority (default: inherits from parent)
       --parent ${dim('<id>')}, -p    Create as child of specified parent
       --title ${dim('<text>')}, -t   Set spec title (skips prompt)
       --message ${dim('<text>')}, -m Add context line to Overview (repeatable)
@@ -167,7 +171,9 @@ ${bold('EARS PATTERNS')}
 ${bold('EXAMPLES')}
   # Finding work
   sc list --status              # Check overall project health
-  sc list --ready               # Show available work
+  sc list --ready               # Show available work (sorted by priority)
+  sc list --ready --limit 1     # Get THE next task to work on
+  sc list --ready --priority high  # Show only high-priority ready specs
   sc list --tree                # Understand hierarchy
 
   # Working on a spec (example: spec titled "User Auth")
@@ -179,8 +185,9 @@ ${bold('EXAMPLES')}
   # Creating specs
   sc create                     # Create root spec (prompted for title)
   sc create -t "OAuth Flow"     # Create with title
+  sc create -t "Security Fix" --priority critical  # Create with high priority
   sc create -t "Database Migration" -m "Required for schema v2"  # Add context
-  sc create -p a1b2 -t "OAuth Callback Handler"  # Create child of a1b2
+  sc create -p a1b2 -t "OAuth Callback Handler"  # Create child (inherits priority)
   sc create -s blocked -t "Premium Features" -m "Waiting on payment gateway"  # With status and context
 
   # Managing dependencies

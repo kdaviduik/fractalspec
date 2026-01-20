@@ -2,7 +2,9 @@
  * Query and filter functions for specs.
  */
 
-import type { Spec, Status } from './types';
+import type { Spec, Status, Priority } from './types';
+import { PRIORITIES } from './types';
+import { computeDepths } from './spec-tree';
 
 export interface StatusSummary {
   ready: number;
@@ -77,4 +79,67 @@ export function getStatusSummary(specs: Spec[]): StatusSummary {
   }
 
   return summary;
+}
+
+/**
+ * Priority rank for sorting (lower = higher priority).
+ */
+function getPriorityRank(priority: Priority): number {
+  return PRIORITIES.indexOf(priority);
+}
+
+export interface SortOptions {
+  allSpecs: Spec[];
+}
+
+/**
+ * Sorts specs by priority (highest first), then depth (deepest first), then title alphabetically.
+ * Sort order: priority (critical > high > normal > low), depth descending, title alphabetically.
+ */
+export function sortByPriority(specs: Spec[], options: SortOptions): Spec[] {
+  const depths = computeDepths(options.allSpecs);
+
+  return [...specs].sort((a, b) => {
+    const priorityRankA = getPriorityRank(a.priority);
+    const priorityRankB = getPriorityRank(b.priority);
+    if (priorityRankA !== priorityRankB) {
+      return priorityRankA - priorityRankB;
+    }
+
+    const depthA = depths.get(a.id) ?? 0;
+    const depthB = depths.get(b.id) ?? 0;
+    if (depthA !== depthB) {
+      return depthB - depthA;
+    }
+
+    return a.title.localeCompare(b.title);
+  });
+}
+
+export interface FindReadyOptions {
+  priorityFilter?: Priority | undefined;
+  limit?: number | undefined;
+}
+
+/**
+ * Finds specs that are ready for work, optionally filtered and limited.
+ * Returns specs sorted by priority (highest first), then depth (deepest first), then title.
+ */
+export function findReadySpecsSorted(
+  specs: Spec[],
+  options: FindReadyOptions = {}
+): Spec[] {
+  let ready = findReadySpecs(specs);
+
+  if (options.priorityFilter) {
+    ready = ready.filter((s) => s.priority === options.priorityFilter);
+  }
+
+  const sorted = sortByPriority(ready, { allSpecs: specs });
+
+  if (options.limit !== undefined && options.limit > 0) {
+    return sorted.slice(0, options.limit);
+  }
+
+  return sorted;
 }

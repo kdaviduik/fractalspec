@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildSpecTree, renderTree } from './spec-tree';
+import { buildSpecTree, renderTree, computeDepths } from './spec-tree';
 import type { Spec, SpecNode } from './types';
 
 function makeSpec(id: string, parent: string | null = null): Spec {
@@ -8,6 +8,7 @@ function makeSpec(id: string, parent: string | null = null): Spec {
     status: 'ready',
     parent,
     blocks: [],
+    priority: 'normal',
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: `/path/${id}.md`,
@@ -157,5 +158,100 @@ describe('renderTree', () => {
     const result = renderTree(tree);
 
     expect(result).toContain('xyz123');
+  });
+});
+
+describe('computeDepths', () => {
+  test('returns empty map for empty input', () => {
+    const depths = computeDepths([]);
+    expect(depths.size).toBe(0);
+  });
+
+  test('root specs have depth 0', () => {
+    const specs = [makeSpec('a'), makeSpec('b'), makeSpec('c')];
+
+    const depths = computeDepths(specs);
+
+    expect(depths.get('a')).toBe(0);
+    expect(depths.get('b')).toBe(0);
+    expect(depths.get('c')).toBe(0);
+  });
+
+  test('child specs have depth 1', () => {
+    const specs = [
+      makeSpec('root'),
+      makeSpec('child1', 'root'),
+      makeSpec('child2', 'root'),
+    ];
+
+    const depths = computeDepths(specs);
+
+    expect(depths.get('root')).toBe(0);
+    expect(depths.get('child1')).toBe(1);
+    expect(depths.get('child2')).toBe(1);
+  });
+
+  test('grandchild specs have depth 2', () => {
+    const specs = [
+      makeSpec('root'),
+      makeSpec('child', 'root'),
+      makeSpec('grandchild', 'child'),
+    ];
+
+    const depths = computeDepths(specs);
+
+    expect(depths.get('root')).toBe(0);
+    expect(depths.get('child')).toBe(1);
+    expect(depths.get('grandchild')).toBe(2);
+  });
+
+  test('orphan specs have depth 0', () => {
+    const specs = [makeSpec('orphan', 'nonexistent')];
+
+    const depths = computeDepths(specs);
+
+    expect(depths.get('orphan')).toBe(0);
+  });
+
+  test('handles multiple independent trees', () => {
+    const specs = [
+      makeSpec('root1'),
+      makeSpec('child1', 'root1'),
+      makeSpec('root2'),
+      makeSpec('child2', 'root2'),
+      makeSpec('grandchild2', 'child2'),
+    ];
+
+    const depths = computeDepths(specs);
+
+    expect(depths.get('root1')).toBe(0);
+    expect(depths.get('child1')).toBe(1);
+    expect(depths.get('root2')).toBe(0);
+    expect(depths.get('child2')).toBe(1);
+    expect(depths.get('grandchild2')).toBe(2);
+  });
+
+  test('handles circular parent references without infinite loop', () => {
+    const specs = [makeSpec('a', 'b'), makeSpec('b', 'a')];
+
+    // Should complete without infinite recursion
+    const depths = computeDepths(specs);
+
+    // The implementation processes specs in order:
+    // - 'a' visits 'b' (not cached), 'b' visits 'a' (in visited set, returns 0), so b=1, a=2
+    // - 'b' is already cached with depth 1
+    expect(depths.get('a')).toBe(2);
+    expect(depths.get('b')).toBe(1);
+  });
+
+  test('handles self-referential parent without infinite loop', () => {
+    const specs = [makeSpec('self', 'self')];
+
+    // Should complete without infinite recursion
+    const depths = computeDepths(specs);
+
+    // Self-reference: visits self, adds to visited, tries parent (self), which is in visited, returns 0
+    // So depth = 0 + 1 = 1
+    expect(depths.get('self')).toBe(1);
   });
 });

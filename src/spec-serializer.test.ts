@@ -10,6 +10,7 @@ describe('serializeSpec', () => {
       status: 'ready',
       parent: null,
       blocks: [],
+      priority: 'normal',
       title: 'My Feature',
       content: '# Spec: My Feature\n\n## Overview\nSome content.',
       filePath: '/path/to/spec.md',
@@ -22,6 +23,7 @@ describe('serializeSpec', () => {
     expect(result).toContain('status: ready');
     expect(result).toContain('parent: null');
     expect(result).toContain('blocks: []');
+    expect(result).toContain('priority: normal');
     expect(result).toContain('# Spec: My Feature');
     expect(result).toContain('## Overview');
   });
@@ -32,6 +34,7 @@ describe('serializeSpec', () => {
       status: 'blocked',
       parent: 'a1b2',
       blocks: ['e5f6', 'g7h8'],
+      priority: 'high',
       title: 'Child Feature',
       content: '# Spec: Child Feature\n\nChild content.',
       filePath: '/path/to/child.md',
@@ -43,6 +46,7 @@ describe('serializeSpec', () => {
     expect(result).toContain('blocks:');
     expect(result).toContain('- e5f6');
     expect(result).toContain('- g7h8');
+    expect(result).toContain('priority: high');
   });
 
   test('round-trip: parse -> serialize -> parse produces same data', () => {
@@ -51,6 +55,7 @@ id: a1b2
 status: ready
 parent: null
 blocks: []
+priority: high
 ---
 
 # Spec: Round Trip Test
@@ -70,6 +75,7 @@ Testing round-trip conversion.
     expect(reparsed.status).toBe(parsed.status);
     expect(reparsed.parent).toBe(parsed.parent);
     expect(reparsed.blocks).toEqual(parsed.blocks);
+    expect(reparsed.priority).toBe(parsed.priority);
     expect(reparsed.title).toBe(parsed.title);
   });
 
@@ -79,6 +85,7 @@ Testing round-trip conversion.
       status: 'ready',
       parent: null,
       blocks: [],
+      priority: 'normal',
       title: 'Test',
       content: '# Spec: Test',
       filePath: '/path/spec.md',
@@ -94,6 +101,7 @@ Testing round-trip conversion.
       status: 'ready',
       parent: null,
       blocks: [],
+      priority: 'normal',
       title: 'Test',
       content: '# Spec: Test',
       filePath: '/path/spec.md',
@@ -119,6 +127,7 @@ Testing round-trip conversion.
         status,
         parent: null,
         blocks: [],
+        priority: 'normal',
         title: 'Test',
         content: '# Test',
         filePath: '/path.md',
@@ -126,6 +135,26 @@ Testing round-trip conversion.
 
       const result = serializeSpec(spec);
       expect(result).toContain(`status: ${status}`);
+    }
+  });
+
+  test('handles all priority levels', () => {
+    const priorities = ['critical', 'high', 'normal', 'low'] as const;
+
+    for (const priority of priorities) {
+      const spec: Spec = {
+        id: 'test',
+        status: 'ready',
+        parent: null,
+        blocks: [],
+        priority,
+        title: 'Test',
+        content: '# Test',
+        filePath: '/path.md',
+      };
+
+      const result = serializeSpec(spec);
+      expect(result).toContain(`priority: ${priority}`);
     }
   });
 });
