@@ -16,10 +16,12 @@ export const STATUSES = [
 
 export type Status = (typeof STATUSES)[number];
 
-// Priority order from highest to lowest - array index determines sort rank
-export const PRIORITIES = ['critical', 'high', 'normal', 'low'] as const;
+// Numeric priority system (1-10, where 10 = highest priority)
+export const MIN_PRIORITY = 1;
+export const MAX_PRIORITY = 10;
+export const DEFAULT_PRIORITY = 5;
 
-export type Priority = (typeof PRIORITIES)[number];
+export type Priority = number;
 
 export const EARS_PATTERNS = [
   'ubiquitous',
@@ -104,10 +106,10 @@ export function isValidEarsPattern(value: unknown): value is EarsPattern {
 }
 
 export function isValidPriority(value: unknown): value is Priority {
-  if (typeof value !== 'string') {
+  if (typeof value !== 'number') {
     return false;
   }
-  return isInArray(PRIORITIES, value);
+  return Number.isInteger(value) && value >= MIN_PRIORITY && value <= MAX_PRIORITY;
 }
 
 export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter {

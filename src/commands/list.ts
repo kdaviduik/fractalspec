@@ -4,11 +4,11 @@
 
 import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
-import { PRIORITIES, isValidPriority } from '../types';
+import { MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY } from '../types';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
-import { findReadySpecsSorted, getStatusSummary } from '../spec-query';
+import { findReadySpecsSorted, getStatusSummary, parsePriorityFilter } from '../spec-query';
 import { getWorkWorktreePath } from '../git-operations';
 
 export const command: CommandHandler = {
@@ -29,7 +29,7 @@ Status icons:
   ◇  deferred    - Postponed
   ✕  not_planned - Will not implement
 
-Priority levels (highest to lowest): critical, high, normal, low`,
+Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_PRIORITY} is highest priority)`,
       flags: [
         {
           flag: '--ready',
@@ -48,8 +48,8 @@ Priority levels (highest to lowest): critical, high, normal, low`,
           description: 'Limit output to top N specs (requires --ready). Use --limit 1 for "next task" behavior.',
         },
         {
-          flag: '--priority <level>',
-          description: `Filter by priority level (requires --ready). Valid: ${PRIORITIES.join(', ')}`,
+          flag: '--priority <n or n-m>',
+          description: `Filter by priority (requires --ready). Accepts single value (e.g., 8) or range (e.g., 8-10).`,
         },
       ],
       examples: [
@@ -65,8 +65,8 @@ Priority levels (highest to lowest): critical, high, normal, low`,
         '# Get top 5 highest priority ready specs',
         'sc list --ready --limit 5',
         '',
-        '# Show only high-priority ready specs',
-        'sc list --ready --priority high',
+        '# Show only highest-priority ready specs (8-10)',
+        'sc list --ready --priority 8-10',
         '',
         '# Understand hierarchy',
         'sc list --tree',
@@ -168,31 +168,32 @@ function printReadySpecs(
     return 1;
   }
 
-  if (priorityStr !== undefined && !isValidPriority(priorityStr)) {
-    console.error(`Error: "${priorityStr}" is not a valid priority`);
-    console.error(`Valid priorities: ${PRIORITIES.join(', ')}`);
+  const priorityFilter =
+    priorityStr !== undefined ? parsePriorityFilter(priorityStr) : undefined;
+
+  if (priorityStr !== undefined && priorityFilter === null) {
+    console.error(`Error: "${priorityStr}" is not a valid priority filter`);
+    console.error(`Use a number (${MIN_PRIORITY}-${MAX_PRIORITY}) or range (e.g., 8-10)`);
     return 1;
   }
 
-  const priorityFilter = isValidPriority(priorityStr) ? priorityStr : undefined;
-
   const ready = findReadySpecsSorted(specs, {
     limit: limitValue,
-    priorityFilter,
+    priorityFilter: priorityFilter ?? undefined,
   });
 
   if (ready.length === 0) {
-    const filterMsg = priorityFilter ? ` with priority "${priorityFilter}"` : '';
+    const filterMsg = priorityStr ? ` with priority "${priorityStr}"` : '';
     console.log(`No specs ready for work${filterMsg}.`);
     return 0;
   }
 
   const limitMsg = limitValue ? ` (top ${limitValue})` : '';
-  const priorityMsg = priorityFilter ? ` [${priorityFilter} priority]` : '';
+  const priorityMsg = priorityStr ? ` [priority ${priorityStr}]` : '';
   console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}`);
   console.log('════════════════════');
   for (const spec of ready) {
-    const priorityIndicator = spec.priority !== 'normal' ? ` [${spec.priority}]` : '';
+    const priorityIndicator = spec.priority !== DEFAULT_PRIORITY ? ` [P${spec.priority}]` : '';
     console.log(`  ${spec.id}  ${spec.title}${priorityIndicator}`);
   }
   return 0;

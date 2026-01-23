@@ -41,7 +41,7 @@ async function main(): Promise<number> {
     if (command.getHelp) {
       const help = command.getHelp();
 
-      // Check for subcommand help (e.g., sc deps add --help)
+      // Check for subcommand help (e.g., sc command subcommand --help)
       const subcommand = helpIndex > 1 ? args[1] : undefined;
 
       if (subcommand && help.subcommands?.[subcommand]) {

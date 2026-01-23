@@ -5,8 +5,8 @@ import {
   generateSpecTemplate,
   determinePriority,
 } from './create';
-import { STATUSES } from '../types';
-import type { Spec } from '../types';
+import { STATUSES, DEFAULT_PRIORITY } from '../types';
+import type { Spec, Priority } from '../types';
 
 describe('create command - status flag', () => {
   it('should provide help documentation with --status flag', () => {
@@ -227,7 +227,7 @@ describe('generateSpecTemplate', () => {
 });
 
 describe('determinePriority', () => {
-  function makeSpec(id: string, priority: 'critical' | 'high' | 'normal' | 'low'): Spec {
+  function makeSpec(id: string, priority: Priority): Spec {
     return {
       id,
       status: 'ready',
@@ -240,51 +240,63 @@ describe('determinePriority', () => {
     };
   }
 
-  it('should use explicit priority when provided', () => {
+  it('should use explicit numeric priority when provided', () => {
     const specs: Spec[] = [];
-    const result = determinePriority('high', undefined, specs);
-    expect(result).toBe('high');
+    const result = determinePriority('8', undefined, specs);
+    expect(result).toBe(8);
   });
 
   it('should use explicit priority even when parent exists', () => {
-    const specs = [makeSpec('parent', 'critical')];
-    const result = determinePriority('low', 'parent', specs);
-    expect(result).toBe('low');
+    const specs = [makeSpec('parent', 10)];
+    const result = determinePriority('2', 'parent', specs);
+    expect(result).toBe(2);
   });
 
   it('should inherit priority from parent when no explicit priority', () => {
-    const specs = [makeSpec('parent', 'high')];
+    const specs = [makeSpec('parent', 8)];
     const result = determinePriority(undefined, 'parent', specs);
-    expect(result).toBe('high');
+    expect(result).toBe(8);
   });
 
-  it('should inherit critical priority from parent', () => {
-    const specs = [makeSpec('parent', 'critical')];
+  it('should inherit highest priority (10) from parent', () => {
+    const specs = [makeSpec('parent', 10)];
     const result = determinePriority(undefined, 'parent', specs);
-    expect(result).toBe('critical');
+    expect(result).toBe(10);
   });
 
-  it('should default to normal when no parent and no explicit priority', () => {
+  it('should default to DEFAULT_PRIORITY (5) when no parent and no explicit priority', () => {
     const specs: Spec[] = [];
     const result = determinePriority(undefined, undefined, specs);
-    expect(result).toBe('normal');
+    expect(result).toBe(DEFAULT_PRIORITY);
   });
 
-  it('should default to normal when parent does not exist', () => {
-    const specs = [makeSpec('other', 'high')];
+  it('should default to DEFAULT_PRIORITY when parent does not exist', () => {
+    const specs = [makeSpec('other', 8)];
     const result = determinePriority(undefined, 'nonexistent', specs);
-    expect(result).toBe('normal');
+    expect(result).toBe(DEFAULT_PRIORITY);
   });
 
-  it('should ignore invalid priority and inherit from parent', () => {
-    const specs = [makeSpec('parent', 'high')];
+  it('should ignore invalid (non-numeric) priority and inherit from parent', () => {
+    const specs = [makeSpec('parent', 8)];
     const result = determinePriority('invalid', 'parent', specs);
-    expect(result).toBe('high');
+    expect(result).toBe(8);
   });
 
-  it('should ignore invalid priority and default to normal when no parent', () => {
+  it('should ignore invalid priority and default to DEFAULT_PRIORITY when no parent', () => {
     const specs: Spec[] = [];
     const result = determinePriority('invalid', undefined, specs);
-    expect(result).toBe('normal');
+    expect(result).toBe(DEFAULT_PRIORITY);
+  });
+
+  it('should ignore out-of-range priority (0) and inherit from parent', () => {
+    const specs = [makeSpec('parent', 7)];
+    const result = determinePriority('0', 'parent', specs);
+    expect(result).toBe(7);
+  });
+
+  it('should ignore out-of-range priority (11) and default to DEFAULT_PRIORITY', () => {
+    const specs: Spec[] = [];
+    const result = determinePriority('11', undefined, specs);
+    expect(result).toBe(DEFAULT_PRIORITY);
   });
 });

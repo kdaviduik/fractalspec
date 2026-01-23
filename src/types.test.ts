@@ -6,7 +6,9 @@ import {
   isValidSpecFrontmatter,
   STATUSES,
   EARS_PATTERNS,
-  PRIORITIES,
+  MIN_PRIORITY,
+  MAX_PRIORITY,
+  DEFAULT_PRIORITY,
 } from './types';
 
 describe('Status validation', () => {
@@ -78,37 +80,38 @@ describe('EARS pattern validation', () => {
 });
 
 describe('Priority validation', () => {
-  test('accepts all valid priorities', () => {
-    const validPriorities = ['critical', 'high', 'normal', 'low'];
-
-    for (const priority of validPriorities) {
-      expect(isValidPriority(priority)).toBe(true);
+  test('accepts all valid priorities (1-10)', () => {
+    for (let p = MIN_PRIORITY; p <= MAX_PRIORITY; p++) {
+      expect(isValidPriority(p)).toBe(true);
     }
   });
 
-  test('rejects invalid priorities', () => {
-    expect(isValidPriority('invalid')).toBe(false);
-    expect(isValidPriority('')).toBe(false);
-    expect(isValidPriority('CRITICAL')).toBe(false);
-    expect(isValidPriority('HIGH')).toBe(false);
-    expect(isValidPriority('medium')).toBe(false);
-    expect(isValidPriority('urgent')).toBe(false);
+  test('rejects priorities outside 1-10 range', () => {
+    expect(isValidPriority(0)).toBe(false);
+    expect(isValidPriority(11)).toBe(false);
+    expect(isValidPriority(-1)).toBe(false);
+    expect(isValidPriority(100)).toBe(false);
   });
 
-  test('rejects non-string values', () => {
+  test('rejects non-integer numbers', () => {
+    expect(isValidPriority(5.5)).toBe(false);
+    expect(isValidPriority(1.1)).toBe(false);
+    expect(isValidPriority(9.9)).toBe(false);
+  });
+
+  test('rejects non-number values', () => {
     expect(isValidPriority(null)).toBe(false);
     expect(isValidPriority(undefined)).toBe(false);
-    expect(isValidPriority(1)).toBe(false);
+    expect(isValidPriority('5')).toBe(false);
+    expect(isValidPriority('high')).toBe(false);
     expect(isValidPriority({})).toBe(false);
-    expect(isValidPriority(['normal'])).toBe(false);
+    expect(isValidPriority([5])).toBe(false);
   });
 
-  test('PRIORITIES constant contains all valid priorities in order', () => {
-    expect(PRIORITIES).toHaveLength(4);
-    expect(PRIORITIES[0]).toBe('critical');
-    expect(PRIORITIES[1]).toBe('high');
-    expect(PRIORITIES[2]).toBe('normal');
-    expect(PRIORITIES[3]).toBe('low');
+  test('priority constants are correct', () => {
+    expect(MIN_PRIORITY).toBe(1);
+    expect(MAX_PRIORITY).toBe(10);
+    expect(DEFAULT_PRIORITY).toBe(5);
   });
 });
 

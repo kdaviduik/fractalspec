@@ -3,7 +3,7 @@
  */
 
 import type { Spec, Status, Priority } from './types';
-import { PRIORITIES } from './types';
+import { MIN_PRIORITY, MAX_PRIORITY, isValidPriority } from './types';
 import { computeDepths } from './spec-tree';
 
 export interface StatusSummary {
@@ -81,29 +81,20 @@ export function getStatusSummary(specs: Spec[]): StatusSummary {
   return summary;
 }
 
-/**
- * Priority rank for sorting (lower = higher priority).
- */
-function getPriorityRank(priority: Priority): number {
-  return PRIORITIES.indexOf(priority);
-}
-
 export interface SortOptions {
   allSpecs: Spec[];
 }
 
 /**
  * Sorts specs by priority (highest first), then depth (deepest first), then title alphabetically.
- * Sort order: priority (critical > high > normal > low), depth descending, title alphabetically.
+ * Sort order: priority (10 first, descending to 1), depth descending, title alphabetically.
  */
 export function sortByPriority(specs: Spec[], options: SortOptions): Spec[] {
   const depths = computeDepths(options.allSpecs);
 
   return [...specs].sort((a, b) => {
-    const priorityRankA = getPriorityRank(a.priority);
-    const priorityRankB = getPriorityRank(b.priority);
-    if (priorityRankA !== priorityRankB) {
-      return priorityRankA - priorityRankB;
+    if (a.priority !== b.priority) {
+      return b.priority - a.priority;
     }
 
     const depthA = depths.get(a.id) ?? 0;
@@ -116,9 +107,50 @@ export function sortByPriority(specs: Spec[], options: SortOptions): Spec[] {
   });
 }
 
+export interface PriorityRange {
+  min: Priority;
+  max: Priority;
+}
+
 export interface FindReadyOptions {
-  priorityFilter?: Priority | undefined;
+  priorityFilter?: Priority | PriorityRange | undefined;
   limit?: number | undefined;
+}
+
+function matchesPriorityFilter(
+  priority: Priority,
+  filter: Priority | PriorityRange
+): boolean {
+  if (typeof filter === 'number') {
+    return priority === filter;
+  }
+  return priority >= filter.min && priority <= filter.max;
+}
+
+/**
+ * Parses a priority filter string into a Priority or PriorityRange.
+ * Supports: "5" (exact), "3-7" (range)
+ * Returns null for invalid input.
+ */
+export function parsePriorityFilter(
+  input: string
+): Priority | PriorityRange | null {
+  const rangeMatch = input.match(/^(\d+)-(\d+)$/);
+  if (rangeMatch) {
+    const min = parseInt(rangeMatch[1] as string, 10);
+    const max = parseInt(rangeMatch[2] as string, 10);
+    if (!isValidPriority(min) || !isValidPriority(max) || min > max) {
+      return null;
+    }
+    return { min, max };
+  }
+
+  const exact = parseInt(input, 10);
+  if (isValidPriority(exact)) {
+    return exact;
+  }
+
+  return null;
 }
 
 /**
@@ -131,8 +163,8 @@ export function findReadySpecsSorted(
 ): Spec[] {
   let ready = findReadySpecs(specs);
 
-  if (options.priorityFilter) {
-    ready = ready.filter((s) => s.priority === options.priorityFilter);
+  if (options.priorityFilter !== undefined) {
+    ready = ready.filter((s) => matchesPriorityFilter(s.priority, options.priorityFilter as Priority | PriorityRange));
   }
 
   const sorted = sortByPriority(ready, { allSpecs: specs });

@@ -3,8 +3,9 @@
  * Handles reading, writing, and finding spec files.
  */
 
-import { mkdir, readdir, rm } from 'fs/promises';
+import { mkdir, readdir, rm, rename } from 'fs/promises';
 import { join, basename, dirname } from 'path';
+import { randomUUID } from 'crypto';
 import { parseSpec } from './spec-parser';
 import { serializeSpec } from './spec-serializer';
 import type { Spec } from './types';
@@ -49,7 +50,12 @@ export async function writeSpec(spec: Spec): Promise<void> {
   await mkdir(dirPath, { recursive: true });
 
   const content = serializeSpec(spec);
-  await Bun.write(spec.filePath, content);
+
+  // Atomic write: write to temp file in same directory, then rename
+  // Rename is atomic on POSIX when source and target are on the same filesystem
+  const tempPath = join(dirPath, `.tmp-${randomUUID()}.md`);
+  await Bun.write(tempPath, content);
+  await rename(tempPath, spec.filePath);
 }
 
 async function findSpecFilesRecursive(dir: string): Promise<string[]> {

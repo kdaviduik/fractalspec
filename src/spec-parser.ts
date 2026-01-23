@@ -3,7 +3,7 @@
  */
 
 import matter from 'gray-matter';
-import { isValidSpecFrontmatter, isValidPriority, type Spec, type Priority } from './types';
+import { isValidSpecFrontmatter, isValidPriority, DEFAULT_PRIORITY, type Spec, type Priority } from './types';
 
 export class ParseError extends Error {
   constructor(
@@ -48,7 +48,7 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
   const title = extractTitle(content);
 
   const rawPriority = parsed.data['priority'];
-  const priority: Priority = isValidPriority(rawPriority) ? rawPriority : 'normal';
+  const priority: Priority = isValidPriority(rawPriority) ? rawPriority : DEFAULT_PRIORITY;
 
   return {
     id: parsed.data.id,

@@ -43,7 +43,7 @@ function handlePreconditionErrors(validation: ValidationResult, spec: Spec): voi
     } else if (reason.startsWith('Child spec')) {
       console.error(`Error: Cannot remove: ${reason}. Release children first.`);
     } else if (reason.startsWith('Depended upon')) {
-      console.error(`Error: Cannot remove ${spec.id}: ${reason}. Remove dependents first or check with 'sc deps list ${spec.id}'.`);
+      console.error(`Error: Cannot remove ${spec.id}: ${reason}. Remove dependents first or check with 'sc show ${spec.id}'.`);
     }
   }
 }
@@ -233,7 +233,7 @@ Child handling:
 
       examples: [
         '# Check dependencies, remove leaf spec',
-        'sc deps list a1b2c3',
+        'sc show a1b2c3',
         'sc remove a1b2c3',
         '',
         '# Remove parent (children promoted up one level)',
@@ -253,7 +253,7 @@ Child handling:
         'Confirmation prompt ALWAYS required - requires capital \'Y\' (not \'y\', \'yes\', or Enter)',
         'Operation is PERMANENT and UNRECOVERABLE - specs live outside git tracking',
         'If spec is claimed, run `sc release <id>` or `sc done <id>` first',
-        'Check dependencies before removal: `sc deps list <id>`',
+        'Check dependencies before removal: `sc show <id>`',
         'Use `sc list --tree` to visualize hierarchy before removing parents',
         'Partial failures leave inconsistent state; recover with `sc doctor --fix`',
       ],

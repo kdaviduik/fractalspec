@@ -106,6 +106,6 @@ Quick lookup: "I changed X, what docs do I update?"
 - .docs/dependencies.md - this file (update after implementation)
 
 **Related Commands** (users should consult before removal):
-- `sc deps list <id>` - Check what specs depend on this one
+- `sc show <id>` - Check what specs block this one (shows blockers in details)
 - `sc list --tree` - Visualize parent-child hierarchy
 - `sc doctor --fix` - Recover from partial deletion failures

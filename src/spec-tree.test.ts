@@ -8,7 +8,7 @@ function makeSpec(id: string, parent: string | null = null): Spec {
     status: 'ready',
     parent,
     blocks: [],
-    priority: 'normal',
+    priority: 5,
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: `/path/${id}.md`,

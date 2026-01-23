@@ -10,7 +10,7 @@ CLI tool for managing recursive specification documents using EARS (Easy Approac
 - **Spec**: A markdown document with YAML frontmatter defining a unit of work
 - **Parent/child**: Hierarchical relationship for decomposition
 - **Blocks**: Dependency relationships (spec A blocks spec B = B cannot start until A is done)
-- **Priority**: Categorical priority levels (critical, high, normal, low) for ordering work
+- **Priority**: Numeric priority (1-10, where 10 = highest) for ordering work
 - **EARS**: Structured requirement syntax ensuring testable, unambiguous requirements
 
 ## Installation & Setup
@@ -76,8 +76,8 @@ sc show ABC123
 # Create a new spec with context message
 sc create -t "User Auth" -m "PR: https://github.com/org/repo/pull/123"
 
-# Create a high-priority spec
-sc create -t "Critical Bug Fix" --priority critical
+# Create a high-priority spec (10 = highest)
+sc create -t "Critical Bug Fix" --priority 10
 
 # Create a new spec with specific status
 sc create --status blocked -t "Future Implementation"
@@ -95,7 +95,7 @@ sc done ABC123
 | `sc list` | List all specs | `sc list` |
 | `sc list --ready` | Show specs ready for work (sorted by priority) | `sc list --ready` |
 | `sc list --ready --limit N` | Get top N ready specs | `sc list --ready --limit 1` |
-| `sc list --ready --priority P` | Filter by priority level | `sc list --ready --priority high` |
+| `sc list --ready --priority P` | Filter by priority (single or range) | `sc list --ready --priority 8-10` |
 | `sc list --tree` | Show hierarchical tree view | `sc list --tree` |
 | `sc list --status` | Show status counts | `sc list --status` |
 | `sc show <id>` | Display spec details | `sc show ABC123` |
@@ -116,17 +116,20 @@ sc done ABC123
 | `sc create -t "Title"` | Create with title | `sc create -t "User Auth"` |
 | `sc create -p PARENT_ID` | Create as child of parent (inherits parent priority) | `sc create -p ABC123 -t "OAuth Flow"` |
 | `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
-| `sc create --priority <level>` | Create with specific priority | `sc create --priority critical -t "Security Fix"` |
+| `sc create --priority <1-10>` | Create with specific priority | `sc create --priority 10 -t "Security Fix"` |
 | `sc create -m "message"` | Add context line to Overview (repeatable) | `sc create -t "API Refactor" -m "Blocks dashboard work" -m "PR: https://github.com/org/repo/pull/456"` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
-### Dependencies
+### Property Modification
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc deps list <id>` | Show blockers and dependents | `sc deps list ABC123` |
-| `sc deps add <id> <blocker>` | Add blocking dependency | `sc deps add ABC123 DEF456` |
-| `sc deps remove <id> <blocker>` | Remove dependency | `sc deps remove ABC123 DEF456` |
+| `sc set <id> --priority <1-10>` | Set priority (10 = highest) | `sc set ABC123 --priority 8` |
+| `sc set <id> --status <status>` | Set status | `sc set ABC123 --status blocked` |
+| `sc set <id> --parent <id>` | Reparent to another spec | `sc set ABC123 --parent DEF456` |
+| `sc set <id> --parent none` | Make root spec (remove parent) | `sc set ABC123 --parent none` |
+| `sc set <id> --block <id>` | Add blocking dependency | `sc set ABC123 --block DEF456` |
+| `sc set <id> --unblock <id>` | Remove blocking dependency | `sc set ABC123 --unblock DEF456` |
 
 ### Validation & Health
 
@@ -155,7 +158,7 @@ id: ABC123
 status: ready
 parent: null
 blocks: []
-priority: normal
+priority: 5
 ---
 
 # Spec: Feature Title
@@ -182,7 +185,7 @@ priority: normal
 | `status` | string | see below | Current state (settable at creation via 'sc create --status') |
 | `parent` | string\|null | spec ID or null | Parent spec for hierarchy |
 | `blocks` | string[] | spec IDs | Specs that must complete first |
-| `priority` | string | see below | Priority level (default: inherits from parent, or 'normal' for root) |
+| `priority` | number | 1-10 | Priority level (10 = highest, default: inherits from parent, or 5 for root) |
 
 ### Status Values
 
@@ -197,14 +200,17 @@ priority: normal
 
 ### Priority Values
 
-| Priority | Meaning | Usage |
-|----------|---------|-------|
-| `critical` | Highest priority | Human-assigned only, for urgent work |
-| `high` | Important work | Should be addressed soon |
-| `normal` | Standard priority | Default for most specs |
-| `low` | Lower priority | Can wait for higher-priority work |
+Priority is a numeric value from 1 to 10, where **10 is the highest priority**.
 
-**Sorting behavior**: `sc list --ready` sorts specs by priority (critical > high > normal > low), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
+| Priority | Guideline | Example Usage |
+|----------|-----------|---------------|
+| `10` | Highest priority | Critical bugs, security issues, urgent work |
+| `8-9` | High priority | Important features, blockers |
+| `5` | Default priority | Standard work (default for root specs) |
+| `2-4` | Lower priority | Nice-to-have improvements |
+| `1` | Lowest priority | Backlog items, far-future work |
+
+**Sorting behavior**: `sc list --ready` sorts specs by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
 
 ## Worktree Convention
 
@@ -324,8 +330,8 @@ sc release ABC123
 
 ```bash
 # Check dependencies BEFORE attempting removal
-sc deps list abc123
-sc list --tree  # Visualize hierarchy
+sc show abc123      # Shows blockers and spec details
+sc list --tree      # Visualize hierarchy
 
 # Remove leaf spec (no children, no dependents)
 sc remove abc123
@@ -416,7 +422,11 @@ From `src/types.ts`:
 ```typescript
 type Status = 'ready' | 'in_progress' | 'blocked' | 'closed' | 'deferred' | 'not_planned';
 
-type Priority = 'critical' | 'high' | 'normal' | 'low';
+// Numeric priority: 1-10 (10 = highest)
+type Priority = number;
+const MIN_PRIORITY = 1;
+const MAX_PRIORITY = 10;
+const DEFAULT_PRIORITY = 5;
 
 type EarsPattern = 'ubiquitous' | 'state_driven' | 'event_driven' | 'optional' | 'unwanted' | 'complex';
 
@@ -437,7 +447,7 @@ The `sc` help system provides git-quality, self-documenting CLI help. When addin
 
 **Help Infrastructure** (`src/help.ts`):
 - `CommandHelp` interface defines help content structure
-- `SubcommandHelp` interface for commands with subcommands (e.g., `deps`)
+- `SubcommandHelp` interface for commands with subcommands
 - ANSI formatting utilities: `bold()`, `underline()`, `dim()`
 - Automatic pager support via `displayWithPager()` (uses `less -R`)
 - Formatting utilities for sections, flags, and subcommands
@@ -454,7 +464,6 @@ interface CommandHandler {
 
 **Help Detection** (`src/cli.ts`):
 - Detects `--help` and `-h` at any argument position
-- Supports both command help (`sc claim --help`) and subcommand help (`sc deps add --help`)
 - Falls back gracefully for commands without `getHelp()`
 
 ### Requirements for New/Updated Commands
@@ -515,7 +524,7 @@ export const command: CommandHandler = {
 
 #### 2. Commands with Subcommands
 
-For commands like `deps` with multiple subcommands, include `subcommands` in the help:
+For commands with multiple subcommands, include `subcommands` in the help:
 
 ```typescript
 getHelp(): CommandHelp {
@@ -751,7 +760,7 @@ When adding a new command, update `printHelp()` in `src/command-router.ts`:
 
 1. **Pager by default** - Matches git behavior; long help is readable without scrolling
 2. **ANSI formatting** - Improves scannability; respects NO_COLOR for accessibility
-3. **Subcommand help** - `sc deps add --help` is more discoverable than reading full `sc deps --help`
+3. **Subcommand help** - Subcommand-specific help is more discoverable than reading full command help
 4. **Consistent usage errors** - `printCommandUsage()` ensures errors match help docs
 5. **Separation of content and presentation** - `CommandHelp` data can later generate man pages, JSON, web docs
 
@@ -759,8 +768,7 @@ When adding a new command, update `printHelp()` in `src/command-router.ts`:
 
 Study these commands for patterns:
 - **Simple command**: `show`, `edit` - basic help with examples
-- **Command with flags**: `list` - multiple mutually exclusive flags
-- **Command with subcommands**: `deps` - hierarchical help structure
+- **Command with flags**: `list`, `set` - multiple flags with validation
 - **Workflow command**: `claim`, `done`, `release` - critical notes about cleanup
 
 ### Quick Checklist for New Commands

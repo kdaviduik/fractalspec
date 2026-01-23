@@ -6,14 +6,16 @@ import {
   findReadySpecsSorted,
   sortByPriority,
   getStatusSummary,
+  parsePriorityFilter,
 } from './spec-query';
 import type { Spec, Status, Priority } from './types';
+import { DEFAULT_PRIORITY } from './types';
 
 function makeSpec(
   id: string,
   status: Status = 'ready',
   blocks: string[] = [],
-  priority: Priority = 'normal',
+  priority: Priority = DEFAULT_PRIORITY,
   parent: string | null = null
 ): Spec {
   return {
@@ -198,23 +200,23 @@ describe('getStatusSummary', () => {
 });
 
 describe('sortByPriority', () => {
-  test('sorts by priority (critical > high > normal > low)', () => {
+  test('sorts by priority (10 > 8 > 5 > 2) - higher number = higher priority', () => {
     const specs = [
-      makeSpec('low', 'ready', [], 'low'),
-      makeSpec('high', 'ready', [], 'high'),
-      makeSpec('normal', 'ready', [], 'normal'),
-      makeSpec('critical', 'ready', [], 'critical'),
+      makeSpec('p2', 'ready', [], 2),
+      makeSpec('p8', 'ready', [], 8),
+      makeSpec('p5', 'ready', [], 5),
+      makeSpec('p10', 'ready', [], 10),
     ];
 
     const sorted = sortByPriority(specs, { allSpecs: specs });
 
-    expect(sorted.map((s) => s.id)).toEqual(['critical', 'high', 'normal', 'low']);
+    expect(sorted.map((s) => s.id)).toEqual(['p10', 'p8', 'p5', 'p2']);
   });
 
   test('sorts by depth descending within same priority (leaves first)', () => {
-    const root = makeSpec('root', 'ready', [], 'normal', null);
-    const child = makeSpec('child', 'ready', [], 'normal', 'root');
-    const grandchild = makeSpec('grandchild', 'ready', [], 'normal', 'child');
+    const root = makeSpec('root', 'ready', [], 5, null);
+    const child = makeSpec('child', 'ready', [], 5, 'root');
+    const grandchild = makeSpec('grandchild', 'ready', [], 5, 'child');
 
     const specs = [root, child, grandchild];
     const sorted = sortByPriority(specs, { allSpecs: specs });
@@ -223,11 +225,11 @@ describe('sortByPriority', () => {
   });
 
   test('sorts alphabetically by title as tiebreaker', () => {
-    const specA = makeSpec('a', 'ready', [], 'normal');
+    const specA = makeSpec('a', 'ready', [], 5);
     specA.title = 'AAA Feature';
-    const specB = makeSpec('b', 'ready', [], 'normal');
+    const specB = makeSpec('b', 'ready', [], 5);
     specB.title = 'BBB Feature';
-    const specC = makeSpec('c', 'ready', [], 'normal');
+    const specC = makeSpec('c', 'ready', [], 5);
     specC.title = 'CCC Feature';
 
     const specs = [specC, specA, specB];
@@ -237,9 +239,9 @@ describe('sortByPriority', () => {
   });
 
   test('combines priority, depth, and title sorting', () => {
-    const highRoot = makeSpec('high-root', 'ready', [], 'high', null);
-    const highChild = makeSpec('high-child', 'ready', [], 'high', 'high-root');
-    const normalRoot = makeSpec('normal-root', 'ready', [], 'normal', null);
+    const highRoot = makeSpec('high-root', 'ready', [], 8, null);
+    const highChild = makeSpec('high-child', 'ready', [], 8, 'high-root');
+    const normalRoot = makeSpec('normal-root', 'ready', [], 5, null);
 
     const specs = [normalRoot, highRoot, highChild];
     const sorted = sortByPriority(specs, { allSpecs: specs });
@@ -251,9 +253,9 @@ describe('sortByPriority', () => {
 describe('findReadySpecsSorted', () => {
   test('returns ready specs sorted by priority', () => {
     const specs = [
-      makeSpec('low', 'ready', [], 'low'),
-      makeSpec('high', 'ready', [], 'high'),
-      makeSpec('blocked', 'blocked', [], 'critical'),
+      makeSpec('low', 'ready', [], 2),
+      makeSpec('high', 'ready', [], 8),
+      makeSpec('blocked', 'blocked', [], 10),
     ];
 
     const ready = findReadySpecsSorted(specs);
@@ -263,10 +265,10 @@ describe('findReadySpecsSorted', () => {
 
   test('limits results with limit option', () => {
     const specs = [
-      makeSpec('a', 'ready', [], 'critical'),
-      makeSpec('b', 'ready', [], 'high'),
-      makeSpec('c', 'ready', [], 'normal'),
-      makeSpec('d', 'ready', [], 'low'),
+      makeSpec('a', 'ready', [], 10),
+      makeSpec('b', 'ready', [], 8),
+      makeSpec('c', 'ready', [], 5),
+      makeSpec('d', 'ready', [], 2),
     ];
 
     const limited = findReadySpecsSorted(specs, { limit: 2 });
@@ -275,40 +277,82 @@ describe('findReadySpecsSorted', () => {
     expect(limited.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
-  test('filters by priority level', () => {
+  test('filters by exact priority', () => {
     const specs = [
-      makeSpec('a', 'ready', [], 'high'),
-      makeSpec('b', 'ready', [], 'high'),
-      makeSpec('c', 'ready', [], 'normal'),
+      makeSpec('a', 'ready', [], 8),
+      makeSpec('b', 'ready', [], 8),
+      makeSpec('c', 'ready', [], 5),
     ];
 
-    const highOnly = findReadySpecsSorted(specs, { priorityFilter: 'high' });
+    const highOnly = findReadySpecsSorted(specs, { priorityFilter: 8 });
 
     expect(highOnly).toHaveLength(2);
-    expect(highOnly.every((s) => s.priority === 'high')).toBe(true);
+    expect(highOnly.every((s) => s.priority === 8)).toBe(true);
+  });
+
+  test('filters by priority range', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 10),
+      makeSpec('b', 'ready', [], 8),
+      makeSpec('c', 'ready', [], 5),
+      makeSpec('d', 'ready', [], 2),
+    ];
+
+    const highRange = findReadySpecsSorted(specs, { priorityFilter: { min: 8, max: 10 } });
+
+    expect(highRange).toHaveLength(2);
+    expect(highRange.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
   test('combines limit and priority filter', () => {
     const specs = [
-      makeSpec('a', 'ready', [], 'high'),
-      makeSpec('b', 'ready', [], 'high'),
-      makeSpec('c', 'ready', [], 'high'),
-      makeSpec('d', 'ready', [], 'normal'),
+      makeSpec('a', 'ready', [], 8),
+      makeSpec('b', 'ready', [], 8),
+      makeSpec('c', 'ready', [], 8),
+      makeSpec('d', 'ready', [], 5),
     ];
 
-    const result = findReadySpecsSorted(specs, { priorityFilter: 'high', limit: 2 });
+    const result = findReadySpecsSorted(specs, { priorityFilter: 8, limit: 2 });
 
     expect(result).toHaveLength(2);
   });
 
   test('returns empty array when no specs match filter', () => {
     const specs = [
-      makeSpec('a', 'ready', [], 'normal'),
-      makeSpec('b', 'ready', [], 'low'),
+      makeSpec('a', 'ready', [], 5),
+      makeSpec('b', 'ready', [], 2),
     ];
 
-    const critical = findReadySpecsSorted(specs, { priorityFilter: 'critical' });
+    const critical = findReadySpecsSorted(specs, { priorityFilter: 10 });
 
     expect(critical).toHaveLength(0);
+  });
+});
+
+describe('parsePriorityFilter', () => {
+  test('parses single valid priority', () => {
+    expect(parsePriorityFilter('5')).toBe(5);
+    expect(parsePriorityFilter('1')).toBe(1);
+    expect(parsePriorityFilter('10')).toBe(10);
+  });
+
+  test('parses valid priority range', () => {
+    expect(parsePriorityFilter('3-7')).toEqual({ min: 3, max: 7 });
+    expect(parsePriorityFilter('1-10')).toEqual({ min: 1, max: 10 });
+    expect(parsePriorityFilter('8-10')).toEqual({ min: 8, max: 10 });
+  });
+
+  test('returns null for invalid single priority', () => {
+    expect(parsePriorityFilter('0')).toBeNull();
+    expect(parsePriorityFilter('11')).toBeNull();
+    expect(parsePriorityFilter('high')).toBeNull();
+    expect(parsePriorityFilter('')).toBeNull();
+  });
+
+  test('returns null for invalid range', () => {
+    expect(parsePriorityFilter('7-3')).toBeNull();
+    expect(parsePriorityFilter('0-5')).toBeNull();
+    expect(parsePriorityFilter('5-11')).toBeNull();
+    expect(parsePriorityFilter('a-b')).toBeNull();
   });
 });

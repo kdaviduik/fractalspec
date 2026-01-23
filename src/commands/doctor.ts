@@ -4,13 +4,14 @@
 
 import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
+import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY } from '../types';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs, writeSpec, getSpecsRoot } from '../spec-filesystem';
 import { findGitRoot } from '../git-operations';
 import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority';
   specId: string;
   message: string;
   fixable: boolean;
@@ -93,6 +94,28 @@ async function findMissingBlockers(specs: Spec[]): Promise<HealthIssue[]> {
   return issues;
 }
 
+function findInvalidPriorities(specs: Spec[]): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+
+  for (const spec of specs) {
+    if (!isValidPriority(spec.priority)) {
+      issues.push({
+        type: 'invalid_priority',
+        specId: spec.id,
+        message: `Priority "${spec.priority}" is invalid (must be ${MIN_PRIORITY}-${MAX_PRIORITY})`,
+        fixable: true,
+      });
+    }
+  }
+
+  return issues;
+}
+
+async function fixInvalidPriority(spec: Spec): Promise<void> {
+  const updated: Spec = { ...spec, priority: DEFAULT_PRIORITY };
+  await writeSpec(updated);
+}
+
 function findCircularDeps(specs: Spec[]): HealthIssue[] {
   const issues: HealthIssue[] = [];
   const specMap = new Map(specs.map((s) => [s.id, s]));
@@ -155,6 +178,7 @@ export const command: CommandHandler = {
 Detects:
   - Orphaned parent references (parent spec doesn't exist)
   - Missing blockers (blocker spec doesn't exist)
+  - Invalid priorities (outside ${MIN_PRIORITY}-${MAX_PRIORITY} range)
   - Circular dependencies (A blocks B, B blocks A)
   - Uncommitted spec changes (modified or untracked specs)
 
@@ -197,10 +221,11 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
 
     const orphans = await findOrphans(specs);
     const missingBlockers = await findMissingBlockers(specs);
+    const invalidPriorities = findInvalidPriorities(specs);
     const circular = findCircularDeps(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
-    const allIssues = [...orphans, ...missingBlockers, ...circular];
+    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular];
 
     if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');
@@ -248,6 +273,11 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
         if (issue.type === 'missing_blocker') {
           await fixMissingBlocker(spec, specs);
           console.log(`  ✓ Fixed missing blocker: ${issue.specId}`);
+        }
+
+        if (issue.type === 'invalid_priority') {
+          await fixInvalidPriority(spec);
+          console.log(`  ✓ Fixed invalid priority: ${issue.specId} (set to ${DEFAULT_PRIORITY})`);
         }
       }
     } else {

@@ -6,7 +6,7 @@ id: a1b2
 status: ready
 parent: null
 blocks: []
-priority: normal
+priority: 5
 ---
 
 # Spec: My Feature
@@ -25,7 +25,7 @@ parent: a1b2
 blocks:
   - e5f6
   - g7h8
-priority: high
+priority: 8
 ---
 
 # Spec: Child Feature
@@ -56,7 +56,7 @@ describe('parseSpec', () => {
     expect(result.status).toBe('ready');
     expect(result.parent).toBeNull();
     expect(result.blocks).toEqual([]);
-    expect(result.priority).toBe('normal');
+    expect(result.priority).toBe(5);
     expect(result.title).toBe('My Feature');
     expect(result.filePath).toBe('/path/to/spec.md');
     expect(result.content).toContain('## Overview');
@@ -70,11 +70,11 @@ describe('parseSpec', () => {
     expect(result.status).toBe('blocked');
     expect(result.parent).toBe('a1b2');
     expect(result.blocks).toEqual(['e5f6', 'g7h8']);
-    expect(result.priority).toBe('high');
+    expect(result.priority).toBe(8);
     expect(result.title).toBe('Child Feature');
   });
 
-  test('defaults priority to normal when missing', () => {
+  test('defaults priority to 5 (DEFAULT_PRIORITY) when missing', () => {
     const specWithoutPriority = `---
 id: x1y2
 status: ready
@@ -87,10 +87,10 @@ blocks: []
 Content here.
 `;
     const result = parseSpec('/path/to/spec.md', specWithoutPriority);
-    expect(result.priority).toBe('normal');
+    expect(result.priority).toBe(5);
   });
 
-  test('defaults priority to normal for invalid priority value', () => {
+  test('defaults priority to 5 for invalid (non-numeric) priority value', () => {
     const specWithInvalidPriority = `---
 id: x1y2
 status: ready
@@ -104,7 +104,24 @@ priority: invalid_priority
 Content here.
 `;
     const result = parseSpec('/path/to/spec.md', specWithInvalidPriority);
-    expect(result.priority).toBe('normal');
+    expect(result.priority).toBe(5);
+  });
+
+  test('defaults priority to 5 for out-of-range priority value', () => {
+    const specWithOutOfRangePriority = `---
+id: x1y2
+status: ready
+parent: null
+blocks: []
+priority: 15
+---
+
+# Spec: Out of Range Priority
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithOutOfRangePriority);
+    expect(result.priority).toBe(5);
   });
 
   test('throws ParseError for spec without frontmatter', () => {

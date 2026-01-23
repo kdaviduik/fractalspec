@@ -17,7 +17,7 @@ function makeSpec(id: string): Spec {
     status: 'ready',
     parent: null,
     blocks: [],
-    priority: 'normal',
+    priority: 5,
     title: `Test ${id}`,
     content: `# Spec: Test ${id}`,
     filePath: join(specsDir, `test-${id}`, `test-${id}.md`),

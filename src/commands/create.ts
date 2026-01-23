@@ -5,7 +5,7 @@
 import { parseArgs } from 'util';
 import { join } from 'path';
 import type { CommandHandler, Spec, Priority } from '../types';
-import { STATUSES, PRIORITIES, isValidStatus, isValidPriority } from '../types';
+import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, isValidStatus, isValidPriority } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { generateId } from '../id-generation';
@@ -73,8 +73,11 @@ export function determinePriority(
   parentId: string | undefined,
   allSpecs: Spec[]
 ): Priority {
-  if (explicitPriority && isValidPriority(explicitPriority)) {
-    return explicitPriority;
+  if (explicitPriority !== undefined) {
+    const parsed = parseInt(explicitPriority, 10);
+    if (isValidPriority(parsed)) {
+      return parsed;
+    }
   }
   if (parentId) {
     const parentSpec = allSpecs.find((s) => s.id === parentId);
@@ -82,7 +85,7 @@ export function determinePriority(
       return parentSpec.priority;
     }
   }
-  return 'normal';
+  return DEFAULT_PRIORITY;
 }
 
 export function generateSpecTemplate(
@@ -159,8 +162,8 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
           description: `Set initial spec status (default: ready). Valid: ${STATUSES.join(', ')}`,
         },
         {
-          flag: '--priority <level>',
-          description: `Set initial priority (default: inherits from parent, or 'normal' for root specs). Valid: ${PRIORITIES.join(', ')}`,
+          flag: '--priority <1-10>',
+          description: `Set initial priority (default: inherits from parent, or ${DEFAULT_PRIORITY} for root specs). Higher = more urgent (10 highest, 1 lowest).`,
         },
         {
           flag: '--parent <id>, -p',
@@ -183,8 +186,8 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         '# Create with title',
         'sc create -t "Implement OAuth Flow"',
         '',
-        '# Create high-priority spec',
-        'sc create -t "Critical Bug Fix" --priority critical',
+        '# Create high-priority spec (10 = highest)',
+        'sc create -t "Critical Bug Fix" --priority 10',
         '',
         '# Create with title and context message',
         'sc create -t "Database Migration" -m "Required for schema v2"',
@@ -235,11 +238,13 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
     }
 
     // Validate priority if provided
-    if (values.priority !== undefined && !isValidPriority(values.priority)) {
-      console.error(`Error: "${values.priority}" is not a valid priority\n`);
-      console.error('Valid priorities are:');
-      PRIORITIES.forEach((p) => console.error(`  ${p}`));
-      return 1;
+    if (values.priority !== undefined) {
+      const parsedPriority = parseInt(values.priority, 10);
+      if (!isValidPriority(parsedPriority)) {
+        console.error(`Error: "${values.priority}" is not a valid priority\n`);
+        console.error(`Priority must be an integer from ${MIN_PRIORITY} to ${MAX_PRIORITY} (higher = more urgent)`);
+        return 1;
+      }
     }
 
     const title = values.title ?? (await promptForTitle());
