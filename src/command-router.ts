@@ -18,7 +18,7 @@ const COMMANDS: Record<string, () => Promise<CommandModule>> = {
   claim: () => import('./commands/claim'),
   release: () => import('./commands/release'),
   done: () => import('./commands/done'),
-  deps: () => import('./commands/deps'),
+  set: () => import('./commands/set'),
   validate: () => import('./commands/validate'),
   doctor: () => import('./commands/doctor'),
   ears: () => import('./commands/ears'),
@@ -66,7 +66,7 @@ ${bold('FILE STRUCTURE')}
     - status: ready | in_progress | blocked | closed | deferred | not_planned
     - parent: parent spec ID or null
     - blocks: array of blocker spec IDs
-    - priority: critical | high | normal | low (default: inherits from parent, or normal)
+    - priority: 1-10 numeric (10 = highest, default: inherits from parent, or 5)
 
 ${bold('STATUS ICONS')}
   ○  ready       - No blockers, available for work
@@ -93,7 +93,7 @@ ${bold('COMMANDS')}
     ${underline('list')}                   List all specs
       --ready              Show specs available for work (sorted by priority)
       --limit ${dim('<n>')}          Limit to top N specs (requires --ready)
-      --priority ${dim('<level>')}   Filter by priority level (requires --ready)
+      --priority ${dim('<n or n-m>')} Filter by priority (requires --ready). E.g., 8 or 8-10
       --tree               Display hierarchical tree view
       --status             Show status count summary
 
@@ -116,7 +116,7 @@ ${bold('COMMANDS')}
   ${underline('Creation & Editing')}
     ${underline('create')}                 Create new spec (interactive)
       --status ${dim('<status>')}, -s Set initial status (default: ready)
-      --priority ${dim('<level>')}   Set priority (default: inherits from parent)
+      --priority ${dim('<1-10>')}     Set priority (higher = more urgent, default: inherits from parent)
       --parent ${dim('<id>')}, -p    Create as child of specified parent
       --title ${dim('<text>')}, -t   Set spec title (skips prompt)
       --message ${dim('<text>')}, -m Add context line to Overview (repeatable)
@@ -124,12 +124,13 @@ ${bold('COMMANDS')}
 
     ${underline('edit')} ${dim('<id>')}              Open spec in $EDITOR (defaults to vim)
 
-  ${underline('Dependencies')}
-    ${underline('deps list')} ${dim('<id>')}         Show blockers and specs that this blocks
-    ${underline('deps add')} ${dim('<id> <blocker>')}    Add blocking dependency
-                           Semantics: <id> is blocked by <blocker>
-                           <id> cannot start until <blocker> is closed
-    ${underline('deps remove')} ${dim('<id> <blocker>')} Remove blocking dependency
+  ${underline('Property Modification')}
+    ${underline('set')} ${dim('<id> [flags]')}        Modify spec properties
+      --priority ${dim('<1-10>')}    Set priority (10 = highest)
+      --status ${dim('<status>')}    Set status (ready, in_progress, blocked, closed, deferred, not_planned)
+      --parent ${dim('<id>|none')}  Reparent to another spec or remove parent
+      --block ${dim('<id>')}        Add blocking dependency
+      --unblock ${dim('<id>')}      Remove blocking dependency
 
   ${underline('Validation & Health')}
     ${underline('validate')} ${dim('[id]')}          Validate EARS requirement format
@@ -173,7 +174,7 @@ ${bold('EXAMPLES')}
   sc list --status              # Check overall project health
   sc list --ready               # Show available work (sorted by priority)
   sc list --ready --limit 1     # Get THE next task to work on
-  sc list --ready --priority high  # Show only high-priority ready specs
+  sc list --ready --priority 8-10  # Show only highest-priority ready specs
   sc list --tree                # Understand hierarchy
 
   # Working on a spec (example: spec titled "User Auth")
@@ -185,15 +186,18 @@ ${bold('EXAMPLES')}
   # Creating specs
   sc create                     # Create root spec (prompted for title)
   sc create -t "OAuth Flow"     # Create with title
-  sc create -t "Security Fix" --priority critical  # Create with high priority
+  sc create -t "Security Fix" --priority 10  # Create with highest priority
   sc create -t "Database Migration" -m "Required for schema v2"  # Add context
   sc create -p a1b2 -t "OAuth Callback Handler"  # Create child (inherits priority)
   sc create -s blocked -t "Premium Features" -m "Waiting on payment gateway"  # With status and context
 
-  # Managing dependencies
-  sc deps add b3c4 a1b2         # b3c4 blocked by a1b2
-  sc deps list b3c4             # Show all blockers and dependents
-  sc deps remove b3c4 a1b2      # Remove dependency
+  # Modifying spec properties
+  sc set b3c4 --priority 8      # Set priority
+  sc set b3c4 --status blocked  # Set status
+  sc set b3c4 --block a1b2      # b3c4 blocked by a1b2
+  sc set b3c4 --unblock a1b2    # Remove blocking dependency
+  sc set b3c4 --parent a1b2     # Reparent to a1b2
+  sc set b3c4 --parent none     # Make root spec
 
   # Validation
   sc validate                   # Check all specs

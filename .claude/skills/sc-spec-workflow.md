@@ -13,11 +13,11 @@ sc list --ready
 # Get THE next highest-priority task
 sc list --ready --limit 1
 
-# Filter to specific priority level
-sc list --ready --priority high
+# Filter to specific priority level or range
+sc list --ready --priority 8-10
 ```
 
-Specs are automatically sorted by priority (critical > high > normal > low), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
+Specs are automatically sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
 
 ### 2. Claim the Spec
 
@@ -66,19 +66,24 @@ This sets status to `closed` and removes the work worktree. Commands can be run 
 When creating specs, you can set priority explicitly or rely on inheritance:
 
 ```bash
-# Create with explicit priority
-sc create -t "Critical Security Fix" --priority critical
+# Create with explicit high priority (10 = highest)
+sc create -t "Critical Security Fix" --priority 10
 
 # Child specs inherit parent's priority by default
 sc create -p ABC123 -t "Sub-task"
 
 # Override inherited priority
-sc create -p ABC123 -t "Low-priority cleanup" --priority low
+sc create -p ABC123 -t "Low-priority cleanup" --priority 2
 ```
 
-**Priority levels** (highest to lowest): `critical`, `high`, `normal`, `low`
+**Priority values**: Numeric 1-10, where 10 is highest priority.
+- `10`: Critical/urgent work (security issues, blockers)
+- `8-9`: High priority features
+- `5`: Default/normal priority
+- `2-4`: Lower priority improvements
+- `1`: Backlog items
 
-**Default behavior**: Root specs default to `normal`. Child specs inherit their parent's priority unless overridden with `--priority`.
+**Default behavior**: Root specs default to `5`. Child specs inherit their parent's priority unless overridden with `--priority`.
 
 ## Writing EARS Requirements
 
@@ -142,7 +147,7 @@ Always `sc claim` before starting work. This prevents conflicts and tracks work 
 ### Don't Forget Dependencies
 Before claiming, verify blockers are complete:
 ```bash
-sc deps list <spec-id>
+sc show <spec-id>  # Shows blockers in spec details
 ```
 
 ### Check Status Before Done
