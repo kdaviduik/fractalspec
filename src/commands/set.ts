@@ -10,6 +10,7 @@ interface SetOptions {
   parent?: string | null;
   block?: string;
   unblock?: string;
+  pr?: string | null;
 }
 
 function exitWithError(message: string): never {
@@ -55,6 +56,14 @@ function parseIdFlag(flagName: string, args: string[], index: number): string {
   return value;
 }
 
+function parsePrFlag(args: string[], index: number): string | null {
+  const value = getNextArg(args, index);
+  if (value === undefined) return exitWithError('--pr requires a value');
+  if (value === 'none') return null;
+  if (value === '') return exitWithError('PR URL cannot be empty');
+  return value;
+}
+
 function parseArgs(args: string[]): { specId: string | null; options: SetOptions } {
   const options: SetOptions = {};
   let specId: string | null = null;
@@ -67,6 +76,7 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
     if (arg === '--parent') { options.parent = parseParentFlag(args, i); i += 2; continue; }
     if (arg === '--block') { options.block = parseIdFlag('--block', args, i); i += 2; continue; }
     if (arg === '--unblock') { options.unblock = parseIdFlag('--unblock', args, i); i += 2; continue; }
+    if (arg === '--pr') { options.pr = parsePrFlag(args, i); i += 2; continue; }
     if (!arg.startsWith('-') && specId === null) {
       if (arg === '') return exitWithError('Spec ID cannot be empty');
       specId = arg;
@@ -80,7 +90,7 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
 
 function hasAnyOption(o: SetOptions): boolean {
   return o.priority !== undefined || o.status !== undefined || o.parent !== undefined ||
-    o.block !== undefined || o.unblock !== undefined;
+    o.block !== undefined || o.unblock !== undefined || o.pr !== undefined;
 }
 
 function wouldCreateParentCycle(specId: string, newParentId: string, allSpecs: Spec[]): boolean {
@@ -174,6 +184,17 @@ function applyUnblockChange(updated: Spec, blockerId: string, msgs: string[]): v
   msgs.push(`Removed blocker ${blockerId}`);
 }
 
+function applyPrChange(spec: Spec, updated: Spec, prValue: string | null, msgs: string[]): void {
+  if (spec.pr === prValue) {
+    if (prValue === null) msgs.push('PR already cleared');
+    else msgs.push(`PR already set to ${prValue}`);
+    return;
+  }
+  updated.pr = prValue;
+  if (prValue === null) msgs.push('Cleared PR');
+  else msgs.push(`PR set to ${prValue}`);
+}
+
 async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): Promise<ChangeResult> {
   const msgs: string[] = [];
   const updated: Spec = { ...spec, blocks: [...spec.blocks] };
@@ -188,8 +209,10 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
     if (!result.success) return result;
   }
   if (options.unblock !== undefined) applyUnblockChange(updated, options.unblock, msgs);
+  if (options.pr !== undefined) applyPrChange(spec, updated, options.pr, msgs);
   const hasChanges = updated.priority !== spec.priority || updated.status !== spec.status ||
-    updated.parent !== spec.parent || JSON.stringify(updated.blocks) !== JSON.stringify(spec.blocks);
+    updated.parent !== spec.parent || JSON.stringify(updated.blocks) !== JSON.stringify(spec.blocks) ||
+    updated.pr !== spec.pr;
   if (hasChanges) await writeSpec(updated);
   return { success: true, messages: msgs };
 }
@@ -197,7 +220,7 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
 function getCommandHelp(): CommandHelp {
   return {
     name: 'sc set',
-    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>]',
+    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>] [--pr <url>|none]',
     description: `Modify properties of a spec. At least one flag is required.`,
     flags: [
       { flag: '--priority <1-10>', description: 'Set priority (10 = highest)' },
@@ -206,6 +229,8 @@ function getCommandHelp(): CommandHelp {
       { flag: '--parent none', description: 'Make root spec (remove parent)' },
       { flag: '--block <id>', description: 'Add blocking dependency' },
       { flag: '--unblock <id>', description: 'Remove blocking dependency' },
+      { flag: '--pr <url>', description: 'Set PR URL for tracking' },
+      { flag: '--pr none', description: 'Clear PR URL' },
     ],
     examples: [
       'sc set a1b2 --priority 8',
@@ -214,6 +239,8 @@ function getCommandHelp(): CommandHelp {
       'sc set a1b2 --parent none',
       'sc set a1b2 --block xyz9',
       'sc set a1b2 --unblock xyz9',
+      'sc set a1b2 --pr https://github.com/org/repo/pull/123',
+      'sc set a1b2 --pr none',
       'sc set a1b2 --priority 10 --status ready',
     ],
     notes: [

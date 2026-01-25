@@ -6,7 +6,22 @@ import type { CommandHandler } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { findSpecFile } from '../spec-filesystem';
-import { completeSpec, isSpecClaimed } from '../claim-logic';
+import { completeSpec, isSpecClaimed, checkClaimSafety } from '../claim-logic';
+
+function parseForceFlag(args: string[]): { force: boolean; specId: string | undefined } {
+  let force = false;
+  let specId: string | undefined;
+
+  for (const arg of args) {
+    if (arg === '--force' || arg === '-f') {
+      force = true;
+    } else if (!arg.startsWith('-')) {
+      specId = arg;
+    }
+  }
+
+  return { force, specId };
+}
 
 export const command: CommandHandler = {
   name: 'done',
@@ -15,19 +30,31 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc done',
-      synopsis: 'sc done <id>',
+      synopsis: 'sc done <id> [--force]',
       description: `Mark a claimed spec as complete. This command:
+  - Checks for uncommitted changes and unpushed commits (safety check)
   - Sets the spec status to 'closed'
   - Deletes the work branch work-<slug>-<id>
   - Removes the worktree (relative to repository root, as sibling to repo)
 
 The spec must already be claimed (status: in_progress) before marking it done.
 Commands can be run from any directory in the repository.`,
+      flags: [
+        {
+          flag: '--force, -f',
+          description: 'Bypass safety checks (uncommitted changes, unpushed commits)',
+        },
+      ],
       examples: [
         '# Complete a spec from anywhere in repo',
         'sc done a1b2c3',
+        '',
+        '# Force completion despite uncommitted changes',
+        'sc done a1b2c3 --force',
       ],
       notes: [
+        'Safety checks prevent accidental data loss by blocking completion if there are uncommitted changes or unpushed commits.',
+        'Use --force only when you intentionally want to discard work.',
         'Commands work from any directory in the repository.',
         'If run from inside the work worktree being removed, you will be left in a deleted directory after cleanup.',
       ],
@@ -35,7 +62,8 @@ Commands can be run from any directory in the repository.`,
   },
 
   async execute(args: string[]): Promise<number> {
-    const specId = args[0];
+    const { force, specId } = parseForceFlag(args);
+
     if (!specId) {
       printCommandUsage(this.getHelp!());
       return 1;
@@ -51,6 +79,38 @@ Commands can be run from any directory in the repository.`,
     if (!claimed) {
       console.error(`Spec ${spec.id} is not claimed. Claim it first with: sc claim ${spec.id}`);
       return 1;
+    }
+
+    const safety = await checkClaimSafety(spec);
+
+    if (!safety.safe && !force) {
+      console.error(`Cannot complete spec: ${safety.issues.join(', ')}`);
+      console.error('');
+      console.error('To resolve:');
+      if (safety.issues.includes('uncommitted changes')) {
+        console.error(`  cd ${safety.worktreePath}`);
+        console.error('  git add . && git commit -m "your message"');
+      }
+      if (safety.issues.includes('unpushed commits')) {
+        console.error(`  cd ${safety.worktreePath}`);
+        console.error(`  git push -u origin ${safety.branchName}`);
+      }
+      if (safety.issues.includes('detached HEAD state')) {
+        console.error(`  cd ${safety.worktreePath}`);
+        console.error('  # First, save any commits you made while detached:');
+        console.error(`  git branch temp-save-${spec.id}`);
+        console.error('  # Then checkout the work branch:');
+        console.error(`  git checkout ${safety.branchName}`);
+        console.error('  # If needed, cherry-pick commits from temp-save branch');
+      }
+      console.error('');
+      console.error('Or use --force to bypass (WARNING: may lose work)');
+      return 1;
+    }
+
+    if (!safety.safe && force) {
+      console.error(`WARNING: Forcing completion despite ${safety.issues.join(', ')}`);
+      console.error('The worktree and branch will be permanently deleted.');
     }
 
     await completeSpec(spec);

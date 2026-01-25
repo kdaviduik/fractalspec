@@ -105,13 +105,17 @@ ${bold('COMMANDS')}
                            - Creates branch work-<slug>-<id>
                            - Sets status to in_progress
 
-    ${underline('release')} ${dim('<id>')}           Abandon work and reset to ready
+    ${underline('release')} ${dim('<id>')} ${dim('[--force]')}  Abandon work and reset to ready
+                           - Safety checks for uncommitted/unpushed work
                            - Removes worktree and branch
                            - Resets status to ready
+      --force, -f          Bypass safety checks (may lose work)
 
-    ${underline('done')} ${dim('<id>')}              Mark spec complete
+    ${underline('done')} ${dim('<id>')} ${dim('[--force]')}     Mark spec complete
+                           - Safety checks for uncommitted/unpushed work
                            - Removes worktree and branch
                            - Sets status to closed
+      --force, -f          Bypass safety checks (may lose work)
 
   ${underline('Creation & Editing')}
     ${underline('create')}                 Create new spec (interactive)
@@ -131,6 +135,7 @@ ${bold('COMMANDS')}
       --parent ${dim('<id>|none')}  Reparent to another spec or remove parent
       --block ${dim('<id>')}        Add blocking dependency
       --unblock ${dim('<id>')}      Remove blocking dependency
+      --pr ${dim('<url>|none')}     Set or clear PR URL for tracking
 
   ${underline('Validation & Health')}
     ${underline('validate')} ${dim('[id]')}          Validate EARS requirement format
@@ -198,6 +203,12 @@ ${bold('EXAMPLES')}
   sc set b3c4 --unblock a1b2    # Remove blocking dependency
   sc set b3c4 --parent a1b2     # Reparent to a1b2
   sc set b3c4 --parent none     # Make root spec
+  sc set b3c4 --pr https://github.com/org/repo/pull/123  # Set PR URL
+  sc set b3c4 --pr none         # Clear PR URL
+
+  # Completing work with safety checks
+  sc done a1b2c3                # Errors if uncommitted/unpushed work
+  sc done a1b2c3 --force        # Bypass safety checks
 
   # Validation
   sc validate                   # Check all specs

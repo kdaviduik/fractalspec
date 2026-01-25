@@ -56,10 +56,38 @@ bun run lint           # No lint errors
 ### 6. Complete
 
 ```bash
+# Push your work first
+git push -u origin work-<slug>-<spec-id>
+
+# Optional: Set PR URL for tracking
+sc set <spec-id> --pr https://github.com/org/repo/pull/123
+
+# Mark complete
 sc done <spec-id>
 ```
 
+**Safety checks**: `sc done` verifies no uncommitted changes or unpushed commits exist before proceeding. This prevents accidental data loss. If you have unsaved work:
+- The command will error with actionable instructions
+- Use `--force` to bypass (with warning): `sc done <spec-id> --force`
+
 This sets status to `closed` and removes the work worktree. Commands can be run from any directory in the repository.
+
+## PR Tracking
+
+Track pull requests associated with specs:
+
+```bash
+# Set PR URL when creating a PR
+sc set <spec-id> --pr https://github.com/org/repo/pull/123
+
+# View PR in spec details
+sc show <spec-id>
+
+# Clear PR URL
+sc set <spec-id> --pr none
+```
+
+The `pr` field is preserved after `sc done`, useful for history.
 
 ## Creating Specs with Priority
 

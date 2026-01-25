@@ -24,6 +24,7 @@ function makeSpec(
     parent,
     blocks,
     priority,
+    pr: null,
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: `/path/${id}.md`,

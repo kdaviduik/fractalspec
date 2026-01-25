@@ -10,10 +10,20 @@ import {
   getCurrentWorktree,
   getWorkBranchName,
   getWorkWorktreePath,
+  hasUncommittedChanges,
+  hasUnpushedCommits,
+  isDetachedHead,
   removeWorktree,
 } from './git-operations';
 import { writeSpec } from './spec-filesystem';
 import type { Spec, ClaimResult } from './types';
+
+export interface SafetyCheckResult {
+  safe: boolean;
+  issues: string[];
+  worktreePath: string;
+  branchName: string;
+}
 
 export async function isSpecClaimed(spec: Spec): Promise<boolean> {
   const branchName = getWorkBranchName(spec.id, spec.title);
@@ -98,4 +108,44 @@ export async function releaseSpec(spec: Spec): Promise<void> {
 
 export async function completeSpec(spec: Spec): Promise<void> {
   await cleanupClaim(spec, 'closed');
+}
+
+/**
+ * Check if it's safe to release or complete a spec.
+ * Returns issues if there are uncommitted changes or unpushed commits.
+ *
+ * If worktree doesn't exist (already cleaned up manually), returns safe=true.
+ */
+export async function checkClaimSafety(spec: Spec): Promise<SafetyCheckResult> {
+  const branchName = getWorkBranchName(spec.id, spec.title);
+  const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
+  const issues: string[] = [];
+
+  const worktree = await findWorktreeByBranch(branchName);
+  if (!worktree) {
+    return { safe: true, issues: [], worktreePath, branchName };
+  }
+
+  const detached = await isDetachedHead(worktreePath);
+  if (detached) {
+    issues.push('detached HEAD state');
+    return { safe: false, issues, worktreePath, branchName };
+  }
+
+  const uncommitted = await hasUncommittedChanges(worktreePath);
+  if (uncommitted) {
+    issues.push('uncommitted changes');
+  }
+
+  const unpushed = await hasUnpushedCommits(worktreePath);
+  if (unpushed) {
+    issues.push('unpushed commits');
+  }
+
+  return {
+    safe: issues.length === 0,
+    issues,
+    worktreePath,
+    branchName,
+  };
 }

@@ -69,16 +69,38 @@ Quick lookup: "I changed X, what docs do I update?"
 ## Git Operations & Worktree Management
 
 **Code**:
-- src/git-operations.ts (git command execution)
+- src/git-operations.ts (git command execution, safety checks)
 - src/commands/claim.ts (worktree creation)
-- src/commands/done.ts (worktree cleanup)
-- src/commands/release.ts (worktree cleanup)
+- src/commands/done.ts (worktree cleanup, safety checks)
+- src/commands/release.ts (worktree cleanup, safety checks)
+- src/claim-logic.ts (checkClaimSafety function)
 
 **Docs to Update**:
 - CLAUDE.md - Worktree Convention section (locations and behavior)
 - CLAUDE.md - Agent Workflow section (when and how to use worktrees)
-- .claude/skills/sc-spec-workflow.md (worktree lifecycle)
+- CLAUDE.md - Workflow command table (safety checks, --force flag)
+- .claude/skills/sc-spec-workflow.md (worktree lifecycle, safety checks)
 - Command help (getHelp()) for claim, done, release
+- src/command-router.ts - Workflow section (--force flag documentation)
+
+## PR Tracking
+
+**Code**:
+- src/types.ts (pr field in SpecFrontmatter)
+- src/spec-parser.ts (parsing pr field)
+- src/spec-serializer.ts (serializing pr field)
+- src/commands/set.ts (--pr flag)
+- src/commands/show.ts (displaying pr field)
+
+**Docs to Update**:
+- CLAUDE.md - Frontmatter Schema table (pr field)
+- CLAUDE.md - Spec Format example (add pr: null)
+- CLAUDE.md - Critical Type Definitions (SpecFrontmatter interface)
+- CLAUDE.md - Property Modification table (--pr flag)
+- .claude/skills/sc-spec-workflow.md (PR tracking section)
+- src/commands/set.ts - getHelp() (--pr flag)
+- src/commands/show.ts - getHelp() (pr field in output)
+- src/command-router.ts - Property Modification section (--pr flag)
 
 ## File Structure & Naming Conventions
 

@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { claimSpec, releaseSpec, isSpecClaimed } from './claim-logic';
+import { claimSpec, releaseSpec, isSpecClaimed, checkClaimSafety } from './claim-logic';
 import { branchExists, deleteBranch, getWorkBranchName, getWorkWorktreePath } from './git-operations';
 import { setSpecsRoot, writeSpec } from './spec-filesystem';
 import type { Spec } from './types';
@@ -18,6 +18,7 @@ function makeSpec(id: string): Spec {
     parent: null,
     blocks: [],
     priority: 5,
+    pr: null,
     title: `Test ${id}`,
     content: `# Spec: Test ${id}`,
     filePath: join(specsDir, `test-${id}`, `test-${id}.md`),
@@ -116,5 +117,33 @@ describe('releaseSpec', () => {
     await writeSpec(spec);
 
     await expect(releaseSpec(spec)).rejects.toThrow();
+  });
+});
+
+describe('checkClaimSafety', () => {
+  test('returns safe=true when worktree does not exist', async () => {
+    const spec = makeSpec('unclaimed1');
+    const result = await checkClaimSafety(spec);
+
+    expect(result.safe).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(result.branchName).toBe('work-test-unclaimed1-unclaimed1');
+    expect(result.worktreePath).toContain('work-test-unclaimed1-unclaimed1');
+  });
+
+  test('returns correct branchName format', async () => {
+    const spec = makeSpec('test123');
+    spec.title = 'My Feature';
+    const result = await checkClaimSafety(spec);
+
+    expect(result.branchName).toBe('work-my-feature-test123');
+  });
+
+  test('includes worktreePath in result', async () => {
+    const spec = makeSpec('pathtest');
+    const result = await checkClaimSafety(spec);
+
+    expect(typeof result.worktreePath).toBe('string');
+    expect(result.worktreePath.length).toBeGreaterThan(0);
   });
 });

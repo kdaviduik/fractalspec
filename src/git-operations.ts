@@ -4,6 +4,8 @@
 
 import { resolve } from 'path';
 
+const GIT_COMMAND_TIMEOUT_MS = 10_000;
+
 export class GitError extends Error {
   constructor(
     message: string,
@@ -14,6 +16,13 @@ export class GitError extends Error {
   }
 }
 
+export class GitTimeoutError extends Error {
+  constructor(command: string) {
+    super(`Git command timed out after ${GIT_COMMAND_TIMEOUT_MS}ms: git ${command}`);
+    this.name = 'GitTimeoutError';
+  }
+}
+
 interface WorktreeInfo {
   path: string;
   branch: string;
@@ -21,21 +30,49 @@ interface WorktreeInfo {
   isBare: boolean;
 }
 
-async function runGit(args: string[]): Promise<string> {
-  const proc = Bun.spawn(['git', ...args], {
-    stdout: 'pipe',
-    stderr: 'pipe',
+interface RunGitOptions {
+  cwd?: string;
+  timeoutMs?: number;
+}
+
+async function runGit(args: string[], options: RunGitOptions = {}): Promise<string> {
+  const { cwd, timeoutMs = GIT_COMMAND_TIMEOUT_MS } = options;
+
+  const spawnOptions = cwd
+    ? { stdout: 'pipe' as const, stderr: 'pipe' as const, cwd }
+    : { stdout: 'pipe' as const, stderr: 'pipe' as const };
+
+  const proc = Bun.spawn(['git', ...args], spawnOptions);
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      proc.kill();
+      reject(new GitTimeoutError(args[0] ?? 'unknown'));
+    }, timeoutMs);
   });
 
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
+  const resultPromise = (async () => {
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+    const exitCode = await proc.exited;
 
-  if (exitCode !== 0) {
-    throw new GitError(`git ${args[0]} failed: ${stderr.trim()}`, stderr);
+    if (exitCode !== 0) {
+      throw new GitError(`git ${args[0]} failed: ${stderr.trim()}`, stderr);
+    }
+
+    return stdout.trim();
+  })();
+
+  try {
+    const result = await Promise.race([resultPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  return stdout.trim();
 }
 
 let cachedGitRoot: string | null = null;
@@ -177,4 +214,65 @@ export async function getWorkWorktreePath(specId: string, title: string): Promis
   const slug = slugify(title);
   const gitRoot = await findGitRoot();
   return resolve(gitRoot, '..', `work-${slug}-${specId}`);
+}
+
+/**
+ * Check if the worktree has uncommitted changes (staged, unstaged, or untracked files).
+ * Returns true if there are any changes that would be lost on branch deletion.
+ */
+export async function hasUncommittedChanges(worktreePath: string): Promise<boolean> {
+  try {
+    const status = await runGit(['status', '--porcelain'], { cwd: worktreePath });
+    return status.length > 0;
+  } catch (error) {
+    if (error instanceof GitTimeoutError) {
+      throw error;
+    }
+    return true;
+  }
+}
+
+/**
+ * Check if the branch has commits that haven't been pushed to the remote tracking branch.
+ * Returns true if there are unpushed commits OR if there's no upstream configured (fail-safe).
+ *
+ * Uses local tracking refs only - does not contact remote server.
+ */
+export async function hasUnpushedCommits(worktreePath: string): Promise<boolean> {
+  try {
+    const headRef = await runGit(['symbolic-ref', '-q', 'HEAD'], { cwd: worktreePath });
+    if (!headRef) {
+      return true;
+    }
+
+    try {
+      await runGit(['rev-parse', '--verify', '@{upstream}'], { cwd: worktreePath });
+    } catch {
+      return true;
+    }
+
+    const unpushed = await runGit(['rev-list', '@{upstream}..HEAD', '--count'], { cwd: worktreePath });
+    return parseInt(unpushed, 10) > 0;
+  } catch (error) {
+    if (error instanceof GitTimeoutError) {
+      throw error;
+    }
+    return true;
+  }
+}
+
+/**
+ * Check if the worktree is in a detached HEAD state.
+ * Returns true if detached or if the worktree doesn't exist (fail-safe).
+ */
+export async function isDetachedHead(worktreePath: string): Promise<boolean> {
+  try {
+    await runGit(['symbolic-ref', '-q', 'HEAD'], { cwd: worktreePath });
+    return false;
+  } catch (error) {
+    if (error instanceof GitTimeoutError) {
+      throw error;
+    }
+    return true;
+  }
 }

@@ -182,4 +182,45 @@ No heading here, just content.
     expect(result.content.startsWith('\n')).toBe(false);
     expect(result.content.endsWith('\n')).toBe(false);
   });
+
+  test('defaults pr to null when not present', () => {
+    const result = parseSpec('/path/to/spec.md', VALID_SPEC);
+    expect(result.pr).toBeNull();
+  });
+
+  test('parses pr field when present', () => {
+    const specWithPr = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: https://github.com/org/repo/pull/123
+---
+
+# Spec: With PR
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithPr);
+    expect(result.pr).toBe('https://github.com/org/repo/pull/123');
+  });
+
+  test('parses pr field as null when explicitly set to null', () => {
+    const specWithNullPr = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: null
+---
+
+# Spec: Null PR
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithNullPr);
+    expect(result.pr).toBeNull();
+  });
 });

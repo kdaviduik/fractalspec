@@ -31,6 +31,7 @@ function makeSpec(
     parent: null,
     blocks: [],
     priority: 5,
+    pr: null,
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: join(specsDir, `spec-${id}`, `spec-${id}.md`),
@@ -449,6 +450,67 @@ describe('sc set - multiple flags', () => {
     const updated = await findSpecFile('a1b2');
     expect(updated?.priority).toBe(10);
     expect(updated?.status).toBe('in_progress');
+  });
+});
+
+describe('sc set --pr', () => {
+  test('sets PR URL', async () => {
+    const spec = makeSpec('a1b2', { pr: null });
+    await createSpecDirectory('spec', 'a1b2');
+    await writeSpec(spec);
+
+    const result = await command.execute(['a1b2', '--pr', 'https://github.com/org/repo/pull/123']);
+    expect(result).toBe(0);
+    expect(logMessages.join(' ')).toContain('PR set to https://github.com/org/repo/pull/123');
+
+    const updated = await findSpecFile('a1b2');
+    expect(updated?.pr).toBe('https://github.com/org/repo/pull/123');
+  });
+
+  test('clears PR URL with --pr none', async () => {
+    const spec = makeSpec('a1b2', { pr: 'https://github.com/org/repo/pull/123' });
+    await createSpecDirectory('spec', 'a1b2');
+    await writeSpec(spec);
+
+    const result = await command.execute(['a1b2', '--pr', 'none']);
+    expect(result).toBe(0);
+    expect(logMessages.join(' ')).toContain('Cleared PR');
+
+    const updated = await findSpecFile('a1b2');
+    expect(updated?.pr).toBeNull();
+  });
+
+  test('rejects empty PR URL', async () => {
+    expect(() => command.execute(['a1b2', '--pr', ''])).toThrow();
+    expect(exitCode).toBe(1);
+    expect(errorMessages.join(' ')).toContain('cannot be empty');
+  });
+
+  test('idempotent: setting same PR twice succeeds', async () => {
+    const spec = makeSpec('a1b2', { pr: 'https://github.com/org/repo/pull/123' });
+    await createSpecDirectory('spec', 'a1b2');
+    await writeSpec(spec);
+
+    const result = await command.execute(['a1b2', '--pr', 'https://github.com/org/repo/pull/123']);
+    expect(result).toBe(0);
+    expect(logMessages.join(' ')).toContain('already set to');
+  });
+
+  test('idempotent: --pr none on null PR succeeds', async () => {
+    const spec = makeSpec('a1b2', { pr: null });
+    await createSpecDirectory('spec', 'a1b2');
+    await writeSpec(spec);
+
+    const result = await command.execute(['a1b2', '--pr', 'none']);
+    expect(result).toBe(0);
+    expect(logMessages.join(' ')).toContain('already cleared');
+  });
+
+  test('help includes --pr flag', () => {
+    const help = command.getHelp?.();
+    expect(help?.synopsis).toContain('--pr');
+    const prFlag = help?.flags?.find((f) => f.flag.includes('--pr'));
+    expect(prFlag).toBeDefined();
   });
 });
 

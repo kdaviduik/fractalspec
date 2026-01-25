@@ -50,12 +50,16 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
   const rawPriority = parsed.data['priority'];
   const priority: Priority = isValidPriority(rawPriority) ? rawPriority : DEFAULT_PRIORITY;
 
+  const rawPr = parsed.data['pr'];
+  const pr: string | null = typeof rawPr === 'string' ? rawPr : null;
+
   return {
     id: parsed.data.id,
     status: parsed.data.status,
     parent: parsed.data.parent,
     blocks: parsed.data.blocks,
     priority,
+    pr,
     title,
     content,
     filePath,

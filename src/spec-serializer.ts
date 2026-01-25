@@ -16,6 +16,7 @@ function serializeBlocks(blocks: string[]): string {
 export function serializeSpec(spec: Spec): string {
   const blocksValue = serializeBlocks(spec.blocks);
   const parentValue = spec.parent === null ? 'null' : spec.parent;
+  const prValue = spec.pr === null ? 'null' : spec.pr;
 
   const frontmatter = [
     '---',
@@ -24,6 +25,7 @@ export function serializeSpec(spec: Spec): string {
     `parent: ${parentValue}`,
     `blocks: ${blocksValue}`,
     `priority: ${spec.priority}`,
+    `pr: ${prValue}`,
     '---',
   ].join('\n');
 

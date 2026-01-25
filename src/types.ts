@@ -40,6 +40,7 @@ export interface SpecFrontmatter {
   parent: string | null;
   blocks: string[];
   priority: Priority;
+  pr: string | null;
 }
 
 export interface Spec extends SpecFrontmatter {

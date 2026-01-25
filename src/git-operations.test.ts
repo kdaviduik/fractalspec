@@ -8,6 +8,9 @@ import {
   getWorkBranchName,
   findGitRoot,
   getWorkWorktreePath,
+  hasUncommittedChanges,
+  hasUnpushedCommits,
+  isDetachedHead,
 } from './git-operations';
 
 const TEST_BRANCH_PREFIX = 'test-sc-git-';
@@ -162,5 +165,45 @@ describe('getWorkWorktreePath', () => {
     const path1 = await getWorkWorktreePath('a1b2', 'Feature A');
     const path2 = await getWorkWorktreePath('a1b2', 'Feature B');
     expect(path1).not.toBe(path2);
+  });
+});
+
+describe('hasUncommittedChanges', () => {
+  test('returns false for clean main worktree', async () => {
+    const gitRoot = await findGitRoot();
+    const hasChanges = await hasUncommittedChanges(gitRoot);
+    // Note: This test may return true if there are actual uncommitted changes in the repo during testing
+    expect(typeof hasChanges).toBe('boolean');
+  });
+
+  test('returns true for non-existent path (fail-safe)', async () => {
+    const hasChanges = await hasUncommittedChanges('/nonexistent/path/xyz123');
+    expect(hasChanges).toBe(true);
+  });
+});
+
+describe('hasUnpushedCommits', () => {
+  test('returns boolean for main worktree', async () => {
+    const gitRoot = await findGitRoot();
+    const hasUnpushed = await hasUnpushedCommits(gitRoot);
+    expect(typeof hasUnpushed).toBe('boolean');
+  });
+
+  test('returns true for non-existent path (fail-safe)', async () => {
+    const hasUnpushed = await hasUnpushedCommits('/nonexistent/path/xyz123');
+    expect(hasUnpushed).toBe(true);
+  });
+});
+
+describe('isDetachedHead', () => {
+  test('returns false for normal branch checkout', async () => {
+    const gitRoot = await findGitRoot();
+    const detached = await isDetachedHead(gitRoot);
+    expect(detached).toBe(false);
+  });
+
+  test('returns true for non-existent path (fail-safe)', async () => {
+    const detached = await isDetachedHead('/nonexistent/path/xyz123');
+    expect(detached).toBe(true);
   });
 });

@@ -272,6 +272,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
       parent: values.parent ?? null,
       blocks: [],
       priority,
+      pr: null,
       title,
       content: generateSpecTemplate(title, validatedMessages),
       filePath,

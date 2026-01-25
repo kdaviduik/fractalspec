@@ -105,8 +105,10 @@ sc done ABC123
 | Command | Description | Example |
 |---------|-------------|---------|
 | `sc claim <id>` | Claim spec, set to `in_progress`, create worktree | `sc claim ABC123` |
-| `sc done <id>` | Mark complete, set to `closed`, remove worktree | `sc done ABC123` |
-| `sc release <id>` | Abandon work, reset to `ready`, remove worktree | `sc release ABC123` |
+| `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
+| `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
+
+**Safety checks**: `done` and `release` verify no uncommitted changes or unpushed commits exist before proceeding. Use `--force` to bypass (with warning).
 
 ### Creation & Editing
 
@@ -130,6 +132,8 @@ sc done ABC123
 | `sc set <id> --parent none` | Make root spec (remove parent) | `sc set ABC123 --parent none` |
 | `sc set <id> --block <id>` | Add blocking dependency | `sc set ABC123 --block DEF456` |
 | `sc set <id> --unblock <id>` | Remove blocking dependency | `sc set ABC123 --unblock DEF456` |
+| `sc set <id> --pr <url>` | Set PR URL for tracking | `sc set ABC123 --pr https://github.com/org/repo/pull/123` |
+| `sc set <id> --pr none` | Clear PR URL | `sc set ABC123 --pr none` |
 
 ### Validation & Health
 
@@ -159,6 +163,7 @@ status: ready
 parent: null
 blocks: []
 priority: 5
+pr: null
 ---
 
 # Spec: Feature Title
@@ -186,6 +191,7 @@ priority: 5
 | `parent` | string\|null | spec ID or null | Parent spec for hierarchy |
 | `blocks` | string[] | spec IDs | Specs that must complete first |
 | `priority` | number | 1-10 | Priority level (10 = highest, default: inherits from parent, or 5 for root) |
+| `pr` | string\|null | URL or null | Associated pull request URL for tracking |
 
 ### Status Values
 
@@ -436,6 +442,7 @@ interface SpecFrontmatter {
   parent: string | null;
   blocks: string[];
   priority: Priority;
+  pr: string | null;
 }
 ```
 

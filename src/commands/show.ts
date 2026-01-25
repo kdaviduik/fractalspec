@@ -18,9 +18,10 @@ export const command: CommandHandler = {
       description: `Display full details for a spec including metadata and content.
 
 Shows:
-  - ID, title, status
+  - ID, title, status, priority
   - Parent spec (if any)
   - Blockers (specs this spec depends on)
+  - PR URL (if set)
   - File path
   - Full markdown content`,
       examples: [
@@ -48,11 +49,13 @@ Shows:
 
     console.log(`\n${spec.title}`);
     console.log('═'.repeat(spec.title.length));
-    console.log(`ID:     ${spec.id}`);
-    console.log(`Status: ${spec.status}`);
-    console.log(`Parent: ${spec.parent ?? '(root)'}`);
-    console.log(`Blocks: ${spec.blocks.length > 0 ? spec.blocks.join(', ') : '(none)'}`);
-    console.log(`Path:   ${spec.filePath}`);
+    console.log(`ID:       ${spec.id}`);
+    console.log(`Status:   ${spec.status}`);
+    console.log(`Priority: ${spec.priority}`);
+    console.log(`Parent:   ${spec.parent ?? '(root)'}`);
+    console.log(`Blocks:   ${spec.blocks.length > 0 ? spec.blocks.join(', ') : '(none)'}`);
+    console.log(`PR:       ${spec.pr ?? '(none)'}`);
+    console.log(`Path:     ${spec.filePath}`);
     console.log('\n--- Content ---\n');
     console.log(spec.content);
 

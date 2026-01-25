@@ -11,6 +11,7 @@ describe('serializeSpec', () => {
       parent: null,
       blocks: [],
       priority: 5,
+      pr: null,
       title: 'My Feature',
       content: '# Spec: My Feature\n\n## Overview\nSome content.',
       filePath: '/path/to/spec.md',
@@ -24,8 +25,27 @@ describe('serializeSpec', () => {
     expect(result).toContain('parent: null');
     expect(result).toContain('blocks: []');
     expect(result).toContain('priority: 5');
+    expect(result).toContain('pr: null');
     expect(result).toContain('# Spec: My Feature');
     expect(result).toContain('## Overview');
+  });
+
+  test('serializes pr field with URL value', () => {
+    const spec: Spec = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blocks: [],
+      priority: 5,
+      pr: 'https://github.com/org/repo/pull/123',
+      title: 'My Feature',
+      content: '# Spec: My Feature',
+      filePath: '/path/to/spec.md',
+    };
+
+    const result = serializeSpec(spec);
+
+    expect(result).toContain('pr: https://github.com/org/repo/pull/123');
   });
 
   test('serializes spec with parent and blocks', () => {
@@ -35,6 +55,7 @@ describe('serializeSpec', () => {
       parent: 'a1b2',
       blocks: ['e5f6', 'g7h8'],
       priority: 8,
+      pr: null,
       title: 'Child Feature',
       content: '# Spec: Child Feature\n\nChild content.',
       filePath: '/path/to/child.md',
@@ -86,6 +107,7 @@ Testing round-trip conversion.
       parent: null,
       blocks: [],
       priority: 5,
+      pr: null,
       title: 'Test',
       content: '# Spec: Test',
       filePath: '/path/spec.md',
@@ -102,6 +124,7 @@ Testing round-trip conversion.
       parent: null,
       blocks: [],
       priority: 5,
+      pr: null,
       title: 'Test',
       content: '# Spec: Test',
       filePath: '/path/spec.md',
@@ -128,6 +151,7 @@ Testing round-trip conversion.
         parent: null,
         blocks: [],
         priority: 5,
+        pr: null,
         title: 'Test',
         content: '# Test',
         filePath: '/path.md',
@@ -146,6 +170,7 @@ Testing round-trip conversion.
         parent: null,
         blocks: [],
         priority,
+        pr: null,
         title: 'Test',
         content: '# Test',
         filePath: '/path.md',
