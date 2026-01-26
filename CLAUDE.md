@@ -104,9 +104,11 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc claim <id>` | Claim spec, set to `in_progress`, create worktree | `sc claim ABC123` |
+| `sc claim <id> [--cd]` | Claim spec, set to `in_progress`, create worktree | `sc claim ABC123` |
 | `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
 | `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
+
+**`--cd` flag**: Use `eval "$(sc claim --cd ABC123)"` to auto-cd into the new worktree.
 
 **Safety checks**: `done` and `release` verify no uncommitted changes or unpushed commits exist before proceeding. Use `--force` to bypass (with warning).
 
@@ -305,6 +307,9 @@ sc claim ABC123
 
 # 2. Switch to the work worktree (example: spec titled "Feature Name")
 cd ../work-feature-name-ABC123
+
+# Alternative: Auto-cd with eval
+eval "$(sc claim --cd ABC123)"
 
 # 3. Do the work...
 

@@ -24,9 +24,12 @@ Specs are automatically sorted by priority (10 highest → 1 lowest), then by de
 ```bash
 sc claim <spec-id>
 cd ../work-<slug>-<spec-id>
+
+# Alternative: Auto-cd with eval
+eval "$(sc claim --cd <spec-id>)"
 ```
 
-This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root). The `<slug>` is derived from the spec's title.
+This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root). The `<slug>` is derived from the spec's title. With `--cd`, the cd command goes to stdout for shell evaluation.
 
 ### 3. Understand Requirements
 

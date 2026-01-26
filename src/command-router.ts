@@ -85,6 +85,8 @@ ${bold('WORKTREE WORKFLOW')}
     3. [do the work, commit]
     4. sc done <id>               # Mark complete, remove worktree (works from anywhere)
 
+  Auto-cd alternative:  eval "$(sc claim --cd <id>)"
+
   NOTE: If run from inside the work worktree being removed, you will be left
   in a deleted directory. Navigate to a different directory afterward if needed.
 
@@ -100,10 +102,11 @@ ${bold('COMMANDS')}
     ${underline('show')} ${dim('<id>')}              Display full spec details including metadata
 
   ${underline('Workflow')}
-    ${underline('claim')} ${dim('<id>')}             Claim spec for work
+    ${underline('claim')} ${dim('<id>')} ${dim('[--cd]')}       Claim spec for work
                            - Creates worktree (sibling to repository root)
                            - Creates branch work-<slug>-<id>
                            - Sets status to in_progress
+      --cd, -C             Output cd command for shell eval (auto-cd)
 
     ${underline('release')} ${dim('<id>')} ${dim('[--force]')}  Abandon work and reset to ready
                            - Safety checks for uncommitted/unpushed work
@@ -184,9 +187,12 @@ ${bold('EXAMPLES')}
 
   # Working on a spec (example: spec titled "User Auth")
   sc claim a1b2c3               # Claim and create worktree
-  cd ../work-user-auth-a1b2c3   # Switch to work area
+  cd ../work-user-auth-a1b2c3   # Switch to work area (manual cd)
   # ... do work, git commit ...
   sc done a1b2c3                # Complete (works from any directory)
+
+  # Alternative: auto-cd with eval
+  eval "$(sc claim --cd a1b2c3)"  # Claims and changes directory
 
   # Creating specs
   sc create                     # Create root spec (prompted for title)

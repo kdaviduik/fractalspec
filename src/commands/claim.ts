@@ -16,7 +16,7 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc claim',
-      synopsis: 'sc claim <id>',
+      synopsis: 'sc claim <id> [--cd]',
       description: `Claim a spec and prepare it for work. This command:
   - Sets the spec status to 'in_progress'
   - Creates a dedicated git worktree (sibling to repository root)
@@ -25,22 +25,43 @@ export const command: CommandHandler = {
 
 After claiming, switch to the work worktree to begin implementation.
 Commands can be run from any directory in the repository.`,
+      flags: [
+        {
+          flag: '--cd, -C',
+          description:
+            'Output cd command for shell evaluation. Use with eval or a wrapper function to auto-change directory after claiming.',
+        },
+      ],
       examples: [
-        '# Claim spec and start working (example: spec titled "OAuth Flow")',
+        '# Claim spec and manually cd (default behavior)',
         'sc claim a1b2c3',
         'cd ../work-oauth-flow-a1b2c3',
+        '',
+        '# Claim and auto-cd with eval',
+        'eval "$(sc claim --cd a1b2c3)"',
+        '',
+        '# Shell function wrapper (add to ~/.bashrc or ~/.zshrc)',
+        'sccd() { local output; output=$(sc claim --cd "$@") && eval "$output"; }',
+        '# Then use:',
+        'sccd a1b2c3',
+        '',
         '# ... do work, commit changes ...',
         'sc done a1b2c3  # Works from any directory',
       ],
       notes: [
         'The worktree is created as a sibling to the repository root.',
         'Claim and done/release commands work from any directory in the repository.',
+        'With --cd: Status info goes to stderr, cd command to stdout (safe for eval).',
+        'On failure with --cd: stdout is empty, preventing eval from executing garbage.',
       ],
     };
   },
 
   async execute(args: string[]): Promise<number> {
-    const specId = args[0];
+    const cdFlag = args.includes('--cd') || args.includes('-C');
+    const filteredArgs = args.filter(a => a !== '--cd' && a !== '-C');
+
+    const specId = filteredArgs[0];
     if (!specId) {
       printCommandUsage(this.getHelp!());
       return 1;
@@ -61,10 +82,16 @@ Commands can be run from any directory in the repository.`,
 
     const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
 
-    console.log(`Claimed: ${spec.title}`);
-    console.log(`  Status: in_progress`);
-    console.log(`\nTo start working:`);
-    console.log(`  cd ${worktreePath}`);
+    if (cdFlag) {
+      console.error(`Claimed: ${spec.title} (in_progress)`);
+      const escapedPath = worktreePath.replace(/'/g, "'\\''");
+      console.log(`cd '${escapedPath}'`);
+    } else {
+      console.log(`Claimed: ${spec.title}`);
+      console.log(`  Status: in_progress`);
+      console.log(`\nTo start working:`);
+      console.log(`  cd ${worktreePath}`);
+    }
 
     return 0;
   },
