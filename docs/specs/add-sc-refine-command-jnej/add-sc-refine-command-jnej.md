@@ -2,7 +2,7 @@
 id: jnej
 status: ready
 parent: null
-blocks: []
+blockedBy: []
 ---
 
 # Spec: Add sc refine command

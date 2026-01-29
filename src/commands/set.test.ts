@@ -29,7 +29,7 @@ function makeSpec(
     id,
     status: 'ready',
     parent: null,
-    blocks: [],
+    blockedBy: [],
     priority: 5,
     pr: null,
     title: `Spec ${id}`,
@@ -339,7 +339,7 @@ describe('sc set --parent', () => {
 
 describe('sc set --block', () => {
   test('adds blocking dependency', async () => {
-    const spec = makeSpec('a1b2', { blocks: [] });
+    const spec = makeSpec('a1b2', { blockedBy: [] });
     const blocker = makeSpec('b3c4');
     await createSpecDirectory('spec', 'a1b2');
     await createSpecDirectory('spec', 'b3c4');
@@ -351,7 +351,7 @@ describe('sc set --block', () => {
     expect(logMessages.join(' ')).toContain('Added blocker b3c4');
 
     const updated = await findSpecFile('a1b2');
-    expect(updated?.blocks).toContain('b3c4');
+    expect(updated?.blockedBy).toContain('b3c4');
   });
 
   test('returns error when blocker spec not found', async () => {
@@ -381,7 +381,7 @@ describe('sc set --block', () => {
   });
 
   test('idempotent: adding existing blocker succeeds', async () => {
-    const spec = makeSpec('a1b2', { blocks: ['b3c4'] });
+    const spec = makeSpec('a1b2', { blockedBy: ['b3c4'] });
     const blocker = makeSpec('b3c4');
     await createSpecDirectory('spec', 'a1b2');
     await createSpecDirectory('spec', 'b3c4');
@@ -394,8 +394,8 @@ describe('sc set --block', () => {
   });
 
   test('detects blocker cycle A blocks B blocks A', async () => {
-    const specA = makeSpec('aaa1', { blocks: [] });
-    const specB = makeSpec('bbb2', { blocks: ['aaa1'] });
+    const specA = makeSpec('aaa1', { blockedBy: [] });
+    const specB = makeSpec('bbb2', { blockedBy: ['aaa1'] });
     await createSpecDirectory('spec', 'aaa1');
     await createSpecDirectory('spec', 'bbb2');
     await writeSpec(specA);
@@ -409,7 +409,7 @@ describe('sc set --block', () => {
 
 describe('sc set --unblock', () => {
   test('removes blocking dependency', async () => {
-    const spec = makeSpec('a1b2', { blocks: ['b3c4'] });
+    const spec = makeSpec('a1b2', { blockedBy: ['b3c4'] });
     await createSpecDirectory('spec', 'a1b2');
     await writeSpec(spec);
 
@@ -418,7 +418,7 @@ describe('sc set --unblock', () => {
     expect(logMessages.join(' ')).toContain('Removed blocker b3c4');
 
     const updated = await findSpecFile('a1b2');
-    expect(updated?.blocks).not.toContain('b3c4');
+    expect(updated?.blockedBy).not.toContain('b3c4');
   });
 
   test('rejects empty unblock ID', async () => {
@@ -428,7 +428,7 @@ describe('sc set --unblock', () => {
   });
 
   test('idempotent: removing non-existent blocker succeeds', async () => {
-    const spec = makeSpec('a1b2', { blocks: [] });
+    const spec = makeSpec('a1b2', { blockedBy: [] });
     await createSpecDirectory('spec', 'a1b2');
     await writeSpec(spec);
 

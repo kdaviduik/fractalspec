@@ -232,7 +232,7 @@ describe('determinePriority', () => {
       id,
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
       priority,
       pr: null,
       title: `Spec ${id}`,

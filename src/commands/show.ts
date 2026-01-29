@@ -53,9 +53,9 @@ Shows:
     console.log(`Status:   ${spec.status}`);
     console.log(`Priority: ${spec.priority}`);
     console.log(`Parent:   ${spec.parent ?? '(root)'}`);
-    console.log(`Blocks:   ${spec.blocks.length > 0 ? spec.blocks.join(', ') : '(none)'}`);
-    console.log(`PR:       ${spec.pr ?? '(none)'}`);
-    console.log(`Path:     ${spec.filePath}`);
+    console.log(`Blocked by: ${spec.blockedBy.length > 0 ? spec.blockedBy.join(', ') : '(none)'}`);
+    console.log(`PR:         ${spec.pr ?? '(none)'}`);
+    console.log(`Path:       ${spec.filePath}`);
     console.log('\n--- Content ---\n');
     console.log(spec.content);
 

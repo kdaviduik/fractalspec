@@ -16,7 +16,7 @@ function makeSpec(id: string): Spec {
     id,
     status: 'ready',
     parent: null,
-    blocks: [],
+    blockedBy: [],
     priority: 5,
     pr: null,
     title: `Test ${id}`,

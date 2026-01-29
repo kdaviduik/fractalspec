@@ -15,6 +15,18 @@ export class ParseError extends Error {
   }
 }
 
+/**
+ * Safely extracts blockedBy array from frontmatter data.
+ * Supports migration from deprecated 'blocks' field name.
+ */
+function extractBlockedBy(data: Record<string, unknown>): string[] {
+  const raw = data['blockedBy'] ?? data['blocks'];
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((item): item is string => typeof item === 'string');
+}
+
 function extractTitle(content: string): string {
   const lines = content.split('\n');
 
@@ -40,7 +52,17 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
     throw new ParseError('Missing YAML frontmatter', filePath);
   }
 
-  if (!isValidSpecFrontmatter(parsed.data)) {
+  // Migration support: accept both 'blocks' (deprecated) and 'blockedBy' (current)
+  // Read blockedBy first, fall back to blocks for backward compatibility
+  const blockedBy = extractBlockedBy(parsed.data);
+
+  // Build a normalized data object for validation
+  const normalizedData = {
+    ...parsed.data,
+    blockedBy,
+  };
+
+  if (!isValidSpecFrontmatter(normalizedData)) {
     throw new ParseError('Invalid frontmatter structure or values', filePath);
   }
 
@@ -54,10 +76,10 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
   const pr: string | null = typeof rawPr === 'string' ? rawPr : null;
 
   return {
-    id: parsed.data.id,
-    status: parsed.data.status,
-    parent: parsed.data.parent,
-    blocks: parsed.data.blocks,
+    id: normalizedData.id,
+    status: normalizedData.status,
+    parent: normalizedData.parent,
+    blockedBy: normalizedData.blockedBy,
     priority,
     pr,
     title,

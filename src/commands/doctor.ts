@@ -6,12 +6,12 @@ import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
 import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY } from '../types';
 import type { CommandHelp } from '../help.js';
-import { readAllSpecs, writeSpec, getSpecsRoot } from '../spec-filesystem';
+import { readAllSpecs, writeSpec, getSpecsRoot, readRawSpecContent } from '../spec-filesystem';
 import { findGitRoot } from '../git-operations';
 import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field';
   specId: string;
   message: string;
   fixable: boolean;
@@ -79,7 +79,7 @@ async function findMissingBlockers(specs: Spec[]): Promise<HealthIssue[]> {
   const specIds = new Set(specs.map((s) => s.id));
 
   for (const spec of specs) {
-    for (const blockerId of spec.blocks) {
+    for (const blockerId of spec.blockedBy) {
       if (!specIds.has(blockerId)) {
         issues.push({
           type: 'missing_blocker',
@@ -130,7 +130,7 @@ function findCircularDeps(specs: Spec[]): HealthIssue[] {
 
     visited.add(startId);
 
-    for (const blockerId of spec.blocks) {
+    for (const blockerId of spec.blockedBy) {
       if (hasCircle(blockerId, new Set(visited))) {
         return true;
       }
@@ -160,9 +160,33 @@ async function fixOrphan(spec: Spec, _specs: Spec[]): Promise<void> {
 
 async function fixMissingBlocker(spec: Spec, specs: Spec[]): Promise<void> {
   const specIds = new Set(specs.map((s) => s.id));
-  const validBlocks = spec.blocks.filter((id) => specIds.has(id));
-  const updated: Spec = { ...spec, blocks: validBlocks };
+  const validBlockedBy = spec.blockedBy.filter((id) => specIds.has(id));
+  const updated: Spec = { ...spec, blockedBy: validBlockedBy };
   await writeSpec(updated);
+}
+
+async function findDeprecatedFields(specs: Spec[]): Promise<HealthIssue[]> {
+  const issues: HealthIssue[] = [];
+
+  for (const spec of specs) {
+    const rawContent = await readRawSpecContent(spec.filePath);
+    // Check if the file uses deprecated "blocks:" field instead of "blockedBy:"
+    if (rawContent.includes('\nblocks:') && !rawContent.includes('\nblockedBy:')) {
+      issues.push({
+        type: 'deprecated_field',
+        specId: spec.id,
+        message: 'Using deprecated "blocks" field, should be "blockedBy"',
+        fixable: true,
+      });
+    }
+  }
+
+  return issues;
+}
+
+async function fixDeprecatedField(spec: Spec): Promise<void> {
+  // Simply rewriting the spec will use the new field name
+  await writeSpec(spec);
 }
 
 export const command: CommandHandler = {
@@ -180,6 +204,7 @@ Detects:
   - Missing blockers (blocker spec doesn't exist)
   - Invalid priorities (outside ${MIN_PRIORITY}-${MAX_PRIORITY} range)
   - Circular dependencies (A blocks B, B blocks A)
+  - Deprecated field names (blocks → blockedBy migration)
   - Uncommitted spec changes (modified or untracked specs)
 
 Circular dependencies and uncommitted changes cannot be auto-fixed.`,
@@ -199,7 +224,8 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
       notes: [
         'Exits with code 1 if any issues are found (even after --fix if unfixable issues remain).',
         'Orphan fix: Sets parent to null, making the spec a root.',
-        'Missing blocker fix: Removes the invalid blocker ID from the blocks array.',
+        'Missing blocker fix: Removes the invalid blocker ID from the blockedBy array.',
+        'Deprecated field fix: Rewrites spec file using the new blockedBy field name.',
         'Uncommitted specs are warnings only and do not cause exit code 1.',
       ],
     };
@@ -223,9 +249,10 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
     const missingBlockers = await findMissingBlockers(specs);
     const invalidPriorities = findInvalidPriorities(specs);
     const circular = findCircularDeps(specs);
+    const deprecatedFields = await findDeprecatedFields(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
-    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular];
+    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields];
 
     if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');
@@ -278,6 +305,11 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
         if (issue.type === 'invalid_priority') {
           await fixInvalidPriority(spec);
           console.log(`  ✓ Fixed invalid priority: ${issue.specId} (set to ${DEFAULT_PRIORITY})`);
+        }
+
+        if (issue.type === 'deprecated_field') {
+          await fixDeprecatedField(spec);
+          console.log(`  ✓ Fixed deprecated field: ${issue.specId} (blocks → blockedBy)`);
         }
       }
     } else {

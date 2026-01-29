@@ -121,18 +121,18 @@ describe('SpecFrontmatter validation', () => {
       id: 'a1b2',
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
     };
 
     expect(isValidSpecFrontmatter(frontmatter)).toBe(true);
   });
 
-  test('accepts valid frontmatter with parent and blocks', () => {
+  test('accepts valid frontmatter with parent and blockedBy', () => {
     const frontmatter = {
       id: 'c3d4',
       status: 'blocked',
       parent: 'a1b2',
-      blocks: ['e5f6', 'g7h8'],
+      blockedBy: ['e5f6', 'g7h8'],
     };
 
     expect(isValidSpecFrontmatter(frontmatter)).toBe(true);
@@ -142,7 +142,7 @@ describe('SpecFrontmatter validation', () => {
     const frontmatter = {
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
     };
 
     expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
@@ -153,18 +153,18 @@ describe('SpecFrontmatter validation', () => {
       id: 'a1b2',
       status: 'invalid_status',
       parent: null,
-      blocks: [],
+      blockedBy: [],
     };
 
     expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
   });
 
-  test('rejects frontmatter with non-array blocks', () => {
+  test('rejects frontmatter with non-array blockedBy', () => {
     const frontmatter = {
       id: 'a1b2',
       status: 'ready',
       parent: null,
-      blocks: 'not-an-array',
+      blockedBy: 'not-an-array',
     };
 
     expect(isValidSpecFrontmatter(frontmatter)).toBe(false);

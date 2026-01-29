@@ -65,7 +65,7 @@ ${bold('FILE STRUCTURE')}
     - id: 6-character alphanumeric identifier
     - status: ready | in_progress | blocked | closed | deferred | not_planned
     - parent: parent spec ID or null
-    - blocks: array of blocker spec IDs
+    - blockedBy: array of spec IDs that block this spec
     - priority: 1-10 numeric (10 = highest, default: inherits from parent, or 5)
 
 ${bold('STATUS ICONS')}

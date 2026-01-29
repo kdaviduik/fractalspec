@@ -37,11 +37,11 @@ export function filterByStatus(specs: Spec[], status: Status): Spec[] {
 const COMPLETED_STATUSES: Status[] = ['closed', 'deferred', 'not_planned'];
 
 function isBlocked(spec: Spec, allSpecs: Spec[]): boolean {
-  if (spec.blocks.length === 0) {
+  if (spec.blockedBy.length === 0) {
     return false;
   }
 
-  for (const blockerId of spec.blocks) {
+  for (const blockerId of spec.blockedBy) {
     const blocker = allSpecs.find((s) => s.id === blockerId);
     if (!blocker) {
       continue;

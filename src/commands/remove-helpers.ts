@@ -30,7 +30,7 @@ export async function validateRemovalPreconditions(
 ): Promise<ValidationResult> {
   const reasons: string[] = [];
   const isClaimed = await isSpecClaimed(spec);
-  const dependents = allSpecs.filter((s) => s.blocks.includes(spec.id));
+  const dependents = allSpecs.filter((s) => s.blockedBy.includes(spec.id));
   const children = allSpecs.filter((s) => s.parent === spec.id);
 
   const childrenClaimed: string[] = [];
@@ -87,7 +87,7 @@ export function validateCascadeDeletion(spec: Spec, allSpecs: Spec[]): CascadeVa
   const externalDependents = new Map<string, string[]>();
   for (const descendant of [spec, ...descendants]) {
     const deps = allSpecs.filter(
-      (s) => s.blocks.includes(descendant.id) && !descendantIds.has(s.id)
+      (s) => s.blockedBy.includes(descendant.id) && !descendantIds.has(s.id)
     );
     if (deps.length > 0) {
       externalDependents.set(descendant.id, deps.map((d) => d.id));

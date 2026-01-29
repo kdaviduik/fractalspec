@@ -20,7 +20,7 @@ function makeSpec(id: string, overrides: Partial<Spec> = {}): Spec {
     id,
     status: 'in_progress',
     parent: null,
-    blocks: [],
+    blockedBy: [],
     priority: 5,
     pr: null,
     title: `Test ${id}`,
