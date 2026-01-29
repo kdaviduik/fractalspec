@@ -127,3 +127,7 @@ export async function deleteSpec(spec: Spec): Promise<void> {
   const specDir = dirname(spec.filePath);
   await rm(specDir, { recursive: true, force: true });
 }
+
+export async function readRawSpecContent(filePath: string): Promise<string> {
+  return await Bun.file(filePath).text();
+}

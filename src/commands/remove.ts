@@ -207,7 +207,7 @@ export const command: CommandHandler = {
 
 Preconditions:
   - Spec must NOT be claimed (no active worktree)
-  - No other specs can depend on it (no specs have this ID in their blocks array)
+  - No other specs can depend on it (no specs have this ID in their blockedBy array)
 
 Child handling:
   - Default: Reparents children to parent's parent (up one level). If removing a root

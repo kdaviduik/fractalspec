@@ -9,7 +9,7 @@ CLI tool for managing recursive specification documents using EARS (Easy Approac
 **Key concepts:**
 - **Spec**: A markdown document with YAML frontmatter defining a unit of work
 - **Parent/child**: Hierarchical relationship for decomposition
-- **Blocks**: Dependency relationships (spec A blocks spec B = B cannot start until A is done)
+- **blockedBy**: Dependency relationships (spec A is blocked by spec B = A cannot start until B is done)
 - **Priority**: Numeric priority (1-10, where 10 = highest) for ordering work
 - **EARS**: Structured requirement syntax ensuring testable, unambiguous requirements
 
@@ -163,7 +163,7 @@ Specs are stored as markdown files with YAML frontmatter:
 id: ABC123
 status: ready
 parent: null
-blocks: []
+blockedBy: []
 priority: 5
 pr: null
 ---
@@ -191,7 +191,7 @@ pr: null
 | `id` | string | 6-char alphanumeric | Unique identifier |
 | `status` | string | see below | Current state (settable at creation via 'sc create --status') |
 | `parent` | string\|null | spec ID or null | Parent spec for hierarchy |
-| `blocks` | string[] | spec IDs | Specs that must complete first |
+| `blockedBy` | string[] | spec IDs | Specs that must complete before this spec can start |
 | `priority` | number | 1-10 | Priority level (10 = highest, default: inherits from parent, or 5 for root) |
 | `pr` | string\|null | URL or null | Associated pull request URL for tracking |
 
@@ -445,7 +445,7 @@ interface SpecFrontmatter {
   id: string;
   status: Status;
   parent: string | null;
-  blocks: string[];
+  blockedBy: string[];
   priority: Priority;
   pr: string | null;
 }

@@ -116,7 +116,7 @@ function wouldCreateBlockerCycle(specId: string, newBlockerId: string, allSpecs:
     if (visited.has(currentId)) continue;
     visited.add(currentId);
     const current = allSpecs.find((s) => s.id === currentId);
-    if (current) toVisit.push(...current.blocks);
+    if (current) toVisit.push(...current.blockedBy);
   }
   return false;
 }
@@ -173,14 +173,14 @@ async function applyBlockChange(
     console.error(`Cannot add blocker: would create a cycle (${spec.id} <-> ${blockerSpec.id})`);
     return { success: false, messages: [] };
   }
-  if (updated.blocks.includes(blockerSpec.id)) msgs.push(`Already blocked by ${blockerSpec.id}`);
-  else { updated.blocks.push(blockerSpec.id); msgs.push(`Added blocker ${blockerSpec.id}`); }
+  if (updated.blockedBy.includes(blockerSpec.id)) msgs.push(`Already blocked by ${blockerSpec.id}`);
+  else { updated.blockedBy.push(blockerSpec.id); msgs.push(`Added blocker ${blockerSpec.id}`); }
   return { success: true, messages: msgs };
 }
 
 function applyUnblockChange(updated: Spec, blockerId: string, msgs: string[]): void {
-  if (!updated.blocks.includes(blockerId)) { msgs.push(`Not blocked by ${blockerId}`); return; }
-  updated.blocks = updated.blocks.filter((id) => id !== blockerId);
+  if (!updated.blockedBy.includes(blockerId)) { msgs.push(`Not blocked by ${blockerId}`); return; }
+  updated.blockedBy = updated.blockedBy.filter((id) => id !== blockerId);
   msgs.push(`Removed blocker ${blockerId}`);
 }
 
@@ -197,7 +197,7 @@ function applyPrChange(spec: Spec, updated: Spec, prValue: string | null, msgs: 
 
 async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): Promise<ChangeResult> {
   const msgs: string[] = [];
-  const updated: Spec = { ...spec, blocks: [...spec.blocks] };
+  const updated: Spec = { ...spec, blockedBy: [...spec.blockedBy] };
   if (options.priority !== undefined) applyPriorityChange(spec, updated, options.priority, msgs);
   if (options.status !== undefined) applyStatusChange(spec, updated, options.status, msgs);
   if (options.parent !== undefined) {
@@ -211,7 +211,7 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
   if (options.unblock !== undefined) applyUnblockChange(updated, options.unblock, msgs);
   if (options.pr !== undefined) applyPrChange(spec, updated, options.pr, msgs);
   const hasChanges = updated.priority !== spec.priority || updated.status !== spec.status ||
-    updated.parent !== spec.parent || JSON.stringify(updated.blocks) !== JSON.stringify(spec.blocks) ||
+    updated.parent !== spec.parent || JSON.stringify(updated.blockedBy) !== JSON.stringify(spec.blockedBy) ||
     updated.pr !== spec.pr;
   if (hasChanges) await writeSpec(updated);
   return { success: true, messages: msgs };

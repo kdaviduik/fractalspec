@@ -55,7 +55,7 @@ describe('parseSpec', () => {
     expect(result.id).toBe('a1b2');
     expect(result.status).toBe('ready');
     expect(result.parent).toBeNull();
-    expect(result.blocks).toEqual([]);
+    expect(result.blockedBy).toEqual([]);
     expect(result.priority).toBe(5);
     expect(result.title).toBe('My Feature');
     expect(result.filePath).toBe('/path/to/spec.md');
@@ -63,15 +63,37 @@ describe('parseSpec', () => {
     expect(result.content).toContain('## Requirements');
   });
 
-  test('parses spec with parent and blocks', () => {
+  test('parses spec with parent and blockedBy (deprecated blocks field)', () => {
+    // Tests backward compatibility: old "blocks" field is parsed into "blockedBy"
     const result = parseSpec('/path/to/child.md', SPEC_WITH_PARENT);
 
     expect(result.id).toBe('c3d4');
     expect(result.status).toBe('blocked');
     expect(result.parent).toBe('a1b2');
-    expect(result.blocks).toEqual(['e5f6', 'g7h8']);
+    expect(result.blockedBy).toEqual(['e5f6', 'g7h8']);
     expect(result.priority).toBe(8);
     expect(result.title).toBe('Child Feature');
+  });
+
+  test('parses spec with new blockedBy field', () => {
+    const specWithBlockedBy = `---
+id: c3d4
+status: blocked
+parent: a1b2
+blockedBy:
+  - e5f6
+  - g7h8
+priority: 8
+---
+
+# Spec: Child Feature
+
+Some content here.
+`;
+    const result = parseSpec('/path/to/child.md', specWithBlockedBy);
+
+    expect(result.id).toBe('c3d4');
+    expect(result.blockedBy).toEqual(['e5f6', 'g7h8']);
   });
 
   test('defaults priority to 5 (DEFAULT_PRIORITY) when missing', () => {

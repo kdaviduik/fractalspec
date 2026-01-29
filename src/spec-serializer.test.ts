@@ -9,7 +9,7 @@ describe('serializeSpec', () => {
       id: 'a1b2',
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
       priority: 5,
       pr: null,
       title: 'My Feature',
@@ -23,7 +23,7 @@ describe('serializeSpec', () => {
     expect(result).toContain('id: a1b2');
     expect(result).toContain('status: ready');
     expect(result).toContain('parent: null');
-    expect(result).toContain('blocks: []');
+    expect(result).toContain('blockedBy: []');
     expect(result).toContain('priority: 5');
     expect(result).toContain('pr: null');
     expect(result).toContain('# Spec: My Feature');
@@ -35,7 +35,7 @@ describe('serializeSpec', () => {
       id: 'a1b2',
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
       priority: 5,
       pr: 'https://github.com/org/repo/pull/123',
       title: 'My Feature',
@@ -48,12 +48,12 @@ describe('serializeSpec', () => {
     expect(result).toContain('pr: https://github.com/org/repo/pull/123');
   });
 
-  test('serializes spec with parent and blocks', () => {
+  test('serializes spec with parent and blockedBy', () => {
     const spec: Spec = {
       id: 'c3d4',
       status: 'blocked',
       parent: 'a1b2',
-      blocks: ['e5f6', 'g7h8'],
+      blockedBy: ['e5f6', 'g7h8'],
       priority: 8,
       pr: null,
       title: 'Child Feature',
@@ -64,7 +64,7 @@ describe('serializeSpec', () => {
     const result = serializeSpec(spec);
 
     expect(result).toContain('parent: a1b2');
-    expect(result).toContain('blocks:');
+    expect(result).toContain('blockedBy:');
     expect(result).toContain('- e5f6');
     expect(result).toContain('- g7h8');
     expect(result).toContain('priority: 8');
@@ -75,7 +75,7 @@ describe('serializeSpec', () => {
 id: a1b2
 status: ready
 parent: null
-blocks: []
+blockedBy: []
 priority: 8
 ---
 
@@ -95,9 +95,29 @@ Testing round-trip conversion.
     expect(reparsed.id).toBe(parsed.id);
     expect(reparsed.status).toBe(parsed.status);
     expect(reparsed.parent).toBe(parsed.parent);
-    expect(reparsed.blocks).toEqual(parsed.blocks);
+    expect(reparsed.blockedBy).toEqual(parsed.blockedBy);
     expect(reparsed.priority).toBe(parsed.priority);
     expect(reparsed.title).toBe(parsed.title);
+  });
+
+  test('round-trip: migration from deprecated blocks field', () => {
+    // Test backward compatibility: old "blocks" field should be parsed and re-serialized as "blockedBy"
+    const oldFormatContent = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 8
+---
+
+# Spec: Migration Test
+`;
+
+    const parsed = parseSpec('/test/path.md', oldFormatContent);
+    const serialized = serializeSpec(parsed);
+
+    expect(serialized).toContain('blockedBy: []');
+    expect(serialized).not.toContain('blocks:');
   });
 
   test('ends with newline', () => {
@@ -105,7 +125,7 @@ Testing round-trip conversion.
       id: 'a1b2',
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
       priority: 5,
       pr: null,
       title: 'Test',
@@ -117,12 +137,12 @@ Testing round-trip conversion.
     expect(result.endsWith('\n')).toBe(true);
   });
 
-  test('handles empty blocks array', () => {
+  test('handles empty blockedBy array', () => {
     const spec: Spec = {
       id: 'a1b2',
       status: 'ready',
       parent: null,
-      blocks: [],
+      blockedBy: [],
       priority: 5,
       pr: null,
       title: 'Test',
@@ -131,7 +151,7 @@ Testing round-trip conversion.
     };
 
     const result = serializeSpec(spec);
-    expect(result).toContain('blocks: []');
+    expect(result).toContain('blockedBy: []');
   });
 
   test('handles all status types', () => {
@@ -149,7 +169,7 @@ Testing round-trip conversion.
         id: 'test',
         status,
         parent: null,
-        blocks: [],
+        blockedBy: [],
         priority: 5,
         pr: null,
         title: 'Test',
@@ -168,7 +188,7 @@ Testing round-trip conversion.
         id: 'test',
         status: 'ready',
         parent: null,
-        blocks: [],
+        blockedBy: [],
         priority,
         pr: null,
         title: 'Test',

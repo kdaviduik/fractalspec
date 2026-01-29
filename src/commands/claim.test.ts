@@ -20,7 +20,7 @@ function makeSpec(id: string, overrides: Partial<Spec> = {}): Spec {
     id,
     status: 'ready',
     parent: null,
-    blocks: [],
+    blockedBy: [],
     priority: 5,
     pr: null,
     title: `Test ${id}`,
@@ -115,6 +115,7 @@ describe('sc claim - validation errors', () => {
 
     spyOn(claimLogic, 'claimSpec').mockResolvedValue({
       success: false,
+      branchName: '',
       error: 'Already claimed',
     });
 
@@ -129,6 +130,7 @@ describe('sc claim - validation errors', () => {
 
     spyOn(claimLogic, 'claimSpec').mockResolvedValue({
       success: false,
+      branchName: '',
       error: 'Already claimed',
     });
 
@@ -331,6 +333,7 @@ describe('sc claim - error cases with --cd (stdout must be empty)', () => {
 
     spyOn(claimLogic, 'claimSpec').mockResolvedValue({
       success: false,
+      branchName: '',
       error: 'Spec already claimed',
     });
 

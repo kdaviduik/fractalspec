@@ -38,7 +38,7 @@ export interface SpecFrontmatter {
   id: string;
   status: Status;
   parent: string | null;
-  blocks: string[];
+  blockedBy: string[];
   priority: Priority;
   pr: string | null;
 }
@@ -130,7 +130,7 @@ export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter
     return false;
   }
 
-  if (!Array.isArray(value['blocks'])) {
+  if (!Array.isArray(value['blockedBy'])) {
     return false;
   }
 

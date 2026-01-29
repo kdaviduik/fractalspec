@@ -270,7 +270,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
       id,
       status: statusInput,
       parent: values.parent ?? null,
-      blocks: [],
+      blockedBy: [],
       priority,
       pr: null,
       title,

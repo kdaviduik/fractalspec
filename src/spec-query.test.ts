@@ -14,7 +14,7 @@ import { DEFAULT_PRIORITY } from './types';
 function makeSpec(
   id: string,
   status: Status = 'ready',
-  blocks: string[] = [],
+  blockedBy: string[] = [],
   priority: Priority = DEFAULT_PRIORITY,
   parent: string | null = null
 ): Spec {
@@ -22,7 +22,7 @@ function makeSpec(
     id,
     status,
     parent,
-    blocks,
+    blockedBy,
     priority,
     pr: null,
     title: `Spec ${id}`,
@@ -120,7 +120,7 @@ describe('findReadySpecs', () => {
 
   test('excludes specs blocked by in_progress specs', () => {
     const blockedSpec = makeSpec('a', 'ready');
-    blockedSpec.blocks = ['b'];
+    blockedSpec.blockedBy = ['b'];
 
     const blockerSpec = makeSpec('b', 'in_progress');
 
@@ -133,7 +133,7 @@ describe('findReadySpecs', () => {
 
   test('includes specs when blocker is closed', () => {
     const blockedSpec = makeSpec('a', 'ready');
-    blockedSpec.blocks = ['b'];
+    blockedSpec.blockedBy = ['b'];
 
     const blockerSpec = makeSpec('b', 'closed');
 
