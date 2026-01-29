@@ -2,7 +2,7 @@ import type { CommandHandler, Spec, Status } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { findSpecFile, writeSpec, readAllSpecs } from '../spec-filesystem';
-import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, isValidStatus, isValidPriority } from '../types';
+import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, MAX_WORKSTREAM_LENGTH, isValidStatus, isValidPriority, isValidWorkstream } from '../types';
 
 interface SetOptions {
   priority?: number;
@@ -11,6 +11,7 @@ interface SetOptions {
   block?: string;
   unblock?: string;
   pr?: string | null;
+  workstream?: string | null;
 }
 
 function exitWithError(message: string): never {
@@ -64,6 +65,20 @@ function parsePrFlag(args: string[], index: number): string | null {
   return value;
 }
 
+function parseWorkstreamFlag(args: string[], index: number): string | null {
+  const value = getNextArg(args, index);
+  if (value === undefined) return exitWithError('--workstream requires a value');
+  if (value === 'none') return null;
+  if (value === '') return exitWithError('Workstream name cannot be empty');
+  const normalized = value.toLowerCase().trim();
+  if (!isValidWorkstream(normalized)) {
+    return exitWithError(
+      `Invalid workstream: must be lowercase alphanumeric + hyphens, max ${MAX_WORKSTREAM_LENGTH} chars`
+    );
+  }
+  return normalized;
+}
+
 function parseArgs(args: string[]): { specId: string | null; options: SetOptions } {
   const options: SetOptions = {};
   let specId: string | null = null;
@@ -77,6 +92,7 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
     if (arg === '--block') { options.block = parseIdFlag('--block', args, i); i += 2; continue; }
     if (arg === '--unblock') { options.unblock = parseIdFlag('--unblock', args, i); i += 2; continue; }
     if (arg === '--pr') { options.pr = parsePrFlag(args, i); i += 2; continue; }
+    if (arg === '--workstream') { options.workstream = parseWorkstreamFlag(args, i); i += 2; continue; }
     if (!arg.startsWith('-') && specId === null) {
       if (arg === '') return exitWithError('Spec ID cannot be empty');
       specId = arg;
@@ -90,7 +106,8 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
 
 function hasAnyOption(o: SetOptions): boolean {
   return o.priority !== undefined || o.status !== undefined || o.parent !== undefined ||
-    o.block !== undefined || o.unblock !== undefined || o.pr !== undefined;
+    o.block !== undefined || o.unblock !== undefined || o.pr !== undefined ||
+    o.workstream !== undefined;
 }
 
 function wouldCreateParentCycle(specId: string, newParentId: string, allSpecs: Spec[]): boolean {
@@ -195,6 +212,17 @@ function applyPrChange(spec: Spec, updated: Spec, prValue: string | null, msgs: 
   else msgs.push(`PR set to ${prValue}`);
 }
 
+function applyWorkstreamChange(spec: Spec, updated: Spec, workstreamValue: string | null, msgs: string[]): void {
+  if (spec.workstream === workstreamValue) {
+    if (workstreamValue === null) msgs.push('Workstream already cleared');
+    else msgs.push(`Workstream already set to ${workstreamValue}`);
+    return;
+  }
+  updated.workstream = workstreamValue;
+  if (workstreamValue === null) msgs.push('Cleared workstream');
+  else msgs.push(`Workstream set to ${workstreamValue}`);
+}
+
 async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): Promise<ChangeResult> {
   const msgs: string[] = [];
   const updated: Spec = { ...spec, blocks: [...spec.blocks] };
@@ -210,9 +238,10 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
   }
   if (options.unblock !== undefined) applyUnblockChange(updated, options.unblock, msgs);
   if (options.pr !== undefined) applyPrChange(spec, updated, options.pr, msgs);
+  if (options.workstream !== undefined) applyWorkstreamChange(spec, updated, options.workstream, msgs);
   const hasChanges = updated.priority !== spec.priority || updated.status !== spec.status ||
     updated.parent !== spec.parent || JSON.stringify(updated.blocks) !== JSON.stringify(spec.blocks) ||
-    updated.pr !== spec.pr;
+    updated.pr !== spec.pr || updated.workstream !== spec.workstream;
   if (hasChanges) await writeSpec(updated);
   return { success: true, messages: msgs };
 }
@@ -220,7 +249,7 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
 function getCommandHelp(): CommandHelp {
   return {
     name: 'sc set',
-    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>] [--pr <url>|none]',
+    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>] [--pr <url>|none] [--workstream <name>|none]',
     description: `Modify properties of a spec. At least one flag is required.`,
     flags: [
       { flag: '--priority <1-10>', description: 'Set priority (10 = highest)' },
@@ -231,6 +260,8 @@ function getCommandHelp(): CommandHelp {
       { flag: '--unblock <id>', description: 'Remove blocking dependency' },
       { flag: '--pr <url>', description: 'Set PR URL for tracking' },
       { flag: '--pr none', description: 'Clear PR URL' },
+      { flag: '--workstream <name>', description: 'Set workload grouping (lowercase alphanumeric + hyphens)' },
+      { flag: '--workstream none', description: 'Clear workstream' },
     ],
     examples: [
       'sc set a1b2 --priority 8',
@@ -241,11 +272,14 @@ function getCommandHelp(): CommandHelp {
       'sc set a1b2 --unblock xyz9',
       'sc set a1b2 --pr https://github.com/org/repo/pull/123',
       'sc set a1b2 --pr none',
+      'sc set a1b2 --workstream backend-api',
+      'sc set a1b2 --workstream none',
       'sc set a1b2 --priority 10 --status ready',
     ],
     notes: [
       'Operations are idempotent: setting same value twice succeeds silently.',
       'Cycle detection prevents circular parent/blocker references.',
+      `Workstream must be lowercase alphanumeric + hyphens, max ${MAX_WORKSTREAM_LENGTH} chars.`,
     ],
   };
 }

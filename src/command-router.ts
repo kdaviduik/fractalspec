@@ -67,6 +67,7 @@ ${bold('FILE STRUCTURE')}
     - parent: parent spec ID or null
     - blocks: array of blocker spec IDs
     - priority: 1-10 numeric (10 = highest, default: inherits from parent, or 5)
+    - workstream: workload grouping or null (lowercase alphanumeric + hyphens)
 
 ${bold('STATUS ICONS')}
   ○  ready       - No blockers, available for work
@@ -96,6 +97,7 @@ ${bold('COMMANDS')}
       --ready              Show specs available for work (sorted by priority)
       --limit ${dim('<n>')}          Limit to top N specs (requires --ready)
       --priority ${dim('<n or n-m>')} Filter by priority (requires --ready). E.g., 8 or 8-10
+      --workstream ${dim('<name>')}  Filter by workstream (requires --ready). Use "none" for unassigned.
       --tree               Display hierarchical tree view
       --status             Show status count summary
 
@@ -128,6 +130,7 @@ ${bold('COMMANDS')}
       --title ${dim('<text>')}, -t   Set spec title (skips prompt)
       --message ${dim('<text>')}, -m Add context line to Overview (repeatable)
                            Each -m adds a line after the placeholder
+      --workstream ${dim('<name>')}, -w Set workload grouping (not inherited)
 
     ${underline('edit')} ${dim('<id>')}              Open spec in $EDITOR (defaults to vim)
 
@@ -139,6 +142,7 @@ ${bold('COMMANDS')}
       --block ${dim('<id>')}        Add blocking dependency
       --unblock ${dim('<id>')}      Remove blocking dependency
       --pr ${dim('<url>|none')}     Set or clear PR URL for tracking
+      --workstream ${dim('<name>|none')} Set or clear workload grouping
 
   ${underline('Validation & Health')}
     ${underline('validate')} ${dim('[id]')}          Validate EARS requirement format
@@ -150,6 +154,7 @@ ${bold('COMMANDS')}
                            - Detect orphaned parent references
                            - Find circular dependencies
                            - Identify missing blocker specs
+                           - Warn about single-use workstreams (potential typos)
       --fix                Auto-fix orphans and missing blockers
                            Exits with code 1 if issues found
 
@@ -183,6 +188,7 @@ ${bold('EXAMPLES')}
   sc list --ready               # Show available work (sorted by priority)
   sc list --ready --limit 1     # Get THE next task to work on
   sc list --ready --priority 8-10  # Show only highest-priority ready specs
+  sc list --ready --workstream backend  # Filter by workstream
   sc list --tree                # Understand hierarchy
 
   # Working on a spec (example: spec titled "User Auth")
@@ -201,6 +207,7 @@ ${bold('EXAMPLES')}
   sc create -t "Database Migration" -m "Required for schema v2"  # Add context
   sc create -p a1b2 -t "OAuth Callback Handler"  # Create child (inherits priority)
   sc create -s blocked -t "Premium Features" -m "Waiting on payment gateway"  # With status and context
+  sc create -t "Post API" --workstream backend  # With workstream
 
   # Modifying spec properties
   sc set b3c4 --priority 8      # Set priority
@@ -211,6 +218,8 @@ ${bold('EXAMPLES')}
   sc set b3c4 --parent none     # Make root spec
   sc set b3c4 --pr https://github.com/org/repo/pull/123  # Set PR URL
   sc set b3c4 --pr none         # Clear PR URL
+  sc set b3c4 --workstream backend  # Set workstream
+  sc set b3c4 --workstream none # Clear workstream
 
   # Completing work with safety checks
   sc done a1b2c3                # Errors if uncommitted/unpushed work

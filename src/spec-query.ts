@@ -3,7 +3,7 @@
  */
 
 import type { Spec, Status, Priority } from './types';
-import { MIN_PRIORITY, MAX_PRIORITY, isValidPriority } from './types';
+import { isValidPriority } from './types';
 import { computeDepths } from './spec-tree';
 
 export interface StatusSummary {
@@ -32,6 +32,10 @@ export function findSpecById(specs: Spec[], idPrefix: string): Spec | null {
 
 export function filterByStatus(specs: Spec[], status: Status): Spec[] {
   return specs.filter((s) => s.status === status);
+}
+
+export function filterByWorkstream(specs: Spec[], workstream: string | null): Spec[] {
+  return specs.filter((s) => s.workstream === workstream);
 }
 
 const COMPLETED_STATUSES: Status[] = ['closed', 'deferred', 'not_planned'];
@@ -114,6 +118,7 @@ export interface PriorityRange {
 
 export interface FindReadyOptions {
   priorityFilter?: Priority | PriorityRange | undefined;
+  workstreamFilter?: string | null | undefined;
   limit?: number | undefined;
 }
 
@@ -165,6 +170,10 @@ export function findReadySpecsSorted(
 
   if (options.priorityFilter !== undefined) {
     ready = ready.filter((s) => matchesPriorityFilter(s.priority, options.priorityFilter as Priority | PriorityRange));
+  }
+
+  if (options.workstreamFilter !== undefined) {
+    ready = filterByWorkstream(ready, options.workstreamFilter);
   }
 
   const sorted = sortByPriority(ready, { allSpecs: specs });

@@ -15,6 +15,10 @@ sc list --ready --limit 1
 
 # Filter to specific priority level or range
 sc list --ready --priority 8-10
+
+# Filter by workstream (related specs touching similar files)
+sc list --ready --workstream backend-api
+sc list --ready --workstream posts
 ```
 
 Specs are automatically sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
@@ -115,6 +119,31 @@ sc create -p ABC123 -t "Low-priority cleanup" --priority 2
 - `1`: Backlog items
 
 **Default behavior**: Root specs default to `5`. Child specs inherit their parent's priority unless overridden with `--priority`.
+
+## Using Workstreams
+
+Workstreams group related specs that touch similar files or domains:
+
+```bash
+# Create spec with workstream
+sc create -t "Create Post Endpoint" --workstream posts
+
+# Filter ready specs by workstream
+sc list --ready --workstream posts
+
+# Set workstream on existing spec
+sc set ABC123 --workstream backend-api
+
+# Clear workstream
+sc set ABC123 --workstream none
+```
+
+**Key points**:
+- **NOT inherited**: Unlike priority, workstream is NOT inherited from parent—each spec sets its own
+- **Advisory only**: You CAN claim specs from different workstreams
+- **Format**: Lowercase alphanumeric + hyphens, max 30 chars (e.g., `backend-api`, `posts`, `auth`)
+
+**When to use workstreams**: Group specs that share development context—specs touching similar files, requiring similar environment setup, or that a single worker might batch together.
 
 ## Writing EARS Requirements
 

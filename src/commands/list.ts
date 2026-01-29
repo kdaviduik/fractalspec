@@ -18,7 +18,7 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc list',
-      synopsis: 'sc list [--ready] [--tree] [--status] [--limit <n>] [--priority <level>]',
+      synopsis: 'sc list [--ready] [--tree] [--status] [--limit <n>] [--priority <level>] [--workstream <name>]',
       description: `List specs in various formats. By default, shows all specs with status icons.
 
 Status icons:
@@ -51,6 +51,10 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
           flag: '--priority <n or n-m>',
           description: `Filter by priority (requires --ready). Accepts single value (e.g., 8) or range (e.g., 8-10).`,
         },
+        {
+          flag: '--workstream <name>',
+          description: 'Filter by workload grouping. Use "none" for specs without a workstream.',
+        },
       ],
       examples: [
         '# See all specs with status icons',
@@ -67,6 +71,12 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
         '',
         '# Show only highest-priority ready specs (8-10)',
         'sc list --ready --priority 8-10',
+        '',
+        '# Filter by workstream',
+        'sc list --ready --workstream backend-api',
+        '',
+        '# Show specs without a workstream',
+        'sc list --ready --workstream none',
         '',
         '# Understand hierarchy',
         'sc list --tree',
@@ -86,6 +96,7 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
         status: { type: 'boolean' },
         limit: { type: 'string' },
         priority: { type: 'string' },
+        workstream: { type: 'string' },
       },
       allowPositionals: false,
     });
@@ -102,11 +113,11 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
     }
 
     if (values.ready) {
-      return printReadySpecs(specs, values.limit, values.priority);
+      return printReadySpecs(specs, values.limit, values.priority, values.workstream);
     }
 
-    if (values.limit !== undefined || values.priority !== undefined) {
-      console.error('Error: --limit and --priority require --ready flag');
+    if (values.limit !== undefined || values.priority !== undefined || values.workstream !== undefined) {
+      console.error('Error: --limit, --priority, and --workstream require --ready flag');
       return 1;
     }
 
@@ -159,7 +170,8 @@ function parseLimit(limitStr: string | undefined): number | undefined {
 function printReadySpecs(
   specs: Spec[],
   limitStr: string | undefined,
-  priorityStr: string | undefined
+  priorityStr: string | undefined,
+  workstreamStr: string | undefined
 ): number {
   const limitValue = limitStr !== undefined ? parseLimit(limitStr) : undefined;
 
@@ -177,20 +189,28 @@ function printReadySpecs(
     return 1;
   }
 
+  const workstreamFilter: string | null | undefined =
+    workstreamStr === undefined ? undefined :
+    workstreamStr === 'none' ? null :
+    workstreamStr.toLowerCase().trim();
+
   const ready = findReadySpecsSorted(specs, {
     limit: limitValue,
     priorityFilter: priorityFilter ?? undefined,
+    workstreamFilter,
   });
 
   if (ready.length === 0) {
     const filterMsg = priorityStr ? ` with priority "${priorityStr}"` : '';
-    console.log(`No specs ready for work${filterMsg}.`);
+    const workstreamMsg = workstreamStr ? ` in workstream "${workstreamStr}"` : '';
+    console.log(`No specs ready for work${filterMsg}${workstreamMsg}.`);
     return 0;
   }
 
   const limitMsg = limitValue ? ` (top ${limitValue})` : '';
   const priorityMsg = priorityStr ? ` [priority ${priorityStr}]` : '';
-  console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}`);
+  const workstreamMsg = workstreamStr ? ` [workstream: ${workstreamStr}]` : '';
+  console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}${workstreamMsg}`);
   console.log('════════════════════');
   for (const spec of ready) {
     const priorityIndicator = spec.priority !== DEFAULT_PRIORITY ? ` [P${spec.priority}]` : '';

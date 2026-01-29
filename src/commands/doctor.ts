@@ -11,7 +11,7 @@ import { findGitRoot } from '../git-operations';
 import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'single_workstream';
   specId: string;
   message: string;
   fixable: boolean;
@@ -153,6 +153,74 @@ function findCircularDeps(specs: Spec[]): HealthIssue[] {
   return issues;
 }
 
+function findSingleUseWorkstreams(specs: Spec[]): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+  const workstreamCounts = new Map<string, string[]>();
+
+  for (const spec of specs) {
+    if (spec.workstream !== null) {
+      const existing = workstreamCounts.get(spec.workstream) ?? [];
+      existing.push(spec.id);
+      workstreamCounts.set(spec.workstream, existing);
+    }
+  }
+
+  const allWorkstreams = Array.from(workstreamCounts.keys());
+
+  for (const [workstream, specIds] of workstreamCounts.entries()) {
+    if (specIds.length !== 1) {
+      continue;
+    }
+    const specId = specIds[0];
+    if (specId === undefined) {
+      continue;
+    }
+
+    const similarWorkstreams = allWorkstreams.filter(
+      (ws) => ws !== workstream && ws.length > 3 && workstream.length > 3
+    ).filter((ws) => {
+      const similarity = calculateSimilarity(workstream, ws);
+      return similarity > 0.6;
+    });
+
+    let message = `Workstream "${workstream}" has only 1 spec (potential typo?)`;
+    if (similarWorkstreams.length > 0) {
+      const counts = similarWorkstreams.map((ws) => {
+        const count = workstreamCounts.get(ws)?.length ?? 0;
+        return `"${ws}" (${count} specs)`;
+      });
+      message += `. Did you mean: ${counts.join(', ')}?`;
+    }
+
+    issues.push({
+      type: 'single_workstream',
+      specId,
+      message,
+      fixable: false,
+    });
+  }
+
+  return issues;
+}
+
+function calculateSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length === 0 || b.length === 0) return 0;
+
+  const longer = a.length > b.length ? a : b;
+  const shorter = a.length > b.length ? b : a;
+
+  if (longer.includes(shorter)) return shorter.length / longer.length;
+
+  let matches = 0;
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i] as string)) {
+      matches++;
+    }
+  }
+  return matches / longer.length;
+}
+
 async function fixOrphan(spec: Spec, _specs: Spec[]): Promise<void> {
   const updated: Spec = { ...spec, parent: null };
   await writeSpec(updated);
@@ -180,9 +248,10 @@ Detects:
   - Missing blockers (blocker spec doesn't exist)
   - Invalid priorities (outside ${MIN_PRIORITY}-${MAX_PRIORITY} range)
   - Circular dependencies (A blocks B, B blocks A)
+  - Single-use workstreams (potential typos)
   - Uncommitted spec changes (modified or untracked specs)
 
-Circular dependencies and uncommitted changes cannot be auto-fixed.`,
+Circular dependencies, single-use workstreams, and uncommitted changes cannot be auto-fixed.`,
       flags: [
         {
           flag: '--fix',
@@ -200,7 +269,7 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
         'Exits with code 1 if any issues are found (even after --fix if unfixable issues remain).',
         'Orphan fix: Sets parent to null, making the spec a root.',
         'Missing blocker fix: Removes the invalid blocker ID from the blocks array.',
-        'Uncommitted specs are warnings only and do not cause exit code 1.',
+        'Uncommitted specs and single-use workstreams are warnings only and do not cause exit code 1.',
       ],
     };
   },
@@ -223,11 +292,13 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
     const missingBlockers = await findMissingBlockers(specs);
     const invalidPriorities = findInvalidPriorities(specs);
     const circular = findCircularDeps(specs);
+    const singleWorkstreams = findSingleUseWorkstreams(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
     const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular];
+    const warningIssues = [...singleWorkstreams];
 
-    if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
+    if (allIssues.length === 0 && uncommittedSpecs.length === 0 && warningIssues.length === 0) {
       console.log('✓ No issues found');
       return 0;
     }
@@ -239,6 +310,14 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
       }
       console.log('');
       console.log('Run: git add docs/specs/ && git commit -m "spec: update specs"');
+      console.log('');
+    }
+
+    if (warningIssues.length > 0) {
+      console.log(`⚠ ${warningIssues.length} warning(s):\n`);
+      for (const issue of warningIssues) {
+        console.log(`⚠ [${issue.type}] ${issue.specId}: ${issue.message}`);
+      }
       console.log('');
     }
 

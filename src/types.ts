@@ -23,6 +23,10 @@ export const DEFAULT_PRIORITY = 5;
 
 export type Priority = number;
 
+// Workstream validation (lowercase alphanumeric + hyphens, max 30 chars)
+export const MAX_WORKSTREAM_LENGTH = 30;
+export const WORKSTREAM_PATTERN = /^[a-z0-9-]+$/;
+
 export const EARS_PATTERNS = [
   'ubiquitous',
   'state_driven',
@@ -41,6 +45,7 @@ export interface SpecFrontmatter {
   blocks: string[];
   priority: Priority;
   pr: string | null;
+  workstream: string | null;
 }
 
 export interface Spec extends SpecFrontmatter {
@@ -111,6 +116,16 @@ export function isValidPriority(value: unknown): value is Priority {
     return false;
   }
   return Number.isInteger(value) && value >= MIN_PRIORITY && value <= MAX_PRIORITY;
+}
+
+export function isValidWorkstream(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  if (value.length === 0 || value.length > MAX_WORKSTREAM_LENGTH) {
+    return false;
+  }
+  return WORKSTREAM_PATTERN.test(value);
 }
 
 export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter {

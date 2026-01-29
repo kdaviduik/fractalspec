@@ -141,6 +141,7 @@ describe('validateSpecRequirements', () => {
       blocks: [],
       priority: 5,
       pr: null,
+      workstream: null,
       title: 'Test',
       content: `# Spec: Test
 
@@ -167,6 +168,7 @@ describe('validateSpecRequirements', () => {
       blocks: [],
       priority: 5,
       pr: null,
+      workstream: null,
       title: 'Test',
       content: '# Spec: Test\n\nNo requirements here.',
       filePath: '/test.md',

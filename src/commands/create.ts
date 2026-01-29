@@ -5,7 +5,7 @@
 import { parseArgs } from 'util';
 import { join } from 'path';
 import type { CommandHandler, Spec, Priority } from '../types';
-import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, isValidStatus, isValidPriority } from '../types';
+import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, MAX_WORKSTREAM_LENGTH, isValidStatus, isValidPriority, isValidWorkstream } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { generateId } from '../id-generation';
@@ -146,7 +146,7 @@ export const command: CommandHandler = {
     return {
       name: 'sc create',
       synopsis:
-        'sc create [--status <status>] [--priority <level>] [--parent <id>] [--title <text>] [--message <text>]',
+        'sc create [--status <status>] [--priority <level>] [--parent <id>] [--title <text>] [--message <text>] [--workstream <name>]',
       description: `Create a new spec with auto-generated ID and template content.
 
 Without --parent, creates a root-level spec.
@@ -178,6 +178,10 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
           description:
             'Add context line to Overview section (repeatable). Each -m adds a separate line after the placeholder.',
         },
+        {
+          flag: '--workstream <name>, -w',
+          description: `Set workload grouping (lowercase alphanumeric + hyphens, max ${MAX_WORKSTREAM_LENGTH} chars). Not inherited from parent.`,
+        },
       ],
       examples: [
         '# Interactive creation (prompts for title)',
@@ -200,6 +204,9 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         '',
         '# Create as child spec with parent ID (inherits parent priority)',
         'sc create -p a1b2c3 -t "OAuth Callback Handler" -m "Child of OAuth Flow spec"',
+        '',
+        '# Create spec in a workstream',
+        'sc create -t "Create Post Endpoint" --workstream posts',
       ],
       notes: [
         'IDs are auto-generated as 6-character alphanumeric identifiers.',
@@ -207,6 +214,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         'If --status is invalid, shows available options and exits with error.',
         'Messages are appended after the Overview placeholder and preserved as literal text.',
         `Empty or whitespace-only messages are rejected. Max ${MAX_MESSAGE_COUNT} messages, ${MAX_MESSAGE_LENGTH_BYTES / 1000}KB each.`,
+        'Workstream is NOT inherited from parent—each spec sets its own.',
       ],
     };
   },
@@ -220,6 +228,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         status: { type: 'string', short: 's' },
         priority: { type: 'string' },
         message: { type: 'string', short: 'm', multiple: true },
+        workstream: { type: 'string', short: 'w' },
       },
       allowPositionals: true,
     });
@@ -245,6 +254,18 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         console.error(`Priority must be an integer from ${MIN_PRIORITY} to ${MAX_PRIORITY} (higher = more urgent)`);
         return 1;
       }
+    }
+
+    // Validate and normalize workstream if provided
+    let workstream: string | null = null;
+    if (values.workstream !== undefined) {
+      const normalized = values.workstream.toLowerCase().trim();
+      if (!isValidWorkstream(normalized)) {
+        console.error(`Error: "${values.workstream}" is not a valid workstream\n`);
+        console.error(`Workstream must be lowercase alphanumeric + hyphens, max ${MAX_WORKSTREAM_LENGTH} chars`);
+        return 1;
+      }
+      workstream = normalized;
     }
 
     const title = values.title ?? (await promptForTitle());
@@ -273,6 +294,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
       blocks: [],
       priority,
       pr: null,
+      workstream,
       title,
       content: generateSpecTemplate(title, validatedMessages),
       filePath,

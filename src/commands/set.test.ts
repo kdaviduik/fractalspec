@@ -32,6 +32,7 @@ function makeSpec(
     blocks: [],
     priority: 5,
     pr: null,
+    workstream: null,
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: join(specsDir, `spec-${id}`, `spec-${id}.md`),

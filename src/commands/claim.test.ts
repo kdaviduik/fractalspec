@@ -23,6 +23,7 @@ function makeSpec(id: string, overrides: Partial<Spec> = {}): Spec {
     blocks: [],
     priority: 5,
     pr: null,
+    workstream: null,
     title: `Test ${id}`,
     content: `# Spec: Test ${id}`,
     filePath: join(specsDir, `test-${id}`, `test-${id}.md`),

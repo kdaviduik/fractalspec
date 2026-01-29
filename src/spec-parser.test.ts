@@ -223,4 +223,104 @@ Content here.
     const result = parseSpec('/path/to/spec.md', specWithNullPr);
     expect(result.pr).toBeNull();
   });
+
+  test('defaults workstream to null when not present', () => {
+    const result = parseSpec('/path/to/spec.md', VALID_SPEC);
+    expect(result.workstream).toBeNull();
+  });
+
+  test('parses workstream field when present', () => {
+    const specWithWorkstream = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: null
+workstream: backend-api
+---
+
+# Spec: With Workstream
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithWorkstream);
+    expect(result.workstream).toBe('backend-api');
+  });
+
+  test('parses workstream field as null when explicitly set to null', () => {
+    const specWithNullWorkstream = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: null
+workstream: null
+---
+
+# Spec: Null Workstream
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithNullWorkstream);
+    expect(result.workstream).toBeNull();
+  });
+
+  test('normalizes workstream to lowercase', () => {
+    const specWithUppercaseWorkstream = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: null
+workstream: BACKEND-API
+---
+
+# Spec: Uppercase Workstream
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithUppercaseWorkstream);
+    expect(result.workstream).toBe('backend-api');
+  });
+
+  test('defaults workstream to null for invalid value', () => {
+    const specWithInvalidWorkstream = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: null
+workstream: invalid_workstream!
+---
+
+# Spec: Invalid Workstream
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithInvalidWorkstream);
+    expect(result.workstream).toBeNull();
+  });
+
+  test('trims workstream whitespace', () => {
+    const specWithWhitespaceWorkstream = `---
+id: a1b2
+status: ready
+parent: null
+blocks: []
+priority: 5
+pr: null
+workstream: "  posts  "
+---
+
+# Spec: Whitespace Workstream
+
+Content here.
+`;
+    const result = parseSpec('/path/to/spec.md', specWithWhitespaceWorkstream);
+    expect(result.workstream).toBe('posts');
+  });
 });

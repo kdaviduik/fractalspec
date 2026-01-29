@@ -11,6 +11,7 @@ CLI tool for managing recursive specification documents using EARS (Easy Approac
 - **Parent/child**: Hierarchical relationship for decomposition
 - **Blocks**: Dependency relationships (spec A blocks spec B = B cannot start until A is done)
 - **Priority**: Numeric priority (1-10, where 10 = highest) for ordering work
+- **Workstream**: Optional workload grouping for related specs (e.g., specs touching similar files)
 - **EARS**: Structured requirement syntax ensuring testable, unambiguous requirements
 
 ## Installation & Setup
@@ -96,6 +97,7 @@ sc done ABC123
 | `sc list --ready` | Show specs ready for work (sorted by priority) | `sc list --ready` |
 | `sc list --ready --limit N` | Get top N ready specs | `sc list --ready --limit 1` |
 | `sc list --ready --priority P` | Filter by priority (single or range) | `sc list --ready --priority 8-10` |
+| `sc list --ready --workstream <name>` | Filter by workstream (use "none" for unassigned) | `sc list --ready --workstream backend` |
 | `sc list --tree` | Show hierarchical tree view | `sc list --tree` |
 | `sc list --status` | Show status counts | `sc list --status` |
 | `sc show <id>` | Display spec details | `sc show ABC123` |
@@ -122,6 +124,7 @@ sc done ABC123
 | `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
 | `sc create --priority <1-10>` | Create with specific priority | `sc create --priority 10 -t "Security Fix"` |
 | `sc create -m "message"` | Add context line to Overview (repeatable) | `sc create -t "API Refactor" -m "Blocks dashboard work" -m "PR: https://github.com/org/repo/pull/456"` |
+| `sc create --workstream <name>` | Create with workstream (not inherited) | `sc create -t "Post API" --workstream backend` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
 ### Property Modification
@@ -136,6 +139,8 @@ sc done ABC123
 | `sc set <id> --unblock <id>` | Remove blocking dependency | `sc set ABC123 --unblock DEF456` |
 | `sc set <id> --pr <url>` | Set PR URL for tracking | `sc set ABC123 --pr https://github.com/org/repo/pull/123` |
 | `sc set <id> --pr none` | Clear PR URL | `sc set ABC123 --pr none` |
+| `sc set <id> --workstream <name>` | Set workstream | `sc set ABC123 --workstream backend` |
+| `sc set <id> --workstream none` | Clear workstream | `sc set ABC123 --workstream none` |
 
 ### Validation & Health
 
@@ -166,6 +171,7 @@ parent: null
 blocks: []
 priority: 5
 pr: null
+workstream: null
 ---
 
 # Spec: Feature Title
@@ -194,6 +200,7 @@ pr: null
 | `blocks` | string[] | spec IDs | Specs that must complete first |
 | `priority` | number | 1-10 | Priority level (10 = highest, default: inherits from parent, or 5 for root) |
 | `pr` | string\|null | URL or null | Associated pull request URL for tracking |
+| `workstream` | string\|null | name or null | Workload grouping (lowercase alphanumeric + hyphens, max 30 chars, NOT inherited) |
 
 ### Status Values
 
@@ -219,6 +226,38 @@ Priority is a numeric value from 1 to 10, where **10 is the highest priority**.
 | `1` | Lowest priority | Backlog items, far-future work |
 
 **Sorting behavior**: `sc list --ready` sorts specs by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
+
+### Workstreams
+
+Workstreams group related specs that touch similar files or domains. Unlike priority, **workstreams are NOT inherited** from parent specs—each spec sets its own.
+
+**Purpose**: Helps workers identify which specs can share a worktree or development context. For example, "Create Post" and "View Feed" might share workstream `posts` because they touch similar files, while "Enter Code" would be in workstream `auth`.
+
+**Format**: Lowercase alphanumeric + hyphens, max 30 characters.
+
+| Example Workstream | Typical Content |
+|-------------------|-----------------|
+| `backend-api` | Server-side endpoints |
+| `posts` | Post creation, viewing, editing |
+| `auth` | Authentication, authorization |
+| `ui-components` | Shared frontend components |
+
+**Usage**:
+```bash
+# Create spec with workstream
+sc create -t "Create Post Endpoint" --workstream posts
+
+# Filter ready specs by workstream
+sc list --ready --workstream posts
+
+# Set workstream on existing spec
+sc set ABC123 --workstream backend-api
+
+# Clear workstream
+sc set ABC123 --workstream none
+```
+
+**Advisory only**: Workstream is informational—you CAN claim specs from different workstreams. The doctor command warns about single-use workstreams as potential typos.
 
 ## Worktree Convention
 
@@ -439,6 +478,10 @@ const MIN_PRIORITY = 1;
 const MAX_PRIORITY = 10;
 const DEFAULT_PRIORITY = 5;
 
+// Workstream validation
+const MAX_WORKSTREAM_LENGTH = 30;
+const WORKSTREAM_PATTERN = /^[a-z0-9-]+$/;
+
 type EarsPattern = 'ubiquitous' | 'state_driven' | 'event_driven' | 'optional' | 'unwanted' | 'complex';
 
 interface SpecFrontmatter {
@@ -448,6 +491,7 @@ interface SpecFrontmatter {
   blocks: string[];
   priority: Priority;
   pr: string | null;
+  workstream: string | null;
 }
 ```
 

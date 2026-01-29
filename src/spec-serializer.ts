@@ -17,6 +17,7 @@ export function serializeSpec(spec: Spec): string {
   const blocksValue = serializeBlocks(spec.blocks);
   const parentValue = spec.parent === null ? 'null' : spec.parent;
   const prValue = spec.pr === null ? 'null' : spec.pr;
+  const workstreamValue = spec.workstream === null ? 'null' : spec.workstream;
 
   const frontmatter = [
     '---',
@@ -26,6 +27,7 @@ export function serializeSpec(spec: Spec): string {
     `blocks: ${blocksValue}`,
     `priority: ${spec.priority}`,
     `pr: ${prValue}`,
+    `workstream: ${workstreamValue}`,
     '---',
   ].join('\n');
 

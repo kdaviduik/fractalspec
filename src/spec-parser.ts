@@ -3,7 +3,7 @@
  */
 
 import matter from 'gray-matter';
-import { isValidSpecFrontmatter, isValidPriority, DEFAULT_PRIORITY, type Spec, type Priority } from './types';
+import { isValidSpecFrontmatter, isValidPriority, isValidWorkstream, DEFAULT_PRIORITY, type Spec, type Priority } from './types';
 
 export class ParseError extends Error {
   constructor(
@@ -53,6 +53,15 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
   const rawPr = parsed.data['pr'];
   const pr: string | null = typeof rawPr === 'string' ? rawPr : null;
 
+  const rawWorkstream = parsed.data['workstream'];
+  let workstream: string | null = null;
+  if (typeof rawWorkstream === 'string') {
+    const normalized = rawWorkstream.toLowerCase().trim();
+    if (isValidWorkstream(normalized)) {
+      workstream = normalized;
+    }
+  }
+
   return {
     id: parsed.data.id,
     status: parsed.data.status,
@@ -60,6 +69,7 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
     blocks: parsed.data.blocks,
     priority,
     pr,
+    workstream,
     title,
     content,
     filePath,

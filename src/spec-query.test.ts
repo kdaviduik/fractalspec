@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   findSpecById,
   filterByStatus,
+  filterByWorkstream,
   findReadySpecs,
   findReadySpecsSorted,
   sortByPriority,
@@ -16,7 +17,8 @@ function makeSpec(
   status: Status = 'ready',
   blocks: string[] = [],
   priority: Priority = DEFAULT_PRIORITY,
-  parent: string | null = null
+  parent: string | null = null,
+  workstream: string | null = null
 ): Spec {
   return {
     id,
@@ -25,6 +27,7 @@ function makeSpec(
     blocks,
     priority,
     pr: null,
+    workstream,
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: `/path/${id}.md`,
@@ -100,6 +103,51 @@ describe('filterByStatus', () => {
 
   test('returns empty array for empty input', () => {
     const result = filterByStatus([], 'ready');
+    expect(result).toEqual([]);
+  });
+});
+
+describe('filterByWorkstream', () => {
+  test('filters specs by workstream', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 5, null, 'backend'),
+      makeSpec('b', 'ready', [], 5, null, 'frontend'),
+      makeSpec('c', 'ready', [], 5, null, 'backend'),
+      makeSpec('d', 'ready', [], 5, null, null),
+    ];
+
+    const backend = filterByWorkstream(specs, 'backend');
+
+    expect(backend).toHaveLength(2);
+    expect(backend.map((s) => s.id).sort()).toEqual(['a', 'c']);
+  });
+
+  test('filters specs without workstream when null is passed', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 5, null, 'backend'),
+      makeSpec('b', 'ready', [], 5, null, null),
+      makeSpec('c', 'ready', [], 5, null, null),
+    ];
+
+    const noWorkstream = filterByWorkstream(specs, null);
+
+    expect(noWorkstream).toHaveLength(2);
+    expect(noWorkstream.map((s) => s.id).sort()).toEqual(['b', 'c']);
+  });
+
+  test('returns empty array when no matches', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 5, null, 'backend'),
+      makeSpec('b', 'ready', [], 5, null, 'frontend'),
+    ];
+
+    const result = filterByWorkstream(specs, 'nonexistent');
+
+    expect(result).toHaveLength(0);
+  });
+
+  test('returns empty array for empty input', () => {
+    const result = filterByWorkstream([], 'backend');
     expect(result).toEqual([]);
   });
 });
@@ -327,6 +375,65 @@ describe('findReadySpecsSorted', () => {
     const critical = findReadySpecsSorted(specs, { priorityFilter: 10 });
 
     expect(critical).toHaveLength(0);
+  });
+
+  test('filters by workstream', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 8, null, 'backend'),
+      makeSpec('b', 'ready', [], 8, null, 'frontend'),
+      makeSpec('c', 'ready', [], 5, null, 'backend'),
+    ];
+
+    const backendOnly = findReadySpecsSorted(specs, { workstreamFilter: 'backend' });
+
+    expect(backendOnly).toHaveLength(2);
+    expect(backendOnly.map((s) => s.id)).toEqual(['a', 'c']);
+  });
+
+  test('filters by null workstream (specs without workstream)', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 8, null, 'backend'),
+      makeSpec('b', 'ready', [], 8, null, null),
+      makeSpec('c', 'ready', [], 5, null, null),
+    ];
+
+    const noWorkstream = findReadySpecsSorted(specs, { workstreamFilter: null });
+
+    expect(noWorkstream).toHaveLength(2);
+    expect(noWorkstream.map((s) => s.id)).toEqual(['b', 'c']);
+  });
+
+  test('combines workstream and priority filter', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 10, null, 'backend'),
+      makeSpec('b', 'ready', [], 8, null, 'backend'),
+      makeSpec('c', 'ready', [], 5, null, 'backend'),
+      makeSpec('d', 'ready', [], 10, null, 'frontend'),
+    ];
+
+    const result = findReadySpecsSorted(specs, {
+      priorityFilter: { min: 8, max: 10 },
+      workstreamFilter: 'backend',
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result.map((s) => s.id)).toEqual(['a', 'b']);
+  });
+
+  test('combines workstream, priority, and limit', () => {
+    const specs = [
+      makeSpec('a', 'ready', [], 10, null, 'backend'),
+      makeSpec('b', 'ready', [], 8, null, 'backend'),
+      makeSpec('c', 'ready', [], 5, null, 'backend'),
+    ];
+
+    const result = findReadySpecsSorted(specs, {
+      workstreamFilter: 'backend',
+      limit: 1,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe('a');
   });
 });
 

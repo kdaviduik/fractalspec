@@ -235,6 +235,7 @@ describe('determinePriority', () => {
       blocks: [],
       priority,
       pr: null,
+      workstream: null,
       title: `Spec ${id}`,
       content: `# Spec: Spec ${id}`,
       filePath: `/path/${id}.md`,

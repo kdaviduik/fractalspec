@@ -10,6 +10,7 @@ function makeSpec(id: string, parent: string | null = null): Spec {
     blocks: [],
     priority: 5,
     pr: null,
+    workstream: null,
     title: `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: `/path/${id}.md`,

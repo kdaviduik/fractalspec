@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ghostty.org)",
+      "Bash(bun run test:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

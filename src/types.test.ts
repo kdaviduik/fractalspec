@@ -3,12 +3,14 @@ import {
   isValidStatus,
   isValidEarsPattern,
   isValidPriority,
+  isValidWorkstream,
   isValidSpecFrontmatter,
   STATUSES,
   EARS_PATTERNS,
   MIN_PRIORITY,
   MAX_PRIORITY,
   DEFAULT_PRIORITY,
+  MAX_WORKSTREAM_LENGTH,
 } from './types';
 
 describe('Status validation', () => {
@@ -112,6 +114,67 @@ describe('Priority validation', () => {
     expect(MIN_PRIORITY).toBe(1);
     expect(MAX_PRIORITY).toBe(10);
     expect(DEFAULT_PRIORITY).toBe(5);
+  });
+});
+
+describe('Workstream validation', () => {
+  test('accepts valid workstream names', () => {
+    expect(isValidWorkstream('posts')).toBe(true);
+    expect(isValidWorkstream('backend-api')).toBe(true);
+    expect(isValidWorkstream('auth-v2')).toBe(true);
+    expect(isValidWorkstream('ui-components')).toBe(true);
+    expect(isValidWorkstream('a')).toBe(true);
+    expect(isValidWorkstream('123')).toBe(true);
+    expect(isValidWorkstream('test-123-api')).toBe(true);
+  });
+
+  test('rejects empty workstream', () => {
+    expect(isValidWorkstream('')).toBe(false);
+  });
+
+  test('rejects uppercase workstream names', () => {
+    expect(isValidWorkstream('POSTS')).toBe(false);
+    expect(isValidWorkstream('Posts')).toBe(false);
+    expect(isValidWorkstream('backendAPI')).toBe(false);
+  });
+
+  test('rejects workstream with underscores', () => {
+    expect(isValidWorkstream('posts_v2')).toBe(false);
+    expect(isValidWorkstream('backend_api')).toBe(false);
+  });
+
+  test('rejects workstream with spaces', () => {
+    expect(isValidWorkstream('post api')).toBe(false);
+    expect(isValidWorkstream(' posts')).toBe(false);
+    expect(isValidWorkstream('posts ')).toBe(false);
+  });
+
+  test('rejects workstream with special characters', () => {
+    expect(isValidWorkstream('posts!')).toBe(false);
+    expect(isValidWorkstream('posts@api')).toBe(false);
+    expect(isValidWorkstream('posts.api')).toBe(false);
+  });
+
+  test('rejects workstream exceeding max length', () => {
+    const longWorkstream = 'x'.repeat(MAX_WORKSTREAM_LENGTH + 1);
+    expect(isValidWorkstream(longWorkstream)).toBe(false);
+  });
+
+  test('accepts workstream at max length', () => {
+    const maxLengthWorkstream = 'x'.repeat(MAX_WORKSTREAM_LENGTH);
+    expect(isValidWorkstream(maxLengthWorkstream)).toBe(true);
+  });
+
+  test('rejects non-string values', () => {
+    expect(isValidWorkstream(null)).toBe(false);
+    expect(isValidWorkstream(undefined)).toBe(false);
+    expect(isValidWorkstream(123)).toBe(false);
+    expect(isValidWorkstream({})).toBe(false);
+    expect(isValidWorkstream(['posts'])).toBe(false);
+  });
+
+  test('workstream constant is correct', () => {
+    expect(MAX_WORKSTREAM_LENGTH).toBe(30);
   });
 });
 

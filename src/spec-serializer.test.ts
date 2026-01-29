@@ -12,6 +12,7 @@ describe('serializeSpec', () => {
       blocks: [],
       priority: 5,
       pr: null,
+      workstream: null,
       title: 'My Feature',
       content: '# Spec: My Feature\n\n## Overview\nSome content.',
       filePath: '/path/to/spec.md',
@@ -26,6 +27,7 @@ describe('serializeSpec', () => {
     expect(result).toContain('blocks: []');
     expect(result).toContain('priority: 5');
     expect(result).toContain('pr: null');
+    expect(result).toContain('workstream: null');
     expect(result).toContain('# Spec: My Feature');
     expect(result).toContain('## Overview');
   });
@@ -38,6 +40,7 @@ describe('serializeSpec', () => {
       blocks: [],
       priority: 5,
       pr: 'https://github.com/org/repo/pull/123',
+      workstream: null,
       title: 'My Feature',
       content: '# Spec: My Feature',
       filePath: '/path/to/spec.md',
@@ -48,6 +51,44 @@ describe('serializeSpec', () => {
     expect(result).toContain('pr: https://github.com/org/repo/pull/123');
   });
 
+  test('serializes workstream field with value', () => {
+    const spec: Spec = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blocks: [],
+      priority: 5,
+      pr: null,
+      workstream: 'backend-api',
+      title: 'My Feature',
+      content: '# Spec: My Feature',
+      filePath: '/path/to/spec.md',
+    };
+
+    const result = serializeSpec(spec);
+
+    expect(result).toContain('workstream: backend-api');
+  });
+
+  test('serializes workstream field as null when null', () => {
+    const spec: Spec = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blocks: [],
+      priority: 5,
+      pr: null,
+      workstream: null,
+      title: 'My Feature',
+      content: '# Spec: My Feature',
+      filePath: '/path/to/spec.md',
+    };
+
+    const result = serializeSpec(spec);
+
+    expect(result).toContain('workstream: null');
+  });
+
   test('serializes spec with parent and blocks', () => {
     const spec: Spec = {
       id: 'c3d4',
@@ -56,6 +97,7 @@ describe('serializeSpec', () => {
       blocks: ['e5f6', 'g7h8'],
       priority: 8,
       pr: null,
+      workstream: 'backend',
       title: 'Child Feature',
       content: '# Spec: Child Feature\n\nChild content.',
       filePath: '/path/to/child.md',
@@ -68,6 +110,7 @@ describe('serializeSpec', () => {
     expect(result).toContain('- e5f6');
     expect(result).toContain('- g7h8');
     expect(result).toContain('priority: 8');
+    expect(result).toContain('workstream: backend');
   });
 
   test('round-trip: parse -> serialize -> parse produces same data', () => {
@@ -77,6 +120,8 @@ status: ready
 parent: null
 blocks: []
 priority: 8
+pr: null
+workstream: backend
 ---
 
 # Spec: Round Trip Test
@@ -97,6 +142,8 @@ Testing round-trip conversion.
     expect(reparsed.parent).toBe(parsed.parent);
     expect(reparsed.blocks).toEqual(parsed.blocks);
     expect(reparsed.priority).toBe(parsed.priority);
+    expect(reparsed.pr).toBe(parsed.pr);
+    expect(reparsed.workstream).toBe(parsed.workstream);
     expect(reparsed.title).toBe(parsed.title);
   });
 
@@ -108,6 +155,7 @@ Testing round-trip conversion.
       blocks: [],
       priority: 5,
       pr: null,
+      workstream: null,
       title: 'Test',
       content: '# Spec: Test',
       filePath: '/path/spec.md',
@@ -125,6 +173,7 @@ Testing round-trip conversion.
       blocks: [],
       priority: 5,
       pr: null,
+      workstream: null,
       title: 'Test',
       content: '# Spec: Test',
       filePath: '/path/spec.md',
@@ -152,6 +201,7 @@ Testing round-trip conversion.
         blocks: [],
         priority: 5,
         pr: null,
+        workstream: null,
         title: 'Test',
         content: '# Test',
         filePath: '/path.md',
@@ -171,6 +221,7 @@ Testing round-trip conversion.
         blocks: [],
         priority,
         pr: null,
+        workstream: null,
         title: 'Test',
         content: '# Test',
         filePath: '/path.md',
