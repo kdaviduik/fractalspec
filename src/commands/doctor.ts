@@ -3,18 +3,19 @@
  */
 
 import { parseArgs } from 'util';
-import type { CommandHandler, Spec } from '../types';
-import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY } from '../types';
+import type { CommandHandler, Spec, Status } from '../types';
+import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, COMPLETED_STATUSES } from '../types';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs, writeSpec, getSpecsRoot, readRawSpecContent } from '../spec-filesystem';
 import { findGitRoot } from '../git-operations';
 import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent';
   specId: string;
   message: string;
   fixable: boolean;
+  targetStatus?: Status;
 }
 
 interface UncommittedSpec {
@@ -185,8 +186,132 @@ async function findDeprecatedFields(specs: Spec[]): Promise<HealthIssue[]> {
 }
 
 async function fixDeprecatedField(spec: Spec): Promise<void> {
-  // Simply rewriting the spec will use the new field name
   await writeSpec(spec);
+}
+
+function findUnclosedParents(specs: Spec[]): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+  const childrenByParent = new Map<string, Spec[]>();
+
+  for (const spec of specs) {
+    if (spec.parent === null) continue;
+    const existing = childrenByParent.get(spec.parent) ?? [];
+    existing.push(spec);
+    childrenByParent.set(spec.parent, existing);
+  }
+
+  const specMap = new Map(specs.map(s => [s.id, s]));
+
+  for (const [parentId, children] of childrenByParent) {
+    const parent = specMap.get(parentId);
+    if (!parent) continue;
+    if (COMPLETED_STATUSES.includes(parent.status)) continue;
+
+    const allTerminal = children.every(child =>
+      COMPLETED_STATUSES.includes(child.status)
+    );
+    if (!allTerminal) continue;
+
+    const allClosed = children.every(c => c.status === 'closed');
+    const allNotPlanned = children.every(c => c.status === 'not_planned');
+    const allDeferred = children.every(c => c.status === 'deferred');
+
+    if (allClosed) {
+      issues.push({
+        type: 'unclosed_parent',
+        specId: parentId,
+        message: `All children closed but parent "${parent.title}" is still "${parent.status}"`,
+        fixable: true,
+        targetStatus: 'closed',
+      });
+    } else if (allNotPlanned) {
+      issues.push({
+        type: 'unclosed_parent',
+        specId: parentId,
+        message: `All children not_planned but parent "${parent.title}" is still "${parent.status}"`,
+        fixable: true,
+        targetStatus: 'not_planned',
+      });
+    } else if (allDeferred) {
+      issues.push({
+        type: 'unclosed_parent',
+        specId: parentId,
+        message: `All children deferred but parent "${parent.title}" is still "${parent.status}" — consider deferring parent too`,
+        fixable: false,
+      });
+    } else {
+      issues.push({
+        type: 'unclosed_parent',
+        specId: parentId,
+        message: `All children resolved (mixed statuses) but parent "${parent.title}" is still "${parent.status}" — manual review needed`,
+        fixable: false,
+      });
+    }
+  }
+
+  return issues;
+}
+
+async function fixUnclosedParent(spec: Spec, targetStatus: Status = 'closed'): Promise<void> {
+  const updated: Spec = { ...spec, status: targetStatus };
+  await writeSpec(updated);
+}
+
+async function tryFixUnclosedParent(spec: Spec, issue: HealthIssue, prefix: string): Promise<boolean> {
+  if (spec.status === 'in_progress') {
+    console.log(`${prefix}⚠ Skipping ${issue.specId} "${spec.title}": status is in_progress. Run 'sc done' or 'sc release' first.`);
+    return false;
+  }
+  await fixUnclosedParent(spec, issue.targetStatus);
+  console.log(`${prefix}✓ Resolved: ${issue.specId} "${spec.title}" (${spec.status} → ${issue.targetStatus})`);
+  return true;
+}
+
+async function applyFix(issue: HealthIssue, specs: Spec[]): Promise<void> {
+  if (!issue.fixable) {
+    console.log(`  ✗ Cannot auto-fix: ${issue.specId} (${issue.type})`);
+    return;
+  }
+
+  const spec = specs.find((s) => s.id === issue.specId);
+  if (!spec) return;
+
+  if (issue.type === 'orphan') {
+    await fixOrphan(spec, specs);
+    console.log(`  ✓ Fixed orphan: ${issue.specId}`);
+  } else if (issue.type === 'missing_blocker') {
+    await fixMissingBlocker(spec, specs);
+    console.log(`  ✓ Fixed missing blocker: ${issue.specId}`);
+  } else if (issue.type === 'invalid_priority') {
+    await fixInvalidPriority(spec);
+    console.log(`  ✓ Fixed invalid priority: ${issue.specId} (set to ${DEFAULT_PRIORITY})`);
+  } else if (issue.type === 'deprecated_field') {
+    await fixDeprecatedField(spec);
+    console.log(`  ✓ Fixed deprecated field: ${issue.specId} (blocks → blockedBy)`);
+  } else if (issue.type === 'unclosed_parent') {
+    await tryFixUnclosedParent(spec, issue, '  ');
+  }
+}
+
+const MAX_CASCADE_ROUNDS = 10;
+
+async function cascadeUnclosedParentFixes(): Promise<void> {
+  let cascadeRound = 0;
+  while (cascadeRound < MAX_CASCADE_ROUNDS) {
+    const freshSpecs = await readAllSpecs();
+    const moreUnclosed = findUnclosedParents(freshSpecs).filter(i => i.fixable);
+    if (moreUnclosed.length === 0) break;
+
+    for (const issue of moreUnclosed) {
+      const freshSpec = freshSpecs.find(s => s.id === issue.specId);
+      if (!freshSpec) continue;
+      await tryFixUnclosedParent(freshSpec, issue, '  [cascade] ');
+    }
+    cascadeRound++;
+  }
+  if (cascadeRound >= MAX_CASCADE_ROUNDS) {
+    console.log(`  ⚠ Cascade reached maximum depth (${MAX_CASCADE_ROUNDS}). Run 'sc doctor --fix' again to continue.`);
+  }
 }
 
 export const command: CommandHandler = {
@@ -205,13 +330,14 @@ Detects:
   - Invalid priorities (outside ${MIN_PRIORITY}-${MAX_PRIORITY} range)
   - Circular dependencies (A blocks B, B blocks A)
   - Deprecated field names (blocks → blockedBy migration)
+  - Unclosed parent specs (all children completed but parent still open)
   - Uncommitted spec changes (modified or untracked specs)
 
 Circular dependencies and uncommitted changes cannot be auto-fixed.`,
       flags: [
         {
           flag: '--fix',
-          description: 'Automatically fix orphaned parents and missing blockers',
+          description: 'Automatically fix detected issues where possible',
         },
       ],
       examples: [
@@ -226,6 +352,7 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
         'Orphan fix: Sets parent to null, making the spec a root.',
         'Missing blocker fix: Removes the invalid blocker ID from the blockedBy array.',
         'Deprecated field fix: Rewrites spec file using the new blockedBy field name.',
+        'Unclosed parent fix: Auto-closes with smart status matching (closed/not_planned). Cascades upward through the hierarchy. In-progress parents with active worktrees are skipped.',
         'Uncommitted specs are warnings only and do not cause exit code 1.',
       ],
     };
@@ -250,9 +377,10 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
     const invalidPriorities = findInvalidPriorities(specs);
     const circular = findCircularDeps(specs);
     const deprecatedFields = await findDeprecatedFields(specs);
+    const unclosedParents = findUnclosedParents(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
-    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields];
+    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...unclosedParents];
 
     if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');
@@ -284,34 +412,10 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
       console.log('\nApplying fixes...');
 
       for (const issue of allIssues) {
-        if (!issue.fixable) {
-          console.log(`  ✗ Cannot auto-fix: ${issue.specId} (${issue.type})`);
-          continue;
-        }
-
-        const spec = specs.find((s) => s.id === issue.specId);
-        if (!spec) continue;
-
-        if (issue.type === 'orphan') {
-          await fixOrphan(spec, specs);
-          console.log(`  ✓ Fixed orphan: ${issue.specId}`);
-        }
-
-        if (issue.type === 'missing_blocker') {
-          await fixMissingBlocker(spec, specs);
-          console.log(`  ✓ Fixed missing blocker: ${issue.specId}`);
-        }
-
-        if (issue.type === 'invalid_priority') {
-          await fixInvalidPriority(spec);
-          console.log(`  ✓ Fixed invalid priority: ${issue.specId} (set to ${DEFAULT_PRIORITY})`);
-        }
-
-        if (issue.type === 'deprecated_field') {
-          await fixDeprecatedField(spec);
-          console.log(`  ✓ Fixed deprecated field: ${issue.specId} (blocks → blockedBy)`);
-        }
+        await applyFix(issue, specs);
       }
+
+      await cascadeUnclosedParentFixes();
     } else {
       const fixable = allIssues.filter((i) => i.fixable).length;
       if (fixable > 0) {

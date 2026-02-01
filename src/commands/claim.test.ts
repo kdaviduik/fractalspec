@@ -141,6 +141,55 @@ describe('sc claim - validation errors', () => {
   });
 });
 
+describe('sc claim - parent spec guard', () => {
+  test('returns error when spec has children', async () => {
+    const parent = makeSpec('p1b2', { title: 'Parent Feature' });
+    const child = makeSpec('c1d2', { parent: 'p1b2', title: 'Child Task' });
+    await writeSpec(parent);
+    await writeSpec(child);
+
+    const result = await command.execute(['p1b2']);
+    expect(result).toBe(1);
+    expect(errorMessages.join(' ')).toContain('child specs');
+    expect(errorMessages.join(' ')).toContain('not directly actionable');
+  });
+
+  test('error message suggests sc list --tree', async () => {
+    const parent = makeSpec('p1b2', { title: 'Parent Feature' });
+    const child = makeSpec('c1d2', { parent: 'p1b2', title: 'Child Task' });
+    await writeSpec(parent);
+    await writeSpec(child);
+
+    await command.execute(['p1b2']);
+    expect(errorMessages.join(' ')).toContain('sc list --tree');
+  });
+
+  test('--cd returns empty stdout for parent specs', async () => {
+    const parent = makeSpec('p1b2', { title: 'Parent Feature' });
+    const child = makeSpec('c1d2', { parent: 'p1b2', title: 'Child Task' });
+    await writeSpec(parent);
+    await writeSpec(child);
+
+    const result = await command.execute(['--cd', 'p1b2']);
+    expect(result).toBe(1);
+    expect(logMessages).toHaveLength(0);
+  });
+
+  test('succeeds for leaf specs', async () => {
+    const leaf = makeSpec('l1f2', { title: 'Leaf Task' });
+    await writeSpec(leaf);
+
+    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-leaf-task-l1f2',
+    });
+    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-leaf-task-l1f2');
+
+    const result = await command.execute(['l1f2']);
+    expect(result).toBe(0);
+  });
+});
+
 describe('sc claim - default behavior (without --cd)', () => {
   test('outputs human-readable success message', async () => {
     const spec = makeSpec('a1b2');

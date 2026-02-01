@@ -17,7 +17,7 @@ sc list --ready --limit 1
 sc list --ready --priority 8-10
 ```
 
-Specs are automatically sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
+`--ready` shows only leaf specs (parent specs with children are excluded). Results are sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
 
 ### 2. Claim the Spec
 
@@ -160,12 +160,9 @@ The validator will suggest the appropriate EARS pattern and warn about vague lan
 
 ## Health Checks
 
-Run `sc doctor` periodically to catch:
-- **Orphans**: Specs referencing non-existent parents
-- **Missing blockers**: References to deleted specs
-- **Circular dependencies**: A blocks B blocks A
+Run `sc doctor` periodically to catch structural health issues including orphaned references, missing blockers, circular dependencies, and unclosed parent specs.
 
-Use `sc doctor --fix` to auto-repair orphans and missing blockers.
+Use `sc doctor --fix` to auto-repair detected issues where possible.
 
 ## Common Pitfalls
 
@@ -173,7 +170,7 @@ Use `sc doctor --fix` to auto-repair orphans and missing blockers.
 If you run `sc done` or `sc release` from inside the work worktree being removed, the command will complete successfully, but you'll be left in a deleted directory. Navigate to a different directory (e.g., `cd ..`) after the command completes to avoid working in the deleted directory.
 
 ### Don't Skip Claiming
-Always `sc claim` before starting work. This prevents conflicts and tracks work in progress.
+Always `sc claim` before starting work. This prevents conflicts and tracks work in progress. Note: both `sc claim` and `sc set --status in_progress` are blocked for parent specs — work on their child specs instead.
 
 ### Don't Forget Dependencies
 Before claiming, verify blockers are complete:

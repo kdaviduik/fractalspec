@@ -23,6 +23,8 @@ export const DEFAULT_PRIORITY = 5;
 
 export type Priority = number;
 
+export const COMPLETED_STATUSES: readonly Status[] = ['closed', 'deferred', 'not_planned'] as const;
+
 export const EARS_PATTERNS = [
   'ubiquitous',
   'state_driven',

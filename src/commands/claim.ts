@@ -5,7 +5,8 @@
 import type { CommandHandler } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
-import { findSpecFile } from '../spec-filesystem';
+import { readAllSpecs } from '../spec-filesystem';
+import { findSpecById } from '../spec-query';
 import { claimSpec } from '../claim-logic';
 import { getWorkWorktreePath } from '../git-operations';
 
@@ -49,6 +50,7 @@ Commands can be run from any directory in the repository.`,
         'sc done a1b2c3  # Works from any directory',
       ],
       notes: [
+        'Parent specs (specs with children) cannot be claimed. Work on their child specs instead.',
         'The worktree is created as a sibling to the repository root.',
         'Claim and done/release commands work from any directory in the repository.',
         'With --cd: Status info goes to stderr, cd command to stdout (safe for eval).',
@@ -67,9 +69,16 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const spec = await findSpecFile(specId);
+    const allSpecs = await readAllSpecs();
+    const spec = findSpecById(allSpecs, specId);
     if (!spec) {
       console.error(`Spec not found: ${specId}`);
+      return 1;
+    }
+
+    if (allSpecs.some(s => s.parent === spec.id)) {
+      console.error(`Cannot claim "${spec.title}": it has child specs and is not directly actionable.`);
+      console.error('Work on its child specs instead. See: sc list --tree');
       return 1;
     }
 

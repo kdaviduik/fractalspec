@@ -3,7 +3,7 @@
  */
 
 import type { Spec, Status, Priority } from './types';
-import { MIN_PRIORITY, MAX_PRIORITY, isValidPriority } from './types';
+import { MIN_PRIORITY, MAX_PRIORITY, COMPLETED_STATUSES, isValidPriority } from './types';
 import { computeDepths } from './spec-tree';
 
 export interface StatusSummary {
@@ -30,11 +30,17 @@ export function findSpecById(specs: Spec[], idPrefix: string): Spec | null {
   return null;
 }
 
+export function getParentSpecIds(specs: Spec[]): Set<string> {
+  const parentIds = new Set<string>();
+  for (const spec of specs) {
+    if (spec.parent !== null) parentIds.add(spec.parent);
+  }
+  return parentIds;
+}
+
 export function filterByStatus(specs: Spec[], status: Status): Spec[] {
   return specs.filter((s) => s.status === status);
 }
-
-const COMPLETED_STATUSES: Status[] = ['closed', 'deferred', 'not_planned'];
 
 function isBlocked(spec: Spec, allSpecs: Spec[]): boolean {
   if (spec.blockedBy.length === 0) {
@@ -54,13 +60,25 @@ function isBlocked(spec: Spec, allSpecs: Spec[]): boolean {
   return false;
 }
 
-export function findReadySpecs(specs: Spec[]): Spec[] {
-  return specs.filter((spec) => {
-    if (spec.status !== 'ready') {
+export interface ReadySpecsResult {
+  specs: Spec[];
+  excludedParentCount: number;
+}
+
+export function findReadySpecs(specs: Spec[]): ReadySpecsResult {
+  const parentIds = getParentSpecIds(specs);
+  let excludedParentCount = 0;
+
+  const ready = specs.filter((spec) => {
+    if (spec.status !== 'ready') return false;
+    if (parentIds.has(spec.id)) {
+      excludedParentCount++;
       return false;
     }
     return !isBlocked(spec, specs);
   });
+
+  return { specs: ready, excludedParentCount };
 }
 
 export function getStatusSummary(specs: Spec[]): StatusSummary {
@@ -155,13 +173,15 @@ export function parsePriorityFilter(
 
 /**
  * Finds specs that are ready for work, optionally filtered and limited.
- * Returns specs sorted by priority (highest first), then depth (deepest first), then title.
+ * Returns specs sorted by priority (highest first), then depth (deepest first), then title,
+ * along with the count of excluded parent specs.
  */
 export function findReadySpecsSorted(
   specs: Spec[],
   options: FindReadyOptions = {}
-): Spec[] {
-  let ready = findReadySpecs(specs);
+): ReadySpecsResult {
+  const result = findReadySpecs(specs);
+  let ready = result.specs;
 
   if (options.priorityFilter !== undefined) {
     ready = ready.filter((s) => matchesPriorityFilter(s.priority, options.priorityFilter as Priority | PriorityRange));
@@ -170,8 +190,8 @@ export function findReadySpecsSorted(
   const sorted = sortByPriority(ready, { allSpecs: specs });
 
   if (options.limit !== undefined && options.limit > 0) {
-    return sorted.slice(0, options.limit);
+    return { specs: sorted.slice(0, options.limit), excludedParentCount: result.excludedParentCount };
   }
 
-  return sorted;
+  return { specs: sorted, excludedParentCount: result.excludedParentCount };
 }

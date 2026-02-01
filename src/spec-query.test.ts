@@ -7,6 +7,7 @@ import {
   sortByPriority,
   getStatusSummary,
   parsePriorityFilter,
+  getParentSpecIds,
 } from './spec-query';
 import type { Spec, Status, Priority } from './types';
 import { DEFAULT_PRIORITY } from './types';
@@ -112,10 +113,11 @@ describe('findReadySpecs', () => {
       makeSpec('c', 'ready'),
     ];
 
-    const ready = findReadySpecs(specs);
+    const result = findReadySpecs(specs);
 
-    expect(ready).toHaveLength(2);
-    expect(ready.map((s) => s.id).sort()).toEqual(['a', 'c']);
+    expect(result.specs).toHaveLength(2);
+    expect(result.specs.map((s) => s.id).sort()).toEqual(['a', 'c']);
+    expect(result.excludedParentCount).toBe(0);
   });
 
   test('excludes specs blocked by in_progress specs', () => {
@@ -126,9 +128,9 @@ describe('findReadySpecs', () => {
 
     const specs = [blockedSpec, blockerSpec];
 
-    const ready = findReadySpecs(specs);
+    const result = findReadySpecs(specs);
 
-    expect(ready).toHaveLength(0);
+    expect(result.specs).toHaveLength(0);
   });
 
   test('includes specs when blocker is closed', () => {
@@ -139,10 +141,10 @@ describe('findReadySpecs', () => {
 
     const specs = [blockedSpec, blockerSpec];
 
-    const ready = findReadySpecs(specs);
+    const result = findReadySpecs(specs);
 
-    expect(ready).toHaveLength(1);
-    expect(ready[0]?.id).toBe('a');
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('a');
   });
 
   test('returns empty array when all specs blocked', () => {
@@ -152,9 +154,75 @@ describe('findReadySpecs', () => {
       makeSpec('c', 'closed'),
     ];
 
-    const ready = findReadySpecs(specs);
+    const result = findReadySpecs(specs);
 
-    expect(ready).toHaveLength(0);
+    expect(result.specs).toHaveLength(0);
+  });
+
+  test('excludes parent specs from ready list', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('child');
+    expect(result.excludedParentCount).toBe(1);
+  });
+
+  test('includes leaf specs with ready status', () => {
+    const specs = [
+      makeSpec('leaf1', 'ready'),
+      makeSpec('leaf2', 'ready'),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(2);
+    expect(result.excludedParentCount).toBe(0);
+  });
+
+  test('excludedParentCount is correct', () => {
+    const specs = [
+      makeSpec('parent1', 'ready'),
+      makeSpec('parent2', 'ready'),
+      makeSpec('child1', 'ready', [], DEFAULT_PRIORITY, 'parent1'),
+      makeSpec('child2', 'ready', [], DEFAULT_PRIORITY, 'parent2'),
+      makeSpec('leaf', 'ready'),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(3);
+    expect(result.excludedParentCount).toBe(2);
+  });
+
+  test('multi-level hierarchy: only leaf specs appear', () => {
+    const specs = [
+      makeSpec('root', 'ready'),
+      makeSpec('mid', 'ready', [], DEFAULT_PRIORITY, 'root'),
+      makeSpec('leaf', 'ready', [], DEFAULT_PRIORITY, 'mid'),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('leaf');
+    expect(result.excludedParentCount).toBe(2);
+  });
+
+  test('spec whose children were all removed appears in ready', () => {
+    const specs = [
+      makeSpec('former-parent', 'ready'),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('former-parent');
+    expect(result.excludedParentCount).toBe(0);
   });
 });
 
@@ -259,9 +327,9 @@ describe('findReadySpecsSorted', () => {
       makeSpec('blocked', 'blocked', [], 10),
     ];
 
-    const ready = findReadySpecsSorted(specs);
+    const result = findReadySpecsSorted(specs);
 
-    expect(ready.map((s) => s.id)).toEqual(['high', 'low']);
+    expect(result.specs.map((s) => s.id)).toEqual(['high', 'low']);
   });
 
   test('limits results with limit option', () => {
@@ -272,10 +340,10 @@ describe('findReadySpecsSorted', () => {
       makeSpec('d', 'ready', [], 2),
     ];
 
-    const limited = findReadySpecsSorted(specs, { limit: 2 });
+    const result = findReadySpecsSorted(specs, { limit: 2 });
 
-    expect(limited).toHaveLength(2);
-    expect(limited.map((s) => s.id)).toEqual(['a', 'b']);
+    expect(result.specs).toHaveLength(2);
+    expect(result.specs.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
   test('filters by exact priority', () => {
@@ -285,10 +353,10 @@ describe('findReadySpecsSorted', () => {
       makeSpec('c', 'ready', [], 5),
     ];
 
-    const highOnly = findReadySpecsSorted(specs, { priorityFilter: 8 });
+    const result = findReadySpecsSorted(specs, { priorityFilter: 8 });
 
-    expect(highOnly).toHaveLength(2);
-    expect(highOnly.every((s) => s.priority === 8)).toBe(true);
+    expect(result.specs).toHaveLength(2);
+    expect(result.specs.every((s) => s.priority === 8)).toBe(true);
   });
 
   test('filters by priority range', () => {
@@ -299,10 +367,10 @@ describe('findReadySpecsSorted', () => {
       makeSpec('d', 'ready', [], 2),
     ];
 
-    const highRange = findReadySpecsSorted(specs, { priorityFilter: { min: 8, max: 10 } });
+    const result = findReadySpecsSorted(specs, { priorityFilter: { min: 8, max: 10 } });
 
-    expect(highRange).toHaveLength(2);
-    expect(highRange.map((s) => s.id)).toEqual(['a', 'b']);
+    expect(result.specs).toHaveLength(2);
+    expect(result.specs.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
   test('combines limit and priority filter', () => {
@@ -315,7 +383,7 @@ describe('findReadySpecsSorted', () => {
 
     const result = findReadySpecsSorted(specs, { priorityFilter: 8, limit: 2 });
 
-    expect(result).toHaveLength(2);
+    expect(result.specs).toHaveLength(2);
   });
 
   test('returns empty array when no specs match filter', () => {
@@ -324,9 +392,9 @@ describe('findReadySpecsSorted', () => {
       makeSpec('b', 'ready', [], 2),
     ];
 
-    const critical = findReadySpecsSorted(specs, { priorityFilter: 10 });
+    const result = findReadySpecsSorted(specs, { priorityFilter: 10 });
 
-    expect(critical).toHaveLength(0);
+    expect(result.specs).toHaveLength(0);
   });
 });
 
@@ -355,5 +423,59 @@ describe('parsePriorityFilter', () => {
     expect(parsePriorityFilter('0-5')).toBeNull();
     expect(parsePriorityFilter('5-11')).toBeNull();
     expect(parsePriorityFilter('a-b')).toBeNull();
+  });
+});
+
+describe('getParentSpecIds', () => {
+  test('returns empty set when no specs have parents', () => {
+    const specs = [makeSpec('a'), makeSpec('b'), makeSpec('c')];
+
+    const result = getParentSpecIds(specs);
+
+    expect(result.size).toBe(0);
+  });
+
+  test('returns correct IDs when specs reference parents', () => {
+    const specs = [
+      makeSpec('parent1'),
+      makeSpec('child1', 'ready', [], DEFAULT_PRIORITY, 'parent1'),
+      makeSpec('orphan'),
+    ];
+
+    const result = getParentSpecIds(specs);
+
+    expect(result.size).toBe(1);
+    expect(result.has('parent1')).toBe(true);
+  });
+
+  test('handles duplicate parent references from multiple children', () => {
+    const specs = [
+      makeSpec('parent1'),
+      makeSpec('child1', 'ready', [], DEFAULT_PRIORITY, 'parent1'),
+      makeSpec('child2', 'ready', [], DEFAULT_PRIORITY, 'parent1'),
+      makeSpec('child3', 'ready', [], DEFAULT_PRIORITY, 'parent1'),
+    ];
+
+    const result = getParentSpecIds(specs);
+
+    expect(result.size).toBe(1);
+    expect(result.has('parent1')).toBe(true);
+  });
+
+  test('returns multiple parent IDs for multi-parent hierarchy', () => {
+    const specs = [
+      makeSpec('root'),
+      makeSpec('mid1', 'ready', [], DEFAULT_PRIORITY, 'root'),
+      makeSpec('mid2', 'ready', [], DEFAULT_PRIORITY, 'root'),
+      makeSpec('leaf1', 'ready', [], DEFAULT_PRIORITY, 'mid1'),
+      makeSpec('leaf2', 'ready', [], DEFAULT_PRIORITY, 'mid2'),
+    ];
+
+    const result = getParentSpecIds(specs);
+
+    expect(result.size).toBe(3);
+    expect(result.has('root')).toBe(true);
+    expect(result.has('mid1')).toBe(true);
+    expect(result.has('mid2')).toBe(true);
   });
 });

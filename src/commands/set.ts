@@ -246,6 +246,7 @@ function getCommandHelp(): CommandHelp {
     notes: [
       'Operations are idempotent: setting same value twice succeeds silently.',
       'Cycle detection prevents circular parent/blocker references.',
+      'Parent specs (specs with children) cannot be set to in_progress. Work on their child specs instead.',
     ],
   };
 }
@@ -266,6 +267,11 @@ export const command: CommandHandler = {
     const spec = await findSpecFile(specId);
     if (!spec) { console.error(`Spec not found: ${specId}`); return 1; }
     const allSpecs = await readAllSpecs();
+    if (options.status === 'in_progress' && allSpecs.some(s => s.parent === spec.id)) {
+      console.error(`Cannot set "${spec.title}" to in_progress: it has child specs and is not directly actionable.`);
+      console.error('Work on its child specs instead. See: sc list --tree');
+      return 1;
+    }
     const result = await applyChanges(spec, options, allSpecs);
     if (!result.success) return 1;
     for (const message of result.messages) console.log(message);

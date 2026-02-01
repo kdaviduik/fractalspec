@@ -93,7 +93,7 @@ sc done ABC123
 | Command | Description | Example |
 |---------|-------------|---------|
 | `sc list` | List all specs | `sc list` |
-| `sc list --ready` | Show specs ready for work (sorted by priority) | `sc list --ready` |
+| `sc list --ready` | Show leaf specs ready for work (parent specs excluded, sorted by priority) | `sc list --ready` |
 | `sc list --ready --limit N` | Get top N ready specs | `sc list --ready --limit 1` |
 | `sc list --ready --priority P` | Filter by priority (single or range) | `sc list --ready --priority 8-10` |
 | `sc list --tree` | Show hierarchical tree view | `sc list --tree` |
@@ -104,7 +104,7 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc claim <id> [--cd]` | Claim spec, set to `in_progress`, create worktree | `sc claim ABC123` |
+| `sc claim <id> [--cd]` | Claim leaf spec, set to `in_progress`, create worktree (parent specs cannot be claimed) | `sc claim ABC123` |
 | `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
 | `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
 
@@ -129,7 +129,7 @@ sc done ABC123
 | Command | Description | Example |
 |---------|-------------|---------|
 | `sc set <id> --priority <1-10>` | Set priority (10 = highest) | `sc set ABC123 --priority 8` |
-| `sc set <id> --status <status>` | Set status | `sc set ABC123 --status blocked` |
+| `sc set <id> --status <status>` | Set status (in_progress blocked for parent specs) | `sc set ABC123 --status blocked` |
 | `sc set <id> --parent <id>` | Reparent to another spec | `sc set ABC123 --parent DEF456` |
 | `sc set <id> --parent none` | Make root spec (remove parent) | `sc set ABC123 --parent none` |
 | `sc set <id> --block <id>` | Add blocking dependency | `sc set ABC123 --block DEF456` |
@@ -143,7 +143,7 @@ sc done ABC123
 |---------|-------------|---------|
 | `sc validate` | Validate all specs' EARS format | `sc validate` |
 | `sc validate <id>` | Validate single spec | `sc validate ABC123` |
-| `sc doctor` | Check repo health (orphans, cycles, uncommitted specs) | `sc doctor` |
+| `sc doctor` | Check repo health | `sc doctor` |
 | `sc doctor --fix` | Auto-fix issues where possible | `sc doctor --fix` |
 | `sc ears` | Show EARS pattern reference | `sc ears` |
 | `sc ears "<text>"` | Convert text to EARS format | `sc ears "users can login"` |
@@ -218,7 +218,7 @@ Priority is a numeric value from 1 to 10, where **10 is the highest priority**.
 | `2-4` | Lower priority | Nice-to-have improvements |
 | `1` | Lowest priority | Backlog items, far-future work |
 
-**Sorting behavior**: `sc list --ready` sorts specs by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
+**Sorting behavior**: `sc list --ready` shows only leaf specs (parent specs with children are excluded). Results are sorted by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
 
 ## Worktree Convention
 
@@ -438,6 +438,9 @@ type Priority = number;
 const MIN_PRIORITY = 1;
 const MAX_PRIORITY = 10;
 const DEFAULT_PRIORITY = 5;
+
+// Terminal statuses: used for blocker resolution and parent auto-close
+const COMPLETED_STATUSES: readonly Status[] = ['closed', 'deferred', 'not_planned'];
 
 type EarsPattern = 'ubiquitous' | 'state_driven' | 'event_driven' | 'optional' | 'unwanted' | 'complex';
 

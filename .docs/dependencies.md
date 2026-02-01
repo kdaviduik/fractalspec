@@ -58,11 +58,14 @@ Quick lookup: "I changed X, what docs do I update?"
 ## Status Values & Workflow States
 
 **Code**:
-- src/types.ts (Status type definition)
+- src/types.ts (Status type definition, COMPLETED_STATUSES constant)
 - src/commands/claim.ts, done.ts, release.ts (status changes)
+- src/spec-query.ts (blocker resolution uses COMPLETED_STATUSES)
+- src/commands/doctor.ts (parent auto-close uses COMPLETED_STATUSES)
 
 **Docs to Update**:
 - CLAUDE.md - Spec Format section (status values table)
+- CLAUDE.md - Critical Type Definitions section (COMPLETED_STATUSES)
 - CLAUDE.md - Agent Workflow section (status state descriptions)
 - .claude/skills/sc-spec-workflow.md (workflow state machine)
 
@@ -131,3 +134,25 @@ Quick lookup: "I changed X, what docs do I update?"
 - `sc show <id>` - Check what specs block this one (shows blockers in details)
 - `sc list --tree` - Visualize parent-child hierarchy
 - `sc doctor --fix` - Recover from partial deletion failures
+
+## Parent Spec Handling
+
+**Code**:
+- src/spec-query.ts (getParentSpecIds, findReadySpecs parent filtering)
+- src/commands/claim.ts (parent spec claim guard)
+- src/commands/set.ts (in_progress parent guard)
+- src/commands/doctor.ts (unclosed parent detection, smart status matching, cascade fix)
+- src/commands/list.ts (exclusion footer in --ready output)
+- src/types.ts (COMPLETED_STATUSES constant)
+
+**Docs to Update**:
+- CLAUDE.md - Commands Reference tables (list --ready description, claim description, doctor description)
+- CLAUDE.md - Property Modification table (in_progress restriction for parent specs)
+- CLAUDE.md - Sorting behavior note (parent exclusion)
+- .claude/skills/sc-spec-workflow.md - Find Available Work section, Health Checks section
+- src/commands/list.ts - getHelp() --ready flag description
+- src/commands/claim.ts - getHelp() notes section
+- src/commands/set.ts - getHelp() notes section
+- src/commands/doctor.ts - getHelp() detects list and notes
+- src/command-router.ts - doctor description in global help
+- .docs/dependencies.md - this file

@@ -53,7 +53,7 @@ ${bold('DESCRIPTION')}
   providing workspace isolation and preventing concurrent edits.
 
   Status transitions: ready → in_progress → closed
-  Blocked specs cannot start until their blockers are closed.
+  Blocked specs cannot start until their blockers reach a terminal status.
 
 ${bold('FILE STRUCTURE')}
   docs/specs/<slug>-<id>/<slug>-<id>.md
@@ -147,10 +147,8 @@ ${bold('COMMANDS')}
       --fix                ${dim('(Planned)')} Auto-fix format issues
 
     ${underline('doctor')}                 Check repository health
-                           - Detect orphaned parent references
-                           - Find circular dependencies
-                           - Identify missing blocker specs
-      --fix                Auto-fix orphans and missing blockers
+                           Detect and report structural health issues
+      --fix                Auto-fix detected issues where possible
                            Exits with code 1 if issues found
 
     ${underline('ears')} ${dim('[text]')}            EARS format reference and conversion

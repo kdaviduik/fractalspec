@@ -514,6 +514,49 @@ describe('sc set --pr', () => {
   });
 });
 
+describe('sc set --status in_progress - parent spec guard', () => {
+  test('blocks setting parent spec to in_progress', async () => {
+    const parent = makeSpec('p1', { status: 'ready', title: 'Parent Spec' });
+    const child = makeSpec('c1', { parent: 'p1' });
+    await createSpecDirectory('spec', 'p1');
+    await createSpecDirectory('spec', 'c1');
+    await writeSpec(parent);
+    await writeSpec(child);
+
+    const result = await command.execute(['p1', '--status', 'in_progress']);
+    expect(result).toBe(1);
+    expect(errorMessages.join(' ')).toContain('has child specs');
+    expect(errorMessages.join(' ')).toContain('sc list --tree');
+  });
+
+  test('allows setting leaf spec to in_progress', async () => {
+    const spec = makeSpec('a1b2', { status: 'ready' });
+    await createSpecDirectory('spec', 'a1b2');
+    await writeSpec(spec);
+
+    const result = await command.execute(['a1b2', '--status', 'in_progress']);
+    expect(result).toBe(0);
+
+    const updated = await findSpecFile('a1b2');
+    expect(updated?.status).toBe('in_progress');
+  });
+
+  test('allows setting parent spec to other statuses', async () => {
+    const parent = makeSpec('p1', { status: 'ready' });
+    const child = makeSpec('c1', { parent: 'p1' });
+    await createSpecDirectory('spec', 'p1');
+    await createSpecDirectory('spec', 'c1');
+    await writeSpec(parent);
+    await writeSpec(child);
+
+    const result = await command.execute(['p1', '--status', 'blocked']);
+    expect(result).toBe(0);
+
+    const updated = await findSpecFile('p1');
+    expect(updated?.status).toBe('blocked');
+  });
+});
+
 describe('sc set - atomic writes', () => {
   test('no temp files remain after successful write', async () => {
     const spec = makeSpec('a1b2', { priority: 5 });

@@ -33,7 +33,7 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
       flags: [
         {
           flag: '--ready',
-          description: 'Show only specs available for work (no blockers, status is ready). Sorted by priority, then depth (deepest first), then title.',
+          description: 'Show only leaf specs available for work. Parent specs (those with children) are excluded. Sorted by priority, then depth (deepest first), then title.',
         },
         {
           flag: '--tree',
@@ -177,12 +177,12 @@ function printReadySpecs(
     return 1;
   }
 
-  const ready = findReadySpecsSorted(specs, {
+  const result = findReadySpecsSorted(specs, {
     limit: limitValue,
     priorityFilter: priorityFilter ?? undefined,
   });
 
-  if (ready.length === 0) {
+  if (result.specs.length === 0) {
     const filterMsg = priorityStr ? ` with priority "${priorityStr}"` : '';
     console.log(`No specs ready for work${filterMsg}.`);
     return 0;
@@ -192,10 +192,16 @@ function printReadySpecs(
   const priorityMsg = priorityStr ? ` [priority ${priorityStr}]` : '';
   console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}`);
   console.log('════════════════════');
-  for (const spec of ready) {
+  for (const spec of result.specs) {
     const priorityIndicator = spec.priority !== DEFAULT_PRIORITY ? ` [P${spec.priority}]` : '';
     console.log(`  ${spec.id}  ${spec.title}${priorityIndicator}`);
   }
+
+  if (result.excludedParentCount > 0) {
+    const specWord = result.excludedParentCount === 1 ? 'spec' : 'specs';
+    console.log(`\n${result.excludedParentCount} parent ${specWord} excluded — use --tree to see all`);
+  }
+
   return 0;
 }
 
