@@ -11,6 +11,7 @@ interface CommandModule {
 }
 
 const COMMANDS: Record<string, () => Promise<CommandModule>> = {
+  init: () => import('./commands/init'),
   create: () => import('./commands/create'),
   show: () => import('./commands/show'),
   edit: () => import('./commands/edit'),
@@ -81,16 +82,24 @@ ${bold('WORKTREE WORKFLOW')}
   with branch work-<slug>-<spec-id>. Commands work from any directory in the repository:
 
     1. sc claim <id>              # Creates worktree, sets in_progress
-    2. cd ../work-<slug>-<id>     # Switch to work worktree
-    3. [do the work, commit]
-    4. sc done <id>               # Mark complete, remove worktree (works from anywhere)
+    2. [do the work, commit]
+    3. sc done <id>               # Mark complete, remove worktree (works from anywhere)
 
-  Auto-cd alternative:  eval "$(sc claim --cd <id>)"
+  Requires shell integration (one-time setup):
+    eval "$(sc init bash)"        # Add to ~/.bashrc
+    eval "$(sc init zsh)"         # Add to ~/.zshrc
+    sc init fish | source         # Add to ~/.config/fish/config.fish
+
+  Without shell integration:  eval "$(sc claim --cd <id>)"
 
   NOTE: If run from inside the work worktree being removed, you will be left
   in a deleted directory. Navigate to a different directory afterward if needed.
 
 ${bold('COMMANDS')}
+  ${underline('Setup')}
+    ${underline('init')} ${dim('<bash|zsh|fish>')}     Set up shell integration for auto-cd on claim
+                           Outputs a shell function to eval/source in your startup file
+
   ${underline('Discovery & Viewing')}
     ${underline('list')}                   List all specs
       --ready              Show specs available for work (sorted by priority)
@@ -183,13 +192,15 @@ ${bold('EXAMPLES')}
   sc list --ready --priority 8-10  # Show only highest-priority ready specs
   sc list --tree                # Understand hierarchy
 
-  # Working on a spec (example: spec titled "User Auth")
-  sc claim a1b2c3               # Claim and create worktree
-  cd ../work-user-auth-a1b2c3   # Switch to work area (manual cd)
+  # One-time setup: shell integration
+  eval "$(sc init bash)"         # Add to ~/.bashrc (or zsh/fish equivalent)
+
+  # Working on a spec (with shell integration active)
+  sc claim a1b2c3               # Claims AND cd's into worktree
   # ... do work, git commit ...
   sc done a1b2c3                # Complete (works from any directory)
 
-  # Alternative: auto-cd with eval
+  # Without shell integration: manual cd or eval
   eval "$(sc claim --cd a1b2c3)"  # Claims and changes directory
 
   # Creating specs

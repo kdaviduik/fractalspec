@@ -22,14 +22,15 @@ sc list --ready --priority 8-10
 ### 2. Claim the Spec
 
 ```bash
+# With shell integration (recommended one-time setup: eval "$(sc init bash)")
 sc claim <spec-id>
-cd ../work-<slug>-<spec-id>
 
-# Alternative: Auto-cd with eval
+# Without shell integration: use eval or manual cd
 eval "$(sc claim --cd <spec-id>)"
+cd ../work-<slug>-<spec-id>
 ```
 
-This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root). The `<slug>` is derived from the spec's title. With `--cd`, the cd command goes to stdout for shell evaluation.
+This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root). With shell integration (`sc init`), claiming automatically cd's into the worktree.
 
 ### 3. Understand Requirements
 

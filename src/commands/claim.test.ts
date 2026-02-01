@@ -75,10 +75,10 @@ describe('sc claim - help', () => {
     expect(help?.flags?.some((f) => f.flag.includes('-C'))).toBe(true);
   });
 
-  test('includes eval example in help', () => {
+  test('includes sc init as recommended setup in help', () => {
     const help = command.getHelp?.();
     const examples = help?.examples?.join(' ') ?? '';
-    expect(examples).toContain('eval');
+    expect(examples).toContain('sc init');
   });
 
   test('includes notes about --cd behavior', () => {
@@ -191,7 +191,7 @@ describe('sc claim - parent spec guard', () => {
 });
 
 describe('sc claim - default behavior (without --cd)', () => {
-  test('outputs human-readable success message', async () => {
+  test('outputs human-readable success message with init hint', async () => {
     const spec = makeSpec('a1b2');
     await writeSpec(spec);
 
@@ -207,6 +207,7 @@ describe('sc claim - default behavior (without --cd)', () => {
     expect(logMessages.join(' ')).toContain('in_progress');
     expect(logMessages.join(' ')).toContain('To start working');
     expect(logMessages.join(' ')).toContain('cd');
+    expect(logMessages.join(' ')).toContain('sc init --help');
   });
 
   test('outputs worktree path in cd instruction', async () => {

@@ -28,7 +28,10 @@ sc list
 # Find work to do
 sc list --ready
 
-# Claim and start working
+# Set up shell integration (auto-cd on claim)
+eval "$(sc init bash)"  # or zsh/fish
+
+# Claim and start working (auto-cd's into worktree)
 sc claim <spec-id>
 ```
 

@@ -14,20 +14,20 @@ Quick lookup: "I changed X, what docs do I update?"
 
 **Docs to Update**:
 - CLAUDE.md
-  - Installation & Setup section (line ~58) - worktree path description
-  - Worktree Convention section (lines 176-185) - location and cleanup
-  - Agent Workflow section (lines 254-294) - workflow examples
-  - Configuration section (line 58) - specs root path
-  - Help System Standards section (lines 550, 587) - cleanup requirement references
+  - "Installation & Setup" section - worktree path description
+  - "Worktree Convention" section - location and cleanup
+  - "Agent Workflow" section - workflow examples
+  - "Configuration" note - specs root path
+  - "Help System Standards" section - cleanup requirement references
 - .claude/skills/sc-spec-workflow.md
-  - Claim workflow section (lines 18-22)
-  - Complete workflow section (lines 51-56)
-  - Common Pitfalls section (lines 111-112)
-  - Worktree Convention section (lines 132-134)
+  - "Claim the Spec" section
+  - "Complete" section
+  - "Common Pitfalls" section
+  - "Worktree Convention" section
 - src/commands/claim.ts - getHelp() description and examples
 - src/commands/done.ts - getHelp() description and examples
 - src/commands/release.ts - getHelp() description and examples
-- src/command-router.ts - WORKTREE WORKFLOW section (lines 77-90)
+- src/command-router.ts - WORKTREE WORKFLOW section in printHelp()
 - README.md - if it contains worktree-related documentation
 - src/commands/create.ts - template spec content if it shows path examples
 - .docs/dependencies.md - this file (update after implementation)
@@ -40,8 +40,7 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/command-router.ts (global help)
 
 **Docs to Update**:
-- CLAUDE.md - Help System Standards section (comprehensive help docs)
-- .claude/skills/sc-help-system-guide.md - if it exists
+- CLAUDE.md - "Help System Standards" section
 - Command getHelp() methods when behavior changes
 
 ## Spec Validation & EARS Patterns
@@ -51,9 +50,8 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/commands/validate.ts
 
 **Docs to Update**:
-- CLAUDE.md - EARS Patterns section
+- CLAUDE.md - "EARS Patterns" section
 - src/commands/validate.ts - getHelp() description
-- .claude/skills/sc-validation-guide.md - if it exists
 
 ## Status Values & Workflow States
 
@@ -64,9 +62,9 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/commands/doctor.ts (parent auto-close uses COMPLETED_STATUSES)
 
 **Docs to Update**:
-- CLAUDE.md - Spec Format section (status values table)
-- CLAUDE.md - Critical Type Definitions section (COMPLETED_STATUSES)
-- CLAUDE.md - Agent Workflow section (status state descriptions)
+- CLAUDE.md - "Spec Format" section (status values table)
+- CLAUDE.md - "Critical Type Definitions" section (COMPLETED_STATUSES)
+- CLAUDE.md - "Agent Workflow" section (status state descriptions)
 - .claude/skills/sc-spec-workflow.md (workflow state machine)
 
 ## Git Operations & Worktree Management
@@ -79,12 +77,12 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/claim-logic.ts (checkClaimSafety function)
 
 **Docs to Update**:
-- CLAUDE.md - Worktree Convention section (locations and behavior)
-- CLAUDE.md - Agent Workflow section (when and how to use worktrees)
-- CLAUDE.md - Workflow command table (safety checks, --force flag)
+- CLAUDE.md - "Worktree Convention" section (locations and behavior)
+- CLAUDE.md - "Agent Workflow" section (when and how to use worktrees)
+- CLAUDE.md - "Workflow" command table (safety checks, --force flag)
 - .claude/skills/sc-spec-workflow.md (worktree lifecycle, safety checks)
 - Command help (getHelp()) for claim, done, release
-- src/command-router.ts - Workflow section (--force flag documentation)
+- src/command-router.ts - Workflow section in printHelp()
 
 ## PR Tracking
 
@@ -96,14 +94,14 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/commands/show.ts (displaying pr field)
 
 **Docs to Update**:
-- CLAUDE.md - Frontmatter Schema table (pr field)
-- CLAUDE.md - Spec Format example (add pr: null)
-- CLAUDE.md - Critical Type Definitions (SpecFrontmatter interface)
-- CLAUDE.md - Property Modification table (--pr flag)
+- CLAUDE.md - "Frontmatter Schema" table (pr field)
+- CLAUDE.md - "Spec Format" example (add pr: null)
+- CLAUDE.md - "Critical Type Definitions" section (SpecFrontmatter interface)
+- CLAUDE.md - "Property Modification" table (--pr flag)
 - .claude/skills/sc-spec-workflow.md (PR tracking section)
 - src/commands/set.ts - getHelp() (--pr flag)
 - src/commands/show.ts - getHelp() (pr field in output)
-- src/command-router.ts - Property Modification section (--pr flag)
+- src/command-router.ts - Property Modification section in printHelp()
 
 ## File Structure & Naming Conventions
 
@@ -112,8 +110,8 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/commands/create.ts (spec creation and template)
 
 **Docs to Update**:
-- CLAUDE.md - File Structure section
-- CLAUDE.md - Spec Format section
+- CLAUDE.md - "File Structure" section
+- CLAUDE.md - "Spec Format" section
 - .claude/skills/sc-spec-workflow.md (if it shows file examples)
 
 ## Spec Removal (remove command)
@@ -124,16 +122,30 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/claim-logic.ts (uses isSpecClaimed)
 
 **Docs to Update**:
-- CLAUDE.md - Commands Reference table (Maintenance section)
+- CLAUDE.md - "Commands Reference" table (Maintenance section)
 - CLAUDE.md - "Removing Specs" workflow section
 - src/commands/remove.ts - getHelp() documentation
-- src/command-router.ts - Global help printHelp() function (Maintenance section)
+- src/command-router.ts - Maintenance section in printHelp()
 - .docs/dependencies.md - this file (update after implementation)
 
 **Related Commands** (users should consult before removal):
 - `sc show <id>` - Check what specs block this one (shows blockers in details)
 - `sc list --tree` - Visualize parent-child hierarchy
 - `sc doctor --fix` - Recover from partial deletion failures
+
+## Shell Integration (init command)
+
+**Code**:
+- src/commands/init.ts (shell function generation)
+- src/commands/claim.ts (--cd flag behavior, hint for non-init users)
+
+**Docs to Update**:
+- CLAUDE.md - "Installation & Setup" section (sc init setup step), "Quick Start", "Commands Reference" (Setup section), "Worktree Convention", "Agent Workflow" claiming section
+- .claude/skills/sc-spec-workflow.md - "Claim the Spec" section (sc init as primary approach)
+- src/commands/claim.ts - getHelp() examples and notes (sc init references)
+- src/command-router.ts - WORKTREE WORKFLOW section, Setup section in COMMANDS, EXAMPLES section
+- README.md - Quick Start section (sc init mention)
+- .docs/dependencies.md - this file
 
 ## Parent Spec Handling
 
@@ -146,13 +158,13 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/types.ts (COMPLETED_STATUSES constant)
 
 **Docs to Update**:
-- CLAUDE.md - Commands Reference tables (list --ready description, claim description, doctor description)
-- CLAUDE.md - Property Modification table (in_progress restriction for parent specs)
+- CLAUDE.md - "Commands Reference" tables (list --ready description, claim description, doctor description)
+- CLAUDE.md - "Property Modification" table (in_progress restriction for parent specs)
 - CLAUDE.md - Sorting behavior note (parent exclusion)
-- .claude/skills/sc-spec-workflow.md - Find Available Work section, Health Checks section
+- .claude/skills/sc-spec-workflow.md - "Find Available Work" section, "Health Checks" section
 - src/commands/list.ts - getHelp() --ready flag description
 - src/commands/claim.ts - getHelp() notes section
 - src/commands/set.ts - getHelp() notes section
 - src/commands/doctor.ts - getHelp() detects list and notes
-- src/command-router.ts - doctor description in global help
+- src/command-router.ts - doctor description in printHelp()
 - .docs/dependencies.md - this file

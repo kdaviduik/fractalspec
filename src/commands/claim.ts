@@ -30,21 +30,19 @@ Commands can be run from any directory in the repository.`,
         {
           flag: '--cd, -C',
           description:
-            'Output cd command for shell evaluation. Use with eval or a wrapper function to auto-change directory after claiming.',
+            'Output cd command for shell evaluation. Not needed with shell integration (sc init).',
         },
       ],
       examples: [
-        '# Claim spec and manually cd (default behavior)',
+        '# Recommended: set up shell integration (one-time)',
+        'eval "$(sc init bash)"   # Add to ~/.bashrc',
+        'eval "$(sc init zsh)"    # Add to ~/.zshrc',
+        '',
+        '# Then claiming auto-cd\'s into the worktree',
         'sc claim a1b2c3',
-        'cd ../work-oauth-flow-a1b2c3',
         '',
-        '# Claim and auto-cd with eval',
+        '# Without shell integration: use eval',
         'eval "$(sc claim --cd a1b2c3)"',
-        '',
-        '# Shell function wrapper (add to ~/.bashrc or ~/.zshrc)',
-        'sccd() { local output; output=$(sc claim --cd "$@") && eval "$output"; }',
-        '# Then use:',
-        'sccd a1b2c3',
         '',
         '# ... do work, commit changes ...',
         'sc done a1b2c3  # Works from any directory',
@@ -55,6 +53,8 @@ Commands can be run from any directory in the repository.`,
         'Claim and done/release commands work from any directory in the repository.',
         'With --cd: Status info goes to stderr, cd command to stdout (safe for eval).',
         'On failure with --cd: stdout is empty, preventing eval from executing garbage.',
+        'Set up sc init for automatic cd on every claim. See: sc init --help',
+        'With shell integration active, bypass auto-cd with: command sc claim <id>',
       ],
     };
   },
@@ -100,6 +100,7 @@ Commands can be run from any directory in the repository.`,
       console.log(`  Status: in_progress`);
       console.log(`\nTo start working:`);
       console.log(`  cd ${worktreePath}`);
+      console.log(`\nTip: Set up shell integration to auto-cd on claim. See: sc init --help`);
     }
 
     return 0;

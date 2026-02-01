@@ -35,6 +35,14 @@ bun link
 
 # Verify installation
 sc --help
+
+# Set up shell integration (auto-cd on claim)
+# Bash: add to ~/.bashrc
+eval "$(sc init bash)"
+# Zsh: add to ~/.zshrc
+eval "$(sc init zsh)"
+# Fish: add to ~/.config/fish/config.fish
+sc init fish | source
 ```
 
 ### Development Setup
@@ -67,7 +75,7 @@ sc list --ready
 # Get THE next task to work on
 sc list --ready --limit 1
 
-# Claim a spec and start working
+# Claim a spec and start working (auto-cd's with shell integration)
 sc claim ABC123
 
 # View spec details
@@ -87,6 +95,12 @@ sc done ABC123
 ```
 
 ## Commands Reference
+
+### Setup
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `sc init <bash\|zsh\|fish>` | Output shell integration function for auto-cd on claim | `eval "$(sc init bash)"` |
 
 ### Discovery & Viewing
 
@@ -108,7 +122,7 @@ sc done ABC123
 | `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
 | `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
 
-**`--cd` flag**: Use `eval "$(sc claim --cd ABC123)"` to auto-cd into the new worktree.
+**Auto-cd**: Set up shell integration with `sc init` for automatic cd on every claim. Without shell integration, use `eval "$(sc claim --cd ABC123)"`.
 
 **Safety checks**: `done` and `release` verify no uncommitted changes or unpushed commits exist before proceeding. Use `--force` to bypass (with warning).
 
@@ -229,6 +243,7 @@ When you claim a spec, `sc` creates a dedicated git worktree for that work:
 - **Isolation**: Git prevents the same branch from being checked out in multiple worktrees, ensuring exclusive access
 - **Cleanup**: Running `sc done` or `sc release` automatically removes both the worktree and branch
 - **Command execution**: Commands can be run from any directory in the repository
+- **Auto-cd**: With shell integration (`sc init`), `sc claim` automatically cd's into the worktree
 
 **Note**: If you run `sc done` or `sc release` from inside the work worktree being removed, you will be left in a deleted directory. Navigate elsewhere if this happens.
 
@@ -302,18 +317,16 @@ sc list --tree
 ### Claiming & Working
 
 ```bash
-# 1. Claim the spec (creates worktree as sibling to repository root)
+# 1. Claim the spec (auto-cd's with shell integration)
 sc claim ABC123
 
-# 2. Switch to the work worktree (example: spec titled "Feature Name")
+# Without shell integration: use eval or manual cd
+eval "$(sc claim --cd ABC123)"
 cd ../work-feature-name-ABC123
 
-# Alternative: Auto-cd with eval
-eval "$(sc claim --cd ABC123)"
+# 2. Do the work...
 
-# 3. Do the work...
-
-# 4. Commit changes
+# 3. Commit changes
 git add . && git commit -m "feat: implement feature per ABC123"
 ```
 
