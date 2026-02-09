@@ -26,10 +26,10 @@ Quick lookup: "I changed X, what docs do I update?"
 
 ## Workflows
 
-**Code**: src/claim-logic.ts, src/release-logic.ts, worktree operations
+**Code**: src/claim-logic.ts, worktree operations
 
 **Docs to Update**:
-- CLAUDE.md - Agent Workflow section, Worktree Convention section
+- CLAUDE.md - Agent Workflow section, Claim Modes section
 - .claude/skills/sc-spec-workflow.md - Workflow steps
 
 ## Validation Rules
@@ -86,16 +86,16 @@ Quick lookup: "I changed X, what docs do I update?"
 
 ## Git Operations & Worktree Management
 
-**Code**: src/git-operations.ts, src/claim-logic.ts, src/release-logic.ts
+**Code**: src/git-operations.ts, src/claim-logic.ts
 
 **Docs to Update**:
-- CLAUDE.md - Worktree Convention section
+- CLAUDE.md - Claim Modes section
 - CLAUDE.md - Agent Workflow section (Claiming & Working, Completing Work, Abandoning Work)
 - .claude/skills/sc-spec-workflow.md - Workflow steps
 - src/commands/claim.ts - Help text about worktree creation
 - src/commands/done.ts - Help text about cleanup
 - src/commands/release.ts - Help text about cleanup
-- src/command-router.ts - Global help WORKTREE WORKFLOW section
+- src/command-router.ts - Global help BRANCH & WORKTREE WORKFLOW section
 
 ## Spec Frontmatter Schema
 

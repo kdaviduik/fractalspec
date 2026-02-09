@@ -7,21 +7,7 @@ import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { findSpecFile } from '../spec-filesystem';
 import { completeSpec, isSpecClaimed, checkClaimSafety } from '../claim-logic';
-
-function parseForceFlag(args: string[]): { force: boolean; specId: string | undefined } {
-  let force = false;
-  let specId: string | undefined;
-
-  for (const arg of args) {
-    if (arg === '--force' || arg === '-f') {
-      force = true;
-    } else if (!arg.startsWith('-')) {
-      specId = arg;
-    }
-  }
-
-  return { force, specId };
-}
+import { parseForceFlag } from '../flag-utils';
 
 export const command: CommandHandler = {
   name: 'done',
@@ -34,8 +20,7 @@ export const command: CommandHandler = {
       description: `Mark a claimed spec as complete. This command:
   - Checks for uncommitted changes and unpushed commits (safety check)
   - Sets the spec status to 'closed'
-  - Deletes the work branch work-<slug>-<id>
-  - Removes the worktree (relative to repository root, as sibling to repo)
+  - Removes the work branch (and worktree if one exists)
 
 The spec must already be claimed (status: in_progress) before marking it done.
 Commands can be run from any directory in the repository.`,
@@ -56,7 +41,7 @@ Commands can be run from any directory in the repository.`,
         'Safety checks prevent accidental data loss by blocking completion if there are uncommitted changes or unpushed commits.',
         'Use --force only when you intentionally want to discard work.',
         'Commands work from any directory in the repository.',
-        'If run from inside the work worktree being removed, you will be left in a deleted directory after cleanup.',
+        'If a worktree was used and you run this from inside it, you will be left in a deleted directory after cleanup.',
       ],
     };
   },
@@ -110,10 +95,10 @@ Commands can be run from any directory in the repository.`,
 
     if (!safety.safe && force) {
       console.error(`WARNING: Forcing completion despite ${safety.issues.join(', ')}`);
-      console.error('The worktree and branch will be permanently deleted.');
+      console.error('The branch (and worktree if present) will be permanently deleted.');
     }
 
-    await completeSpec(spec);
+    await completeSpec(spec, force);
 
     console.log(`Completed: ${spec.title}`);
     console.log(`  Status: closed`);

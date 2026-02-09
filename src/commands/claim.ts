@@ -8,7 +8,8 @@ import { printCommandUsage } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { findSpecById } from '../spec-query';
 import { claimSpec } from '../claim-logic';
-import { getWorkWorktreePath } from '../git-operations';
+
+const FLAG_TOKENS: readonly string[] = ['--cd', '-C', '--worktree', '-W'];
 
 export const command: CommandHandler = {
   name: 'claim',
@@ -17,51 +18,60 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc claim',
-      synopsis: 'sc claim <id> [--cd]',
+      synopsis: 'sc claim <id> [--worktree] [--cd]',
       description: `Claim a spec and prepare it for work. This command:
   - Sets the spec status to 'in_progress'
-  - Creates a dedicated git worktree (sibling to repository root)
-  - Creates and checks out branch work-<slug>-<id> in that worktree
-  - Ensures exclusive access (git prevents same branch in multiple worktrees)
+  - Creates and checks out branch work-<slug>-<id>
 
-After claiming, switch to the work worktree to begin implementation.
+By default, claiming creates a branch in your current repository (branch mode).
+Use --worktree to create a dedicated git worktree instead (isolated workspace).
+In bare repositories, worktree mode is used automatically.
+
 Commands can be run from any directory in the repository.`,
       flags: [
         {
+          flag: '--worktree, -W',
+          description: 'Create a dedicated git worktree (sibling to repository root) instead of a local branch.',
+        },
+        {
           flag: '--cd, -C',
           description:
-            'Output cd command for shell evaluation. Not needed with shell integration (sc init).',
+            'Output cd command for shell evaluation (worktree mode only). Not needed with shell integration (sc init).',
         },
       ],
       examples: [
-        '# Recommended: set up shell integration (one-time)',
-        'eval "$(sc init bash)"   # Add to ~/.bashrc',
-        'eval "$(sc init zsh)"    # Add to ~/.zshrc',
-        '',
-        '# Then claiming auto-cd\'s into the worktree',
+        '# Claim a spec (creates branch, checks it out)',
         'sc claim a1b2c3',
         '',
-        '# Without shell integration: use eval',
-        'eval "$(sc claim --cd a1b2c3)"',
+        '# Claim with isolated worktree',
+        'sc claim a1b2c3 --worktree',
+        '',
+        '# With shell integration (auto-cd into worktree)',
+        'eval "$(sc init bash)"   # One-time setup in ~/.bashrc',
+        'sc claim a1b2c3 --worktree  # Auto-cd\'s into worktree',
+        '',
+        '# Without shell integration: use eval for worktree cd',
+        'eval "$(sc claim --cd --worktree a1b2c3)"',
         '',
         '# ... do work, commit changes ...',
         'sc done a1b2c3  # Works from any directory',
       ],
       notes: [
         'Parent specs (specs with children) cannot be claimed. Work on their child specs instead.',
-        'The worktree is created as a sibling to the repository root.',
-        'Claim and done/release commands work from any directory in the repository.',
-        'With --cd: Status info goes to stderr, cd command to stdout (safe for eval).',
+        'Branch mode (default): requires a clean working tree. Stash or commit changes first.',
+        'Worktree mode (--worktree): creates an isolated workspace as a sibling to the repository root.',
+        'In bare repositories, worktree mode is used automatically.',
+        'With --cd (worktree mode): Status info goes to stderr, cd command to stdout (safe for eval).',
         'On failure with --cd: stdout is empty, preventing eval from executing garbage.',
-        'Set up sc init for automatic cd on every claim. See: sc init --help',
-        'With shell integration active, bypass auto-cd with: command sc claim <id>',
+        'Set up sc init for automatic cd on every claim in worktree mode. See: sc init --help',
       ],
     };
   },
 
   async execute(args: string[]): Promise<number> {
     const cdFlag = args.includes('--cd') || args.includes('-C');
-    const filteredArgs = args.filter(a => a !== '--cd' && a !== '-C');
+    const worktreeFlag = args.includes('--worktree') || args.includes('-W');
+    const filteredArgs = args.filter(a => !FLAG_TOKENS.includes(a));
 
     const specId = filteredArgs[0];
     if (!specId) {
@@ -82,27 +92,44 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const result = await claimSpec(spec);
+    const result = await claimSpec(spec, { useWorktree: worktreeFlag });
 
     if (!result.success) {
       console.error(`Failed to claim spec: ${result.error}`);
       return 1;
     }
 
-    const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
-
-    if (cdFlag) {
-      console.error(`Claimed: ${spec.title} (in_progress)`);
-      const escapedPath = worktreePath.replace(/'/g, "'\\''");
-      console.log(`cd '${escapedPath}'`);
-    } else {
-      console.log(`Claimed: ${spec.title}`);
-      console.log(`  Status: in_progress`);
-      console.log(`\nTo start working:`);
-      console.log(`  cd ${worktreePath}`);
-      console.log(`\nTip: Set up shell integration to auto-cd on claim. See: sc init --help`);
+    if (result.worktreePath) {
+      return printWorktreeSuccess(spec.title, result.worktreePath, cdFlag);
     }
 
-    return 0;
+    return printBranchSuccess(spec.title, result.branchName, cdFlag);
   },
 };
+
+function printWorktreeSuccess(title: string, worktreePath: string, cdFlag: boolean): number {
+  if (cdFlag) {
+    console.error(`Claimed: ${title} (in_progress)`);
+    const escapedPath = worktreePath.replace(/'/g, "'\\''");
+    console.log(`cd '${escapedPath}'`);
+  } else {
+    console.log(`Claimed: ${title}`);
+    console.log(`  Status: in_progress`);
+    console.log(`  Worktree: ${worktreePath}`);
+    console.log(`\nTo start working:`);
+    console.log(`  cd ${worktreePath}`);
+    console.log(`\nTip: Set up shell integration to auto-cd on claim. See: sc init --help`);
+  }
+  return 0;
+}
+
+function printBranchSuccess(title: string, branchName: string, cdFlag: boolean): number {
+  if (cdFlag) {
+    console.error(`Claimed: ${title} (in_progress)`);
+  } else {
+    console.log(`Claimed: ${title}`);
+    console.log(`  Status: in_progress`);
+    console.log(`  Branch: ${branchName}`);
+  }
+  return 0;
+}

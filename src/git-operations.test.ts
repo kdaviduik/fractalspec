@@ -11,6 +11,9 @@ import {
   hasUncommittedChanges,
   hasUnpushedCommits,
   isDetachedHead,
+  getDefaultBranch,
+  isBareRepository,
+  hasUnmergedCommits,
 } from './git-operations';
 
 const TEST_BRANCH_PREFIX = 'test-sc-git-';
@@ -205,5 +208,39 @@ describe('isDetachedHead', () => {
   test('returns true for non-existent path (fail-safe)', async () => {
     const detached = await isDetachedHead('/nonexistent/path/xyz123');
     expect(detached).toBe(true);
+  });
+});
+
+describe('getDefaultBranch', () => {
+  test('returns a branch name string', async () => {
+    const branch = await getDefaultBranch();
+    expect(typeof branch).toBe('string');
+    expect(branch.length).toBeGreaterThan(0);
+  });
+
+  test('returns main or master for this repo', async () => {
+    const branch = await getDefaultBranch();
+    expect(['main', 'master']).toContain(branch);
+  });
+});
+
+describe('isBareRepository', () => {
+  test('returns false for regular repository', async () => {
+    const isBare = await isBareRepository();
+    expect(isBare).toBe(false);
+  });
+});
+
+describe('hasUnmergedCommits', () => {
+  test('returns false when branch and base are the same', async () => {
+    const currentBranch = await getCurrentBranch();
+    const result = await hasUnmergedCommits(currentBranch, currentBranch);
+    expect(result).toBe(false);
+  });
+
+  test('returns boolean for valid branch comparison', async () => {
+    const currentBranch = await getCurrentBranch();
+    const result = await hasUnmergedCommits(currentBranch, currentBranch);
+    expect(typeof result).toBe('boolean');
   });
 });

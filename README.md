@@ -31,7 +31,7 @@ sc list --ready
 # Set up shell integration (auto-cd on claim)
 eval "$(sc init bash)"  # or zsh/fish
 
-# Claim and start working (auto-cd's into worktree)
+# Claim and start working (creates branch, checks it out)
 sc claim <spec-id>
 ```
 
@@ -40,7 +40,7 @@ sc claim <spec-id>
 - **Hierarchical specs** - Parent/child relationships for decomposition
 - **Dependency tracking** - Specs can block other specs
 - **EARS validation** - Structured requirement syntax ensures testable, unambiguous requirements
-- **Git worktree workflow** - Isolated work environments per spec
+- **Git branch & worktree workflow** - Branch-based work by default, isolated worktrees opt-in
 - **Status tracking** - Multiple status states including ready, in_progress, closed, and more (see CLAUDE.md)
 
 ## Documentation

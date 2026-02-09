@@ -50,8 +50,8 @@ ${bold('DESCRIPTION')}
   (Easy Approach to Requirements Syntax) ensuring unambiguous, verifiable criteria.
 
   Specs form a tree through parent/child relationships and can have blocking
-  dependencies. The tool uses dedicated git worktrees for each active spec,
-  providing workspace isolation and preventing concurrent edits.
+  dependencies. By default, claiming a spec creates a local branch. Use
+  --worktree for isolated git worktrees that prevent concurrent edits.
 
   Status transitions: ready → in_progress → closed
   Blocked specs cannot start until their blockers reach a terminal status.
@@ -77,23 +77,26 @@ ${bold('STATUS ICONS')}
   ◇  deferred    - Postponed
   ✕  not_planned - Will not implement
 
-${bold('WORKTREE WORKFLOW')}
-  When claiming a spec, sc creates a dedicated git worktree (sibling to repository root)
-  with branch work-<slug>-<spec-id>. Commands work from any directory in the repository:
-
-    1. sc claim <id>              # Creates worktree, sets in_progress
+${bold('BRANCH & WORKTREE WORKFLOW')}
+  ${underline('Branch mode')} (default):
+    1. sc claim <id>              # Creates branch, checks it out, sets in_progress
     2. [do the work, commit]
-    3. sc done <id>               # Mark complete, remove worktree (works from anywhere)
+    3. sc done <id>               # Mark complete, delete branch (works from anywhere)
 
-  Requires shell integration (one-time setup):
+  ${underline('Worktree mode')} (--worktree):
+    1. sc claim <id> --worktree   # Creates worktree + branch, sets in_progress
+    2. [do the work, commit]
+    3. sc done <id>               # Mark complete, remove worktree + branch
+
+  Branch mode requires a clean working tree. Use --worktree for isolated workspaces.
+  In bare repositories, worktree mode is used automatically.
+
+  Shell integration (auto-cd in worktree mode):
     eval "$(sc init bash)"        # Add to ~/.bashrc
     eval "$(sc init zsh)"         # Add to ~/.zshrc
     sc init fish | source         # Add to ~/.config/fish/config.fish
 
-  Without shell integration:  eval "$(sc claim --cd <id>)"
-
-  NOTE: If run from inside the work worktree being removed, you will be left
-  in a deleted directory. Navigate to a different directory afterward if needed.
+  Without shell integration:  eval "$(sc claim --cd --worktree <id>)"
 
 ${bold('COMMANDS')}
   ${underline('Setup')}
@@ -111,21 +114,22 @@ ${bold('COMMANDS')}
     ${underline('show')} ${dim('<id>')}              Display full spec details including metadata
 
   ${underline('Workflow')}
-    ${underline('claim')} ${dim('<id>')} ${dim('[--cd]')}       Claim spec for work
-                           - Creates worktree (sibling to repository root)
-                           - Creates branch work-<slug>-<id>
+    ${underline('claim')} ${dim('<id>')} ${dim('[--worktree] [--cd]')}
+                           Claim spec for work
+                           - Creates branch work-<slug>-<id> (default: branch mode)
                            - Sets status to in_progress
-      --cd, -C             Output cd command for shell eval (auto-cd)
+      --worktree, -W       Create isolated worktree instead of local branch
+      --cd, -C             Output cd command for shell eval (worktree mode)
 
     ${underline('release')} ${dim('<id>')} ${dim('[--force]')}  Abandon work and reset to ready
                            - Safety checks for uncommitted/unpushed work
-                           - Removes worktree and branch
+                           - Removes work branch (and worktree if present)
                            - Resets status to ready
       --force, -f          Bypass safety checks (may lose work)
 
     ${underline('done')} ${dim('<id>')} ${dim('[--force]')}     Mark spec complete
                            - Safety checks for uncommitted/unpushed work
-                           - Removes worktree and branch
+                           - Removes work branch (and worktree if present)
                            - Sets status to closed
       --force, -f          Bypass safety checks (may lose work)
 
@@ -192,16 +196,19 @@ ${bold('EXAMPLES')}
   sc list --ready --priority 8-10  # Show only highest-priority ready specs
   sc list --tree                # Understand hierarchy
 
-  # One-time setup: shell integration
-  eval "$(sc init bash)"         # Add to ~/.bashrc (or zsh/fish equivalent)
-
-  # Working on a spec (with shell integration active)
-  sc claim a1b2c3               # Claims AND cd's into worktree
+  # Working on a spec (branch mode - default)
+  sc claim a1b2c3               # Creates branch, checks it out
   # ... do work, git commit ...
   sc done a1b2c3                # Complete (works from any directory)
 
-  # Without shell integration: manual cd or eval
-  eval "$(sc claim --cd a1b2c3)"  # Claims and changes directory
+  # Working on a spec (worktree mode - isolated workspace)
+  sc claim a1b2c3 --worktree    # Creates worktree + branch
+  # ... do work, git commit ...
+  sc done a1b2c3                # Complete, removes worktree
+
+  # Shell integration (for worktree auto-cd)
+  eval "$(sc init bash)"         # Add to ~/.bashrc (or zsh/fish equivalent)
+  sc claim a1b2c3 --worktree    # Auto-cd's into worktree with shell integration
 
   # Creating specs
   sc create                     # Create root spec (prompted for title)

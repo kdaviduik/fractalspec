@@ -9,7 +9,7 @@ import type { CommandHelp } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
 import { findReadySpecsSorted, getStatusSummary, parsePriorityFilter } from '../spec-query';
-import { getWorkWorktreePath } from '../git-operations';
+import { getWorkBranchName, findWorktreeByBranch } from '../git-operations';
 
 export const command: CommandHandler = {
   name: 'list',
@@ -220,8 +220,13 @@ async function printAllSpecs(specs: Spec[]): Promise<number> {
     const statusIcon = getStatusIcon(spec.status);
     let suffix = '';
     if (spec.status === 'in_progress') {
-      const worktreePath = await getWorkWorktreePath(spec.id, spec.title);
-      suffix = ` [${worktreePath}]`;
+      const branchName = getWorkBranchName(spec.id, spec.title);
+      const worktree = await findWorktreeByBranch(branchName);
+      if (worktree) {
+        suffix = ` [${worktree.path}]`;
+      } else {
+        suffix = ` [branch: ${branchName}]`;
+      }
     }
     console.log(`  ${statusIcon} ${spec.id}  ${spec.title}${suffix}`);
   }

@@ -1,3 +1,8 @@
+---
+name: sc-spec-workflow
+description: Guide for spec-driven development using the sc CLI tool. Covers claim → implement → complete workflow, EARS requirements patterns, and fractalspec tooling. Use when user mentions "sc", "spec", "fractalspec", or when working with specification files.
+---
+
 # sc Spec Workflow
 
 Guide for working with the `sc` spec management CLI. Use this skill when implementing features defined by specs.
@@ -22,15 +27,18 @@ sc list --ready --priority 8-10
 ### 2. Claim the Spec
 
 ```bash
-# With shell integration (recommended one-time setup: eval "$(sc init bash)")
+# Branch mode (default) — creates branch in current repo
 sc claim <spec-id>
 
-# Without shell integration: use eval or manual cd
-eval "$(sc claim --cd <spec-id>)"
-cd ../work-<slug>-<spec-id>
+# Worktree mode — creates isolated worktree
+sc claim <spec-id> --worktree
+
+# With shell integration (worktree mode auto-cd)
+eval "$(sc init bash)"  # One-time setup
+sc claim <spec-id> --worktree
 ```
 
-This sets status to `in_progress` and creates a dedicated worktree (sibling to repository root). With shell integration (`sc init`), claiming automatically cd's into the worktree.
+This sets status to `in_progress`. Branch mode (default) creates and checks out a work branch in your current repo — requires a clean working tree. Worktree mode (`--worktree`) creates a dedicated worktree (sibling to repository root) for isolated work.
 
 ### 3. Understand Requirements
 
@@ -74,7 +82,7 @@ sc done <spec-id>
 - The command will error with actionable instructions
 - Use `--force` to bypass (with warning): `sc done <spec-id> --force`
 
-This sets status to `closed` and removes the work worktree. Commands can be run from any directory in the repository.
+This sets status to `closed` and removes the work branch (and worktree if one exists). Commands can be run from any directory in the repository.
 
 ## PR Tracking
 
@@ -185,12 +193,15 @@ sc show <spec-id>  # Shows blockers in spec details
 - Released it
 - Never claimed it
 
+### Dirty Working Tree in Branch Mode
+Branch mode (default) requires a clean working tree since it checks out a new branch in-place. If you have uncommitted changes, `sc claim` will fail with a clear error. Either commit or stash your changes first, or use `--worktree` for an isolated workspace that doesn't affect your current working tree.
+
 ### Validate Early
 Run `sc validate` before marking complete. Invalid EARS requirements indicate unclear specifications.
 
-## Worktree Convention
+## Claim Modes
 
-When you claim a spec, `sc` creates a dedicated git worktree (sibling to repository root) with branch `work-<slug>-<spec-id>`. Always work in this worktree. The worktree and branch are automatically removed when you run `sc done` or `sc release`. Commands can be run from any directory in the repository.
+By default, `sc claim` creates a branch in the current repository (branch mode). Use `--worktree` for an isolated worktree (sibling to repository root) with branch `work-<slug>-<spec-id>`. Branch mode requires a clean working tree. The branch (and worktree if present) is automatically removed when you run `sc done` or `sc release`.
 
 ## See Also
 

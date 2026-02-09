@@ -6,7 +6,6 @@ import { command } from './claim';
 import { setSpecsRoot, writeSpec } from '../spec-filesystem';
 import type { Spec } from '../types';
 import * as claimLogic from '../claim-logic';
-import * as gitOps from '../git-operations';
 
 let testDir: string;
 let specsDir: string;
@@ -66,7 +65,14 @@ describe('sc claim - help', () => {
   test('provides help documentation', () => {
     const help = command.getHelp?.();
     expect(help).toBeDefined();
+    expect(help?.synopsis).toContain('--worktree');
     expect(help?.synopsis).toContain('--cd');
+  });
+
+  test('includes --worktree flag in flags list', () => {
+    const help = command.getHelp?.();
+    expect(help?.flags?.some((f) => f.flag.includes('--worktree'))).toBe(true);
+    expect(help?.flags?.some((f) => f.flag.includes('-W'))).toBe(true);
   });
 
   test('includes --cd flag in flags list', () => {
@@ -75,18 +81,17 @@ describe('sc claim - help', () => {
     expect(help?.flags?.some((f) => f.flag.includes('-C'))).toBe(true);
   });
 
-  test('includes sc init as recommended setup in help', () => {
+  test('includes branch mode as default in description', () => {
     const help = command.getHelp?.();
-    const examples = help?.examples?.join(' ') ?? '';
-    expect(examples).toContain('sc init');
+    expect(help?.description).toContain('branch');
+    expect(help?.description).toContain('--worktree');
   });
 
-  test('includes notes about --cd behavior', () => {
+  test('includes examples for both modes', () => {
     const help = command.getHelp?.();
-    const notes = help?.notes?.join(' ') ?? '';
-    expect(notes).toContain('--cd');
-    expect(notes).toContain('stderr');
-    expect(notes).toContain('stdout');
+    const examples = help?.examples?.join(' ') ?? '';
+    expect(examples).toContain('--worktree');
+    expect(examples).toContain('sc claim a1b2c3');
   });
 });
 
@@ -183,15 +188,14 @@ describe('sc claim - parent spec guard', () => {
       success: true,
       branchName: 'work-leaf-task-l1f2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-leaf-task-l1f2');
 
     const result = await command.execute(['l1f2']);
     expect(result).toBe(0);
   });
 });
 
-describe('sc claim - default behavior (without --cd)', () => {
-  test('outputs human-readable success message with init hint', async () => {
+describe('sc claim - default behavior (branch mode)', () => {
+  test('outputs branch name in success message', async () => {
     const spec = makeSpec('a1b2');
     await writeSpec(spec);
 
@@ -199,18 +203,15 @@ describe('sc claim - default behavior (without --cd)', () => {
       success: true,
       branchName: 'work-test-a1b2-a1b2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
 
     const result = await command.execute(['a1b2']);
     expect(result).toBe(0);
     expect(logMessages.join(' ')).toContain('Claimed: Test a1b2');
     expect(logMessages.join(' ')).toContain('in_progress');
-    expect(logMessages.join(' ')).toContain('To start working');
-    expect(logMessages.join(' ')).toContain('cd');
-    expect(logMessages.join(' ')).toContain('sc init --help');
+    expect(logMessages.join(' ')).toContain('Branch: work-test-a1b2-a1b2');
   });
 
-  test('outputs worktree path in cd instruction', async () => {
+  test('does not show worktree path or cd instructions', async () => {
     const spec = makeSpec('a1b2');
     await writeSpec(spec);
 
@@ -218,15 +219,13 @@ describe('sc claim - default behavior (without --cd)', () => {
       success: true,
       branchName: 'work-test-a1b2-a1b2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
 
     await command.execute(['a1b2']);
-    expect(logMessages.join(' ')).toContain('/abs/path/work-test-a1b2-a1b2');
+    expect(logMessages.join(' ')).not.toContain('To start working');
+    expect(logMessages.join(' ')).not.toContain('sc init');
   });
-});
 
-describe('sc claim --cd flag', () => {
-  test('outputs only cd command to stdout on success', async () => {
+  test('--cd in branch mode outputs status to stderr only', async () => {
     const spec = makeSpec('a1b2');
     await writeSpec(spec);
 
@@ -234,42 +233,83 @@ describe('sc claim --cd flag', () => {
       success: true,
       branchName: 'work-test-a1b2-a1b2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
 
     const result = await command.execute(['--cd', 'a1b2']);
     expect(result).toBe(0);
+    expect(logMessages).toHaveLength(0);
+    expect(errorMessages.join(' ')).toContain('Claimed: Test a1b2');
+  });
+});
+
+describe('sc claim --worktree flag', () => {
+  test('passes useWorktree to claimSpec', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    const claimSpy = spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/abs/path/work-test-a1b2-a1b2',
+    });
+
+    await command.execute(['--worktree', 'a1b2']);
+    expect(claimSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a1b2' }),
+      { useWorktree: true },
+    );
+  });
+
+  test('default mode passes useWorktree=false', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    const claimSpy = spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+    });
+
+    await command.execute(['a1b2']);
+    expect(claimSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a1b2' }),
+      { useWorktree: false },
+    );
+  });
+
+  test('outputs worktree path and cd instructions', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/abs/path/work-test-a1b2-a1b2',
+    });
+
+    const result = await command.execute(['--worktree', 'a1b2']);
+    expect(result).toBe(0);
+    expect(logMessages.join(' ')).toContain('Claimed: Test a1b2');
+    expect(logMessages.join(' ')).toContain('in_progress');
+    expect(logMessages.join(' ')).toContain('Worktree: /abs/path/work-test-a1b2-a1b2');
+    expect(logMessages.join(' ')).toContain('To start working');
+    expect(logMessages.join(' ')).toContain('sc init --help');
+  });
+
+  test('--cd with worktree outputs cd command to stdout', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/abs/path/work-test-a1b2-a1b2',
+    });
+
+    const result = await command.execute(['--cd', '--worktree', 'a1b2']);
+    expect(result).toBe(0);
     expect(logMessages).toHaveLength(1);
     expect(logMessages[0]).toBe("cd '/abs/path/work-test-a1b2-a1b2'");
-  });
-
-  test('outputs status info to stderr on success', async () => {
-    const spec = makeSpec('a1b2');
-    await writeSpec(spec);
-
-    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
-      success: true,
-      branchName: 'work-test-a1b2-a1b2',
-    });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
-
-    await command.execute(['--cd', 'a1b2']);
     expect(errorMessages).toHaveLength(1);
     expect(errorMessages[0]).toContain('Claimed: Test a1b2');
-    expect(errorMessages[0]).toContain('in_progress');
-  });
-
-  test('outputs absolute path (starts with /)', async () => {
-    const spec = makeSpec('a1b2');
-    await writeSpec(spec);
-
-    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
-      success: true,
-      branchName: 'work-test-a1b2-a1b2',
-    });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/home/user/work-test-a1b2-a1b2');
-
-    await command.execute(['--cd', 'a1b2']);
-    expect(logMessages[0]).toMatch(/^cd '\/.*'$/);
   });
 
   test('properly single-quotes path for shell safety', async () => {
@@ -279,10 +319,10 @@ describe('sc claim --cd flag', () => {
     spyOn(claimLogic, 'claimSpec').mockResolvedValue({
       success: true,
       branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/path/to/work-test-a1b2-a1b2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/path/to/work-test-a1b2-a1b2');
 
-    await command.execute(['--cd', 'a1b2']);
+    await command.execute(['--cd', '--worktree', 'a1b2']);
     expect(logMessages[0]).toBe("cd '/path/to/work-test-a1b2-a1b2'");
   });
 
@@ -293,15 +333,57 @@ describe('sc claim --cd flag', () => {
     spyOn(claimLogic, 'claimSpec').mockResolvedValue({
       success: true,
       branchName: 'work-test-a1b2-a1b2',
+      worktreePath: "/path/with'quote/work-a1b2",
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue("/path/with'quote/work-a1b2");
 
-    await command.execute(['--cd', 'a1b2']);
+    await command.execute(['--cd', '--worktree', 'a1b2']);
     expect(logMessages[0]).toBe("cd '/path/with'\\''quote/work-a1b2'");
   });
 });
 
-describe('sc claim --cd flag position variations', () => {
+describe('sc claim - flag position variations', () => {
+  test('accepts --worktree before spec ID', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/abs/path/work-test-a1b2-a1b2',
+    });
+
+    const result = await command.execute(['--worktree', 'a1b2']);
+    expect(result).toBe(0);
+  });
+
+  test('accepts --worktree after spec ID', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/abs/path/work-test-a1b2-a1b2',
+    });
+
+    const result = await command.execute(['a1b2', '--worktree']);
+    expect(result).toBe(0);
+  });
+
+  test('accepts -W short flag', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
+      success: true,
+      branchName: 'work-test-a1b2-a1b2',
+      worktreePath: '/abs/path/work-test-a1b2-a1b2',
+    });
+
+    const result = await command.execute(['-W', 'a1b2']);
+    expect(result).toBe(0);
+  });
+
   test('accepts --cd before spec ID', async () => {
     const spec = makeSpec('a1b2');
     await writeSpec(spec);
@@ -310,41 +392,9 @@ describe('sc claim --cd flag position variations', () => {
       success: true,
       branchName: 'work-test-a1b2-a1b2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
 
     const result = await command.execute(['--cd', 'a1b2']);
     expect(result).toBe(0);
-    expect(logMessages[0]).toContain("cd '");
-  });
-
-  test('accepts --cd after spec ID', async () => {
-    const spec = makeSpec('a1b2');
-    await writeSpec(spec);
-
-    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
-      success: true,
-      branchName: 'work-test-a1b2-a1b2',
-    });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
-
-    const result = await command.execute(['a1b2', '--cd']);
-    expect(result).toBe(0);
-    expect(logMessages[0]).toContain("cd '");
-  });
-
-  test('accepts -C short flag before spec ID', async () => {
-    const spec = makeSpec('a1b2');
-    await writeSpec(spec);
-
-    spyOn(claimLogic, 'claimSpec').mockResolvedValue({
-      success: true,
-      branchName: 'work-test-a1b2-a1b2',
-    });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
-
-    const result = await command.execute(['-C', 'a1b2']);
-    expect(result).toBe(0);
-    expect(logMessages[0]).toContain("cd '");
   });
 
   test('accepts -C short flag after spec ID', async () => {
@@ -355,11 +405,9 @@ describe('sc claim --cd flag position variations', () => {
       success: true,
       branchName: 'work-test-a1b2-a1b2',
     });
-    spyOn(gitOps, 'getWorkWorktreePath').mockResolvedValue('/abs/path/work-test-a1b2-a1b2');
 
     const result = await command.execute(['a1b2', '-C']);
     expect(result).toBe(0);
-    expect(logMessages[0]).toContain("cd '");
   });
 });
 

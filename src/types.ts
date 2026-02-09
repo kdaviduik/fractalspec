@@ -66,7 +66,12 @@ export interface CommandHandler {
 export interface ClaimResult {
   success: boolean;
   branchName: string;
+  worktreePath?: string;
   error?: string;
+}
+
+export interface ClaimOptions {
+  useWorktree?: boolean;
 }
 
 export type ValidationSeverity = 'error' | 'warning';

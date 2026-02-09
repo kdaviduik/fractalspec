@@ -15,7 +15,7 @@ Quick lookup: "I changed X, what docs do I update?"
 **Docs to Update**:
 - CLAUDE.md
   - "Installation & Setup" section - worktree path description
-  - "Worktree Convention" section - location and cleanup
+  - "Claim Modes" section - location and cleanup
   - "Agent Workflow" section - workflow examples
   - "Configuration" note - specs root path
   - "Help System Standards" section - cleanup requirement references
@@ -23,11 +23,11 @@ Quick lookup: "I changed X, what docs do I update?"
   - "Claim the Spec" section
   - "Complete" section
   - "Common Pitfalls" section
-  - "Worktree Convention" section
+  - "Claim Modes" section
 - src/commands/claim.ts - getHelp() description and examples
 - src/commands/done.ts - getHelp() description and examples
 - src/commands/release.ts - getHelp() description and examples
-- src/command-router.ts - WORKTREE WORKFLOW section in printHelp()
+- src/command-router.ts - BRANCH & WORKTREE WORKFLOW section in printHelp()
 - README.md - if it contains worktree-related documentation
 - src/commands/create.ts - template spec content if it shows path examples
 - .docs/dependencies.md - this file (update after implementation)
@@ -77,7 +77,7 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/claim-logic.ts (checkClaimSafety function)
 
 **Docs to Update**:
-- CLAUDE.md - "Worktree Convention" section (locations and behavior)
+- CLAUDE.md - "Claim Modes" section (locations and behavior)
 - CLAUDE.md - "Agent Workflow" section (when and how to use worktrees)
 - CLAUDE.md - "Workflow" command table (safety checks, --force flag)
 - .claude/skills/sc-spec-workflow.md (worktree lifecycle, safety checks)
@@ -140,10 +140,10 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/commands/claim.ts (--cd flag behavior, hint for non-init users)
 
 **Docs to Update**:
-- CLAUDE.md - "Installation & Setup" section (sc init setup step), "Quick Start", "Commands Reference" (Setup section), "Worktree Convention", "Agent Workflow" claiming section
+- CLAUDE.md - "Installation & Setup" section (sc init setup step), "Quick Start", "Commands Reference" (Setup section), "Claim Modes", "Agent Workflow" claiming section
 - .claude/skills/sc-spec-workflow.md - "Claim the Spec" section (sc init as primary approach)
 - src/commands/claim.ts - getHelp() examples and notes (sc init references)
-- src/command-router.ts - WORKTREE WORKFLOW section, Setup section in COMMANDS, EXAMPLES section
+- src/command-router.ts - BRANCH & WORKTREE WORKFLOW section, Setup section in COMMANDS, EXAMPLES section
 - README.md - Quick Start section (sc init mention)
 - .docs/dependencies.md - this file
 

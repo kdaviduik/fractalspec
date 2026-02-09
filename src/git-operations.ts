@@ -129,8 +129,10 @@ export async function deleteBranch(branchName: string): Promise<void> {
   await runGit(['branch', '-D', branchName]);
 }
 
-export async function checkoutBranch(branchName: string): Promise<void> {
-  await runGit(['checkout', branchName]);
+export async function checkoutBranch(branchName: string, force?: boolean): Promise<void> {
+  const args = ['checkout', branchName];
+  if (force) args.push('--force');
+  await runGit(args);
 }
 
 export async function mergeBranch(branchName: string): Promise<void> {
@@ -269,6 +271,46 @@ export async function isDetachedHead(worktreePath: string): Promise<boolean> {
   try {
     await runGit(['symbolic-ref', '-q', 'HEAD'], { cwd: worktreePath });
     return false;
+  } catch (error) {
+    if (error instanceof GitTimeoutError) {
+      throw error;
+    }
+    return true;
+  }
+}
+
+/**
+ * Determine the default branch for the repository.
+ * Tries origin/HEAD first, then falls back to checking for main/master.
+ * Throws if no default branch can be determined.
+ */
+export async function getDefaultBranch(): Promise<string> {
+  try {
+    const ref = await runGit(['symbolic-ref', 'refs/remotes/origin/HEAD']);
+    return ref.replace('refs/remotes/origin/', '');
+  } catch {
+    if (await branchExists('main')) return 'main';
+    if (await branchExists('master')) return 'master';
+    throw new GitError(
+      'Could not determine default branch. No origin/HEAD, main, or master found.',
+      ''
+    );
+  }
+}
+
+export async function isBareRepository(): Promise<boolean> {
+  const result = await runGit(['rev-parse', '--is-bare-repository']);
+  return result === 'true';
+}
+
+/**
+ * Check if a branch has commits not present on a base branch.
+ * Works without being on either branch — compares refs directly.
+ */
+export async function hasUnmergedCommits(branchName: string, baseBranch: string): Promise<boolean> {
+  try {
+    const count = await runGit(['rev-list', `${baseBranch}..${branchName}`, '--count']);
+    return parseInt(count, 10) > 0;
   } catch (error) {
     if (error instanceof GitTimeoutError) {
       throw error;

@@ -56,10 +56,11 @@ export const command: CommandHandler = {
     return {
       name: 'sc init',
       synopsis: 'sc init <bash|zsh|fish>',
-      description: `Output a shell function that wraps sc to auto-cd into worktrees on claim.
+      description: `Output a shell function that wraps sc to auto-cd on claim.
 
-  The generated function intercepts all 'sc claim' invocations and automatically
-  changes directory into the new worktree. Non-claim commands pass through unchanged.
+  The generated function intercepts all 'sc claim' invocations. In worktree mode
+  (--worktree), it automatically changes directory into the new worktree. In branch
+  mode (default), no cd is needed since the branch is checked out in place.
 
   Supported shells: bash, zsh, fish.
 
@@ -74,8 +75,8 @@ export const command: CommandHandler = {
         '# Fish: add to ~/.config/fish/config.fish',
         'sc init fish | source',
         '',
-        '# Then claiming auto-cd\'s into the worktree',
-        'sc claim a1b2c3',
+        '# Then claiming with --worktree auto-cd\'s into the worktree',
+        'sc claim a1b2c3 --worktree',
       ],
       notes: [
         'To claim without auto-cd (bypass the wrapper): command sc claim <id>',

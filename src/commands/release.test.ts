@@ -265,6 +265,46 @@ describe('sc release - safety checks', () => {
   });
 });
 
+describe('sc release - force threading', () => {
+  test('passes force=true to releaseSpec when --force is used', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    const mockSafetyResult: SafetyCheckResult = {
+      safe: false,
+      issues: ['uncommitted changes'],
+      worktreePath: '/path/to/worktree',
+      branchName: 'work-test-a1b2-a1b2',
+    };
+
+    spyOn(claimLogic, 'isSpecClaimed').mockResolvedValue(true);
+    spyOn(claimLogic, 'checkClaimSafety').mockResolvedValue(mockSafetyResult);
+    const releaseSpy = spyOn(claimLogic, 'releaseSpec').mockResolvedValue();
+
+    await command.execute(['a1b2', '--force']);
+    expect(releaseSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1b2' }), true);
+  });
+
+  test('passes force=false to releaseSpec when --force is not used', async () => {
+    const spec = makeSpec('a1b2');
+    await writeSpec(spec);
+
+    const mockSafetyResult: SafetyCheckResult = {
+      safe: true,
+      issues: [],
+      worktreePath: '/path/to/worktree',
+      branchName: 'work-test-a1b2-a1b2',
+    };
+
+    spyOn(claimLogic, 'isSpecClaimed').mockResolvedValue(true);
+    spyOn(claimLogic, 'checkClaimSafety').mockResolvedValue(mockSafetyResult);
+    const releaseSpy = spyOn(claimLogic, 'releaseSpec').mockResolvedValue();
+
+    await command.execute(['a1b2']);
+    expect(releaseSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1b2' }), false);
+  });
+});
+
 describe('sc release - flag parsing', () => {
   test('accepts --force flag before spec ID', async () => {
     const spec = makeSpec('a1b2');

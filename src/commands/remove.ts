@@ -206,7 +206,7 @@ export const command: CommandHandler = {
   - Cannot be undone (specs live outside git tracking in bare repository)
 
 Preconditions:
-  - Spec must NOT be claimed (no active worktree)
+  - Spec must NOT be claimed (no active work branch or worktree)
   - No other specs can depend on it (no specs have this ID in their blockedBy array)
 
 Child handling:

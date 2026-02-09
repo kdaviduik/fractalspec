@@ -64,7 +64,7 @@ bun run typecheck
 **Configuration:**
 - Specs are stored in `docs/specs/` directory (resolved from repository root)
 - Each spec lives in `<slug>-<id>/<slug>-<id>.md`
-- Worktrees are created as siblings to the repository root at `../work-<slug>-<id>/`
+- With `--worktree`: worktrees are created as siblings to the repository root at `../work-<slug>-<id>/`
 
 ## Quick Start
 
@@ -75,8 +75,11 @@ sc list --ready
 # Get THE next task to work on
 sc list --ready --limit 1
 
-# Claim a spec and start working (auto-cd's with shell integration)
+# Claim a spec (creates branch in current repo)
 sc claim ABC123
+
+# Claim with isolated worktree instead
+sc claim ABC123 --worktree
 
 # View spec details
 sc show ABC123
@@ -118,11 +121,11 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc claim <id> [--cd]` | Claim leaf spec, set to `in_progress`, create worktree (parent specs cannot be claimed) | `sc claim ABC123` |
+| `sc claim <id> [--worktree] [--cd]` | Claim leaf spec, set to `in_progress`, create branch (default) or worktree (parent specs cannot be claimed) | `sc claim ABC123` |
 | `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
 | `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
 
-**Auto-cd**: Set up shell integration with `sc init` for automatic cd on every claim. Without shell integration, use `eval "$(sc claim --cd ABC123)"`.
+**Auto-cd**: Set up shell integration with `sc init` for automatic cd in worktree mode. Without shell integration, use `eval "$(sc claim --cd --worktree ABC123)"`. In branch mode (default), no cd is needed.
 
 **Safety checks**: `done` and `release` verify no uncommitted changes or unpushed commits exist before proceeding. Use `--force` to bypass (with warning).
 
@@ -234,18 +237,30 @@ Priority is a numeric value from 1 to 10, where **10 is the highest priority**.
 
 **Sorting behavior**: `sc list --ready` shows only leaf specs (parent specs with children are excluded). Results are sorted by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title.
 
-## Worktree Convention
+## Claim Modes
 
-When you claim a spec, `sc` creates a dedicated git worktree for that work:
+`sc claim` supports two modes for isolating work:
+
+### Branch Mode (default)
+
+Creates a branch `work-<slug>-<spec-id>` and checks it out in the current repository.
+
+- **Requires**: Clean working tree (no uncommitted changes). Stash or commit first.
+- **Cleanup**: `sc done` or `sc release` switches to the default branch and deletes the work branch.
+- **No cd needed**: Work happens in the current repository directory.
+
+### Worktree Mode (`--worktree`)
+
+Creates a dedicated git worktree with its own branch, isolated from the main working tree.
 
 - **Location**: Sibling to repository root at `../work-<slug>-<spec-id>/`
 - **Branch**: `work-<slug>-<spec-id>` (checked out in the worktree)
-- **Isolation**: Git prevents the same branch from being checked out in multiple worktrees, ensuring exclusive access
-- **Cleanup**: Running `sc done` or `sc release` automatically removes both the worktree and branch
-- **Command execution**: Commands can be run from any directory in the repository
-- **Auto-cd**: With shell integration (`sc init`), `sc claim` automatically cd's into the worktree
+- **Isolation**: Git prevents the same branch from being checked out in multiple worktrees
+- **Cleanup**: `sc done` or `sc release` removes both the worktree and branch
+- **Auto-cd**: With shell integration (`sc init`), `sc claim --worktree` automatically cd's into the worktree
+- **Bare repos**: Worktree mode is used automatically in bare repositories
 
-**Note**: If you run `sc done` or `sc release` from inside the work worktree being removed, you will be left in a deleted directory. Navigate elsewhere if this happens.
+**Note**: In worktree mode, if you run `sc done` or `sc release` from inside the work worktree being removed, you will be left in a deleted directory. Navigate elsewhere if this happens.
 
 ## EARS Patterns
 
@@ -317,12 +332,14 @@ sc list --tree
 ### Claiming & Working
 
 ```bash
-# 1. Claim the spec (auto-cd's with shell integration)
+# 1. Claim the spec (branch mode - default)
 sc claim ABC123
 
-# Without shell integration: use eval or manual cd
-eval "$(sc claim --cd ABC123)"
-cd ../work-feature-name-ABC123
+# Or with isolated worktree
+sc claim ABC123 --worktree
+
+# With shell integration in worktree mode: auto-cd
+eval "$(sc claim --cd --worktree ABC123)"
 
 # 2. Do the work...
 
@@ -333,7 +350,7 @@ git add . && git commit -m "feat: implement feature per ABC123"
 ### Completing Work
 
 ```bash
-# Mark complete (sets status to closed, removes worktree)
+# Mark complete (sets status to closed, removes work branch and worktree if present)
 # Can be run from any directory in the repository
 sc done ABC123
 ```
@@ -343,7 +360,7 @@ sc done ABC123
 ### Abandoning Work
 
 ```bash
-# Release back to pool (resets to ready, removes worktree)
+# Release back to pool (resets to ready, removes work branch and worktree if present)
 # Can be run from any directory in the repository
 sc release ABC123
 ```
@@ -638,11 +655,12 @@ Use standard POSIX conventions:
 ```typescript
 description: `Claim a spec and prepare it for work. This command:
   - Sets the spec status to 'in_progress'
-  - Creates a dedicated git worktree (sibling to repository root)
-  - Creates and checks out branch work-<slug>-<id> in that worktree
-  - Ensures exclusive access (git prevents same branch in multiple worktrees)
+  - Creates and checks out branch work-<slug>-<id>
 
-After claiming, switch to the work worktree to begin implementation.
+By default, claiming creates a branch in your current repository (branch mode).
+Use --worktree to create a dedicated git worktree instead (isolated workspace).
+In bare repositories, worktree mode is used automatically.
+
 Commands can be run from any directory in the repository.`
 ```
 
