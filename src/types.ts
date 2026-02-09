@@ -25,6 +25,19 @@ export type Priority = number;
 
 export const COMPLETED_STATUSES: readonly Status[] = ['closed', 'deferred', 'not_planned'] as const;
 
+const STATUS_ICONS = {
+  ready: '○',
+  in_progress: '◐',
+  blocked: '⊘',
+  closed: '●',
+  deferred: '◇',
+  not_planned: '✕',
+} satisfies Record<Status, string>;
+
+export function getStatusIcon(status: Status): string {
+  return STATUS_ICONS[status];
+}
+
 export const EARS_PATTERNS = [
   'ubiquitous',
   'state_driven',

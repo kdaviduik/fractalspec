@@ -118,7 +118,7 @@ describe('renderTree', () => {
     expect(result).toContain('Spec c3d4');
   });
 
-  test('renders nested tree with indentation', () => {
+  test('renders nested tree with proper connectors', () => {
     const tree: SpecNode[] = [
       {
         spec: makeSpec('root'),
@@ -134,23 +134,23 @@ describe('renderTree', () => {
     const result = renderTree(tree);
     const lines = result.split('\n');
 
-    expect(lines.some((l) => l.includes('Spec root'))).toBe(true);
-    expect(lines.some((l) => l.includes('  ') && l.includes('Spec child'))).toBe(
-      true
-    );
-    expect(
-      lines.some((l) => l.includes('    ') && l.includes('Spec grandchild'))
-    ).toBe(true);
+    expect(lines[0]).toContain('Spec root');
+    expect(lines[1]).toContain('└─');
+    expect(lines[1]).toContain('Spec child');
+    expect(lines[2]).toContain('└─');
+    expect(lines[2]).toContain('Spec grandchild');
   });
 
-  test('includes status in output', () => {
+  test('shows status icon and text label', () => {
     const spec = makeSpec('a1b2');
     spec.status = 'blocked';
     const tree: SpecNode[] = [{ spec, children: [] }];
 
     const result = renderTree(tree);
 
+    expect(result).toContain('⊘');
     expect(result).toContain('blocked');
+    expect(result).not.toContain('(blocked)');
   });
 
   test('includes ID in output', () => {
@@ -159,6 +159,78 @@ describe('renderTree', () => {
     const result = renderTree(tree);
 
     expect(result).toContain('xyz123');
+  });
+
+  test('uses ├─ for non-last children and └─ for last child', () => {
+    const tree: SpecNode[] = [
+      {
+        spec: makeSpec('root'),
+        children: [
+          { spec: makeSpec('child1'), children: [] },
+          { spec: makeSpec('child2'), children: [] },
+          { spec: makeSpec('child3'), children: [] },
+        ],
+      },
+    ];
+
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const child1Line = lines.find((l) => l.includes('child1'));
+    const child2Line = lines.find((l) => l.includes('child2'));
+    const child3Line = lines.find((l) => l.includes('child3'));
+
+    expect(child1Line).toContain('├─');
+    expect(child2Line).toContain('├─');
+    expect(child3Line).toContain('└─');
+  });
+
+  test('uses │ continuation lines for non-last parent branches', () => {
+    const tree: SpecNode[] = [
+      {
+        spec: makeSpec('root'),
+        children: [
+          {
+            spec: makeSpec('branch1'),
+            children: [{ spec: makeSpec('leaf1'), children: [] }],
+          },
+          {
+            spec: makeSpec('branch2'),
+            children: [{ spec: makeSpec('leaf2'), children: [] }],
+          },
+        ],
+      },
+    ];
+
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const leaf1Line = lines.find((l) => l.includes('leaf1'));
+    const leaf2Line = lines.find((l) => l.includes('leaf2'));
+
+    expect(leaf1Line).toContain('│');
+    expect(leaf2Line).not.toContain('│');
+  });
+
+  test('shows correct status icons for each status', () => {
+    const readySpec = makeSpec('s1');
+    readySpec.status = 'ready';
+    const ipSpec = makeSpec('s2');
+    ipSpec.status = 'in_progress';
+    const closedSpec = makeSpec('s3');
+    closedSpec.status = 'closed';
+
+    const tree: SpecNode[] = [
+      { spec: readySpec, children: [] },
+      { spec: ipSpec, children: [] },
+      { spec: closedSpec, children: [] },
+    ];
+
+    const result = renderTree(tree);
+
+    expect(result).toContain('○');
+    expect(result).toContain('◐');
+    expect(result).toContain('●');
   });
 });
 

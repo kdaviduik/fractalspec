@@ -51,12 +51,13 @@ Quick lookup: "I changed X, what docs do I update?"
 
 ## Status Values
 
-**Code**: src/types.ts Status type, src/commands/list.ts getStatusIcon() function
+**Code**: src/types.ts Status type, STATUS_ICONS map, getStatusIcon() function
 
 **Docs to Update**:
 - CLAUDE.md - Status Values table
 - src/command-router.ts - Status descriptions in help
-- src/commands/list.ts - Help text icon legend, getStatusIcon() mapping
+- src/commands/list.ts - Help text icon legend
+- src/spec-tree.ts - Tree rendering uses getStatusIcon()
 - .claude/skills/sc-spec-workflow.md - Status-related workflow steps
 
 ## Help System

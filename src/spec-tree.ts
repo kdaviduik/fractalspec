@@ -4,6 +4,7 @@
  */
 
 import type { Spec, SpecNode } from './types';
+import { getStatusIcon } from './types';
 
 export function buildSpecTree(specs: Spec[]): SpecNode[] {
   const nodeMap = new Map<string, SpecNode>();
@@ -35,13 +36,14 @@ export function buildSpecTree(specs: Spec[]): SpecNode[] {
   return roots;
 }
 
-function renderNode(node: SpecNode, depth: number): string[] {
-  const indent = '  '.repeat(depth);
-  const { spec } = node;
-  const line = `${indent}├─ ${spec.title} [${spec.id}] (${spec.status})`;
+function renderNode(node: SpecNode, prefix: string, isLast: boolean): string[] {
+  const connector = isLast ? '└─' : '├─';
+  const icon = getStatusIcon(node.spec.status);
+  const line = `${prefix}${connector} ${icon} ${node.spec.status} ${node.spec.title} [${node.spec.id}]`;
 
-  const childLines = node.children.flatMap((child) =>
-    renderNode(child, depth + 1)
+  const childPrefix = prefix + (isLast ? '   ' : '│  ');
+  const childLines = node.children.flatMap((child, i) =>
+    renderNode(child, childPrefix, i === node.children.length - 1)
   );
 
   return [line, ...childLines];
@@ -52,7 +54,9 @@ export function renderTree(tree: SpecNode[]): string {
     return '';
   }
 
-  const lines = tree.flatMap((root) => renderNode(root, 0));
+  const lines = tree.flatMap((root, i) =>
+    renderNode(root, '', i === tree.length - 1)
+  );
   return lines.join('\n');
 }
 

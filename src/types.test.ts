@@ -4,6 +4,7 @@ import {
   isValidEarsPattern,
   isValidPriority,
   isValidSpecFrontmatter,
+  getStatusIcon,
   STATUSES,
   EARS_PATTERNS,
   MIN_PRIORITY,
@@ -178,5 +179,31 @@ describe('SpecFrontmatter validation', () => {
     expect(isValidSpecFrontmatter('string')).toBe(false);
     expect(isValidSpecFrontmatter(123)).toBe(false);
     expect(isValidSpecFrontmatter(undefined)).toBe(false);
+  });
+});
+
+describe('getStatusIcon', () => {
+  test('maps ready to ○', () => {
+    expect(getStatusIcon('ready')).toBe('○');
+  });
+
+  test('maps in_progress to ◐', () => {
+    expect(getStatusIcon('in_progress')).toBe('◐');
+  });
+
+  test('maps blocked to ⊘', () => {
+    expect(getStatusIcon('blocked')).toBe('⊘');
+  });
+
+  test('maps closed to ●', () => {
+    expect(getStatusIcon('closed')).toBe('●');
+  });
+
+  test('maps deferred to ◇', () => {
+    expect(getStatusIcon('deferred')).toBe('◇');
+  });
+
+  test('maps not_planned to ✕', () => {
+    expect(getStatusIcon('not_planned')).toBe('✕');
   });
 });

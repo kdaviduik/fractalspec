@@ -4,7 +4,7 @@
 
 import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
-import { MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY } from '../types';
+import { MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, getStatusIcon } from '../types';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
@@ -118,18 +118,6 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
   },
 };
 
-function getStatusIcon(status: string): string {
-  const icons: Record<string, string> = {
-    ready: '○',
-    in_progress: '◐',
-    blocked: '⊘',
-    closed: '●',
-    deferred: '◇',
-    not_planned: '✕',
-  };
-  return icons[status] ?? '?';
-}
-
 function printStatusSummary(specs: Spec[]): number {
   const summary = getStatusSummary(specs);
   console.log('\nSpec Status Summary');
@@ -217,7 +205,7 @@ async function printAllSpecs(specs: Spec[]): Promise<number> {
   console.log('\nAll Specs');
   console.log('═════════');
   for (const spec of specs) {
-    const statusIcon = getStatusIcon(spec.status);
+    const icon = getStatusIcon(spec.status);
     let suffix = '';
     if (spec.status === 'in_progress') {
       const branchName = getWorkBranchName(spec.id, spec.title);
@@ -228,7 +216,7 @@ async function printAllSpecs(specs: Spec[]): Promise<number> {
         suffix = ` [branch: ${branchName}]`;
       }
     }
-    console.log(`  ${statusIcon} ${spec.id}  ${spec.title}${suffix}`);
+    console.log(`  ${icon} ${spec.status.padEnd(11)} ${spec.id}  ${spec.title}${suffix}`);
   }
   return 0;
 }
