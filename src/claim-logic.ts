@@ -1,6 +1,7 @@
 /**
  * Claim and release logic for specs.
- * Supports two modes: branch-only (default) and worktree (opt-in via --worktree).
+ * Supports three modes: status-only (default), branch (opt-in via --branch),
+ * and worktree (opt-in via --worktree).
  */
 
 import {
@@ -24,7 +25,7 @@ import {
   removeWorktree,
 } from './git-operations';
 import { writeSpec } from './spec-filesystem';
-import type { Spec, ClaimResult, ClaimOptions } from './types';
+import type { Spec, ClaimMode, ClaimResult, ClaimOptions } from './types';
 
 export interface SafetyCheckResult {
   safe: boolean;
@@ -34,17 +35,29 @@ export interface SafetyCheckResult {
 }
 
 /**
- * Runtime detection: we determine the claim mode by checking if a worktree exists
- * for the work branch. If yes, it was claimed in worktree mode. If only the branch
- * exists, it was claimed in branch-only mode. This avoids storing mode in the spec
- * frontmatter. Assumption: worktrees matching the work-<slug>-<id> naming convention
- * are created by sc claim, not by external tools.
+ * Runtime detection: we determine whether a spec is claimed by checking git artifacts
+ * first (worktree, then branch), then falling back to status. Git artifacts are checked
+ * first because they're more specific — status alone can't distinguish "status-only claim"
+ * from "branch claim where something went wrong."
  */
 export async function isSpecClaimed(spec: Spec): Promise<boolean> {
   const branchName = getWorkBranchName(spec.id, spec.title);
   const worktree = await findWorktreeByBranch(branchName);
   if (worktree) return true;
-  return branchExists(branchName);
+  if (await branchExists(branchName)) return true;
+  return spec.status === 'in_progress';
+}
+
+async function resolveClaimMode(options?: ClaimOptions): Promise<ClaimMode> {
+  const useBranch = options?.useBranch ?? false;
+  const useWorktree = options?.useWorktree ?? false;
+
+  if (useWorktree) return 'worktree';
+  if (!useBranch) return 'status_only';
+
+  // bare repo + --branch: auto-escalate to worktree
+  const bare = await isBareRepository();
+  return bare ? 'worktree' : 'branch';
 }
 
 export async function claimSpec(spec: Spec, options?: ClaimOptions): Promise<ClaimResult> {
@@ -54,33 +67,35 @@ export async function claimSpec(spec: Spec, options?: ClaimOptions): Promise<Cla
   if (alreadyClaimed) {
     return {
       success: false,
+      mode: 'status_only',
       branchName,
       error: `Spec ${spec.id} is already claimed. Release it first with: sc release ${spec.id}`,
     };
   }
 
-  let useWorktree = options?.useWorktree ?? false;
-
-  if (!useWorktree) {
-    const bare = await isBareRepository();
-    if (bare) {
-      useWorktree = true;
-    }
-  }
+  const mode = await resolveClaimMode(options);
 
   try {
-    if (useWorktree) {
-      return await claimWithWorktree(spec, branchName);
+    switch (mode) {
+      case 'worktree': return await claimWithWorktree(spec, branchName);
+      case 'branch': return await claimWithBranch(spec, branchName);
+      case 'status_only': return await claimStatusOnly(spec, branchName);
     }
-    return await claimWithBranch(spec, branchName);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
+      mode: 'status_only',
       branchName,
       error: `Failed to claim spec: ${message}`,
     };
   }
+}
+
+async function claimStatusOnly(spec: Spec, branchName: string): Promise<ClaimResult> {
+  const updatedSpec: Spec = { ...spec, status: 'in_progress' };
+  await writeSpec(updatedSpec);
+  return { success: true, mode: 'status_only', branchName };
 }
 
 async function claimWithWorktree(spec: Spec, branchName: string): Promise<ClaimResult> {
@@ -90,7 +105,7 @@ async function claimWithWorktree(spec: Spec, branchName: string): Promise<ClaimR
   const updatedSpec: Spec = { ...spec, status: 'in_progress' };
   await writeSpec(updatedSpec);
 
-  return { success: true, branchName, worktreePath };
+  return { success: true, mode: 'worktree', branchName, worktreePath };
 }
 
 async function claimWithBranch(spec: Spec, branchName: string): Promise<ClaimResult> {
@@ -99,6 +114,7 @@ async function claimWithBranch(spec: Spec, branchName: string): Promise<ClaimRes
   if (dirty) {
     return {
       success: false,
+      mode: 'branch',
       branchName,
       error: 'Working tree has uncommitted changes. Commit or stash them first, or use --worktree for an isolated worktree.',
     };
@@ -110,7 +126,7 @@ async function claimWithBranch(spec: Spec, branchName: string): Promise<ClaimRes
   const updatedSpec: Spec = { ...spec, status: 'in_progress' };
   await writeSpec(updatedSpec);
 
-  return { success: true, branchName };
+  return { success: true, mode: 'branch', branchName };
 }
 
 async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed', force?: boolean): Promise<void> {
@@ -123,7 +139,13 @@ async function cleanupClaim(spec: Spec, newStatus: 'ready' | 'closed', force?: b
   } else if (await branchExists(branchName)) {
     await cleanupBranchClaim(spec, branchName, newStatus, force);
   } else {
-    throw new Error(`Spec ${spec.id} is not claimed (no worktree or branch found)`);
+    // Status-only claim: no git artifacts to clean up, just update status.
+    // Guard: if the spec isn't in_progress, something is wrong.
+    if (spec.status !== 'in_progress') {
+      throw new Error(`Bug: cleanupClaim called on spec ${spec.id} with status '${spec.status}' and no git artifacts`);
+    }
+    const updatedSpec: Spec = { ...spec, status: newStatus };
+    await writeSpec(updatedSpec);
   }
 }
 
@@ -205,11 +227,13 @@ export async function completeSpec(spec: Spec, force?: boolean): Promise<void> {
  * Check if it's safe to release or complete a spec.
  * Returns issues if there are uncommitted changes or unpushed commits.
  *
- * Handles both worktree and branch-only modes:
+ * Handles all three claim modes:
  * - Worktree mode: checks the worktree directory for uncommitted/unpushed/detached
- * - Branch-only mode: checks unpushed commits via ref comparison (always works).
+ * - Branch mode: checks unpushed commits via ref comparison (always works).
  *   Only checks uncommitted changes if currently on the work branch.
- * - Neither exists: returns safe=true (already cleaned up manually)
+ * - Status-only mode: checks the current branch for uncommitted changes and
+ *   unpushed commits (stewardship: protect users from marking work done when
+ *   their changes aren't saved, regardless of whether sc created the branch).
  */
 export async function checkClaimSafety(spec: Spec): Promise<SafetyCheckResult> {
   const branchName = getWorkBranchName(spec.id, spec.title);
@@ -224,7 +248,9 @@ export async function checkClaimSafety(spec: Spec): Promise<SafetyCheckResult> {
     return checkBranchSafety(branchName);
   }
 
-  return { safe: true, issues: [], worktreePath, branchName };
+  // Status-only claim: check current branch for uncommitted/unpushed work
+  const gitRoot = await findGitRoot();
+  return checkCurrentBranchSafety(branchName, gitRoot);
 }
 
 async function checkWorktreeSafety(branchName: string, worktreePath: string): Promise<SafetyCheckResult> {
@@ -263,6 +289,20 @@ async function checkBranchSafety(branchName: string): Promise<SafetyCheckResult>
       issues.push('unpushed commits');
     }
   } catch {
+    issues.push('unpushed commits');
+  }
+
+  return { safe: issues.length === 0, issues, worktreePath: gitRoot, branchName };
+}
+
+async function checkCurrentBranchSafety(branchName: string, gitRoot: string): Promise<SafetyCheckResult> {
+  const issues: string[] = [];
+
+  if (await hasUncommittedChanges(gitRoot)) {
+    issues.push('uncommitted changes');
+  }
+
+  if (await hasUnpushedCommits(gitRoot)) {
     issues.push('unpushed commits');
   }
 

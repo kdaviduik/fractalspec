@@ -9,7 +9,7 @@ import { readAllSpecs } from '../spec-filesystem';
 import { findSpecById } from '../spec-query';
 import { claimSpec } from '../claim-logic';
 
-const FLAG_TOKENS: readonly string[] = ['--cd', '-C', '--worktree', '-W'];
+const FLAG_TOKENS: readonly string[] = ['--cd', '-C', '--worktree', '-W', '--branch', '-B'];
 
 export const command: CommandHandler = {
   name: 'claim',
@@ -18,20 +18,26 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc claim',
-      synopsis: 'sc claim <id> [--worktree] [--cd]',
-      description: `Claim a spec and prepare it for work. This command:
-  - Sets the spec status to 'in_progress'
-  - Creates and checks out branch work-<slug>-<id>
+      synopsis: 'sc claim <id> [--branch] [--worktree] [--cd]',
+      description: `Claim a spec and prepare it for work. This command sets the spec status to 'in_progress'.
 
-By default, claiming creates a branch in your current repository (branch mode).
-Use --worktree to create a dedicated git worktree instead (isolated workspace).
-In bare repositories, worktree mode is used automatically.
+By default, claiming only updates the status (status-only mode). This is ideal for
+working directly on your current branch without creating git artifacts.
+
+Use --branch to create and check out a dedicated work branch (work-<slug>-<id>).
+Use --worktree to create an isolated git worktree instead.
+
+In bare repositories with --branch, worktree mode is used automatically.
 
 Commands can be run from any directory in the repository.`,
       flags: [
         {
+          flag: '--branch, -B',
+          description: 'Create and check out a work branch (work-<slug>-<id>). Requires a clean working tree.',
+        },
+        {
           flag: '--worktree, -W',
-          description: 'Create a dedicated git worktree (sibling to repository root) instead of a local branch.',
+          description: 'Create a dedicated git worktree (sibling to repository root) with a work branch.',
         },
         {
           flag: '--cd, -C',
@@ -40,8 +46,11 @@ Commands can be run from any directory in the repository.`,
         },
       ],
       examples: [
-        '# Claim a spec (creates branch, checks it out)',
+        '# Claim a spec (status-only, no branch created)',
         'sc claim a1b2c3',
+        '',
+        '# Claim with a dedicated work branch',
+        'sc claim a1b2c3 --branch',
         '',
         '# Claim with isolated worktree',
         'sc claim a1b2c3 --worktree',
@@ -58,9 +67,10 @@ Commands can be run from any directory in the repository.`,
       ],
       notes: [
         'Parent specs (specs with children) cannot be claimed. Work on their child specs instead.',
-        'Branch mode (default): requires a clean working tree. Stash or commit changes first.',
+        'Status-only mode (default): only sets status to in_progress. No git artifacts created.',
+        'Branch mode (--branch): requires a clean working tree. Stash or commit changes first.',
         'Worktree mode (--worktree): creates an isolated workspace as a sibling to the repository root.',
-        'In bare repositories, worktree mode is used automatically.',
+        'In bare repositories with --branch, worktree mode is used automatically.',
         'With --cd (worktree mode): Status info goes to stderr, cd command to stdout (safe for eval).',
         'On failure with --cd: stdout is empty, preventing eval from executing garbage.',
         'Set up sc init for automatic cd on every claim in worktree mode. See: sc init --help',
@@ -71,6 +81,7 @@ Commands can be run from any directory in the repository.`,
   async execute(args: string[]): Promise<number> {
     const cdFlag = args.includes('--cd') || args.includes('-C');
     const worktreeFlag = args.includes('--worktree') || args.includes('-W');
+    const branchFlag = args.includes('--branch') || args.includes('-B');
     const filteredArgs = args.filter(a => !FLAG_TOKENS.includes(a));
 
     const specId = filteredArgs[0];
@@ -92,18 +103,21 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const result = await claimSpec(spec, { useWorktree: worktreeFlag });
+    const result = await claimSpec(spec, { useBranch: branchFlag, useWorktree: worktreeFlag });
 
     if (!result.success) {
       console.error(`Failed to claim spec: ${result.error}`);
       return 1;
     }
 
-    if (result.worktreePath) {
-      return printWorktreeSuccess(spec.title, result.worktreePath, cdFlag);
+    switch (result.mode) {
+      case 'worktree':
+        return printWorktreeSuccess(spec.title, result.worktreePath, cdFlag);
+      case 'branch':
+        return printBranchSuccess(spec.title, result.branchName, cdFlag);
+      case 'status_only':
+        return printStatusOnlySuccess(spec.title, cdFlag);
     }
-
-    return printBranchSuccess(spec.title, result.branchName, cdFlag);
   },
 };
 
@@ -130,6 +144,16 @@ function printBranchSuccess(title: string, branchName: string, cdFlag: boolean):
     console.log(`Claimed: ${title}`);
     console.log(`  Status: in_progress`);
     console.log(`  Branch: ${branchName}`);
+  }
+  return 0;
+}
+
+function printStatusOnlySuccess(title: string, cdFlag: boolean): number {
+  if (cdFlag) {
+    console.error(`Claimed: ${title} (in_progress)`);
+  } else {
+    console.log(`Claimed: ${title}`);
+    console.log(`  Status: in_progress`);
   }
   return 0;
 }

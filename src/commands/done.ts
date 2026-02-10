@@ -20,9 +20,11 @@ export const command: CommandHandler = {
       description: `Mark a claimed spec as complete. This command:
   - Checks for uncommitted changes and unpushed commits (safety check)
   - Sets the spec status to 'closed'
-  - Removes the work branch (and worktree if one exists)
+  - If a branch or worktree was created during claim, removes it
 
 The spec must already be claimed (status: in_progress) before marking it done.
+For status-only claims, only the status is updated. Safety checks still run
+against the current branch.
 Commands can be run from any directory in the repository.`,
       flags: [
         {

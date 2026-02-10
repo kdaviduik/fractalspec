@@ -20,9 +20,11 @@ export const command: CommandHandler = {
       description: `Abandon work on a claimed spec and make it available again. This command:
   - Checks for uncommitted changes and unpushed commits (safety check)
   - Resets the spec status to 'ready'
-  - Removes the work branch (and worktree if one exists)
+  - If a branch or worktree was created during claim, removes it
 
 Use this when you need to stop working on a spec without completing it.
+For status-only claims, only the status is updated. Safety checks still run
+against the current branch.
 Commands can be run from any directory in the repository.`,
       flags: [
         {

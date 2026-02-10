@@ -75,7 +75,7 @@ sc list --ready
 # Get THE next task to work on
 sc list --ready --limit 1
 
-# Claim a spec (creates branch in current repo)
+# Claim a spec (sets status to in_progress)
 sc claim ABC123
 
 # Claim with isolated worktree instead
@@ -121,11 +121,11 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc claim <id> [--worktree] [--cd]` | Claim leaf spec, set to `in_progress`, create branch (default) or worktree (parent specs cannot be claimed) | `sc claim ABC123` |
+| `sc claim <id> [--branch] [--worktree] [--cd]` | Claim leaf spec, set to `in_progress`. Status-only by default; `--branch`/`-B` creates a work branch; `--worktree`/`-W` creates an isolated worktree. Parent specs cannot be claimed. | `sc claim ABC123` |
 | `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
 | `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
 
-**Auto-cd**: Set up shell integration with `sc init` for automatic cd in worktree mode. Without shell integration, use `eval "$(sc claim --cd --worktree ABC123)"`. In branch mode (default), no cd is needed.
+**Auto-cd**: Set up shell integration with `sc init` for automatic cd in worktree mode. Without shell integration, use `eval "$(sc claim --cd --worktree ABC123)"`. In status-only mode (default) and branch mode, no cd is needed.
 
 **Safety checks**: `done` and `release` verify no uncommitted changes or unpushed commits exist before proceeding. Use `--force` to bypass (with warning).
 
@@ -239,15 +239,24 @@ Priority is a numeric value from 1 to 10, where **10 is the highest priority**.
 
 ## Claim Modes
 
-`sc claim` supports two modes for isolating work:
+`sc claim` supports three modes:
 
-### Branch Mode (default)
+### Status-Only Mode (default)
+
+Sets status to `in_progress` without creating any git artifacts.
+
+- **No branch or worktree created**: Work happens on whatever branch you're already on.
+- **Cleanup**: `sc done` or `sc release` updates the status only.
+- **Safety checks**: `done` and `release` still check the current branch for uncommitted/unpushed work.
+
+### Branch Mode (`--branch`)
 
 Creates a branch `work-<slug>-<spec-id>` and checks it out in the current repository.
 
 - **Requires**: Clean working tree (no uncommitted changes). Stash or commit first.
 - **Cleanup**: `sc done` or `sc release` switches to the default branch and deletes the work branch.
 - **No cd needed**: Work happens in the current repository directory.
+- **Bare repos**: In bare repositories, `--branch` auto-escalates to worktree mode.
 
 ### Worktree Mode (`--worktree`)
 
@@ -258,7 +267,6 @@ Creates a dedicated git worktree with its own branch, isolated from the main wor
 - **Isolation**: Git prevents the same branch from being checked out in multiple worktrees
 - **Cleanup**: `sc done` or `sc release` removes both the worktree and branch
 - **Auto-cd**: With shell integration (`sc init`), `sc claim --worktree` automatically cd's into the worktree
-- **Bare repos**: Worktree mode is used automatically in bare repositories
 
 **Note**: In worktree mode, if you run `sc done` or `sc release` from inside the work worktree being removed, you will be left in a deleted directory. Navigate elsewhere if this happens.
 
@@ -332,8 +340,11 @@ sc list --tree
 ### Claiming & Working
 
 ```bash
-# 1. Claim the spec (branch mode - default)
+# 1. Claim the spec (status-only - default)
 sc claim ABC123
+
+# Or with a dedicated branch
+sc claim ABC123 --branch
 
 # Or with isolated worktree
 sc claim ABC123 --worktree
@@ -653,13 +664,12 @@ Use standard POSIX conventions:
 
 **Example:**
 ```typescript
-description: `Claim a spec and prepare it for work. This command:
-  - Sets the spec status to 'in_progress'
-  - Creates and checks out branch work-<slug>-<id>
+description: `Claim a spec and prepare it for work.
 
-By default, claiming creates a branch in your current repository (branch mode).
+By default, claiming sets the spec status to 'in_progress' (status-only mode).
+Use --branch to create and check out a work branch in the current repository.
 Use --worktree to create a dedicated git worktree instead (isolated workspace).
-In bare repositories, worktree mode is used automatically.
+In bare repositories with --branch, worktree mode is used automatically.
 
 Commands can be run from any directory in the repository.`
 ```

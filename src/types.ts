@@ -76,14 +76,24 @@ export interface CommandHandler {
   getHelp?: () => CommandHelp;
 }
 
-export interface ClaimResult {
-  success: boolean;
+export type ClaimMode = 'status_only' | 'branch' | 'worktree';
+
+export type ClaimResult = ClaimSuccess | ClaimFailure;
+
+export type ClaimSuccess =
+  | { success: true; mode: 'status_only'; branchName: string }
+  | { success: true; mode: 'branch'; branchName: string }
+  | { success: true; mode: 'worktree'; branchName: string; worktreePath: string };
+
+export type ClaimFailure = {
+  success: false;
+  mode: ClaimMode;
   branchName: string;
-  worktreePath?: string;
-  error?: string;
-}
+  error: string;
+};
 
 export interface ClaimOptions {
+  useBranch?: boolean;
   useWorktree?: boolean;
 }
 

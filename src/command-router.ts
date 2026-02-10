@@ -50,8 +50,8 @@ ${bold('DESCRIPTION')}
   (Easy Approach to Requirements Syntax) ensuring unambiguous, verifiable criteria.
 
   Specs form a tree through parent/child relationships and can have blocking
-  dependencies. By default, claiming a spec creates a local branch. Use
-  --worktree for isolated git worktrees that prevent concurrent edits.
+  dependencies. By default, claiming sets status to in_progress. Use --branch
+  for a dedicated work branch, or --worktree for isolated git worktrees.
 
   Status transitions: ready → in_progress → closed
   Blocked specs cannot start until their blockers reach a terminal status.
@@ -77,11 +77,16 @@ ${bold('STATUS ICONS')}
   ◇  deferred    - Postponed
   ✕  not_planned - Will not implement
 
-${bold('BRANCH & WORKTREE WORKFLOW')}
-  ${underline('Branch mode')} (default):
-    1. sc claim <id>              # Creates branch, checks it out, sets in_progress
+${bold('CLAIM WORKFLOW')}
+  ${underline('Status-only mode')} (default):
+    1. sc claim <id>              # Sets status to in_progress (no git artifacts)
     2. [do the work, commit]
-    3. sc done <id>               # Mark complete, delete branch (works from anywhere)
+    3. sc done <id>               # Mark complete (works from anywhere)
+
+  ${underline('Branch mode')} (--branch):
+    1. sc claim <id> --branch     # Creates branch, checks it out, sets in_progress
+    2. [do the work, commit]
+    3. sc done <id>               # Mark complete, delete branch
 
   ${underline('Worktree mode')} (--worktree):
     1. sc claim <id> --worktree   # Creates worktree + branch, sets in_progress
@@ -89,7 +94,7 @@ ${bold('BRANCH & WORKTREE WORKFLOW')}
     3. sc done <id>               # Mark complete, remove worktree + branch
 
   Branch mode requires a clean working tree. Use --worktree for isolated workspaces.
-  In bare repositories, worktree mode is used automatically.
+  In bare repositories with --branch, worktree mode is used automatically.
 
   Shell integration (auto-cd in worktree mode):
     eval "$(sc init bash)"        # Add to ~/.bashrc
@@ -114,11 +119,11 @@ ${bold('COMMANDS')}
     ${underline('show')} ${dim('<id>')}              Display full spec details including metadata
 
   ${underline('Workflow')}
-    ${underline('claim')} ${dim('<id>')} ${dim('[--worktree] [--cd]')}
+    ${underline('claim')} ${dim('<id>')} ${dim('[--branch] [--worktree] [--cd]')}
                            Claim spec for work
-                           - Creates branch work-<slug>-<id> (default: branch mode)
-                           - Sets status to in_progress
-      --worktree, -W       Create isolated worktree instead of local branch
+                           - Sets status to in_progress (default: status-only)
+      --branch, -B         Create and check out a work branch (work-<slug>-<id>)
+      --worktree, -W       Create isolated worktree with work branch
       --cd, -C             Output cd command for shell eval (worktree mode)
 
     ${underline('release')} ${dim('<id>')} ${dim('[--force]')}  Abandon work and reset to ready
@@ -196,10 +201,15 @@ ${bold('EXAMPLES')}
   sc list --ready --priority 8-10  # Show only highest-priority ready specs
   sc list --tree                # Understand hierarchy
 
-  # Working on a spec (branch mode - default)
-  sc claim a1b2c3               # Creates branch, checks it out
+  # Working on a spec (status-only - default)
+  sc claim a1b2c3               # Sets status to in_progress
   # ... do work, git commit ...
   sc done a1b2c3                # Complete (works from any directory)
+
+  # Working on a spec (branch mode)
+  sc claim a1b2c3 --branch      # Creates branch, checks it out
+  # ... do work, git commit ...
+  sc done a1b2c3                # Complete, removes branch
 
   # Working on a spec (worktree mode - isolated workspace)
   sc claim a1b2c3 --worktree    # Creates worktree + branch

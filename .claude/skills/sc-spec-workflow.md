@@ -27,8 +27,11 @@ sc list --ready --priority 8-10
 ### 2. Claim the Spec
 
 ```bash
-# Branch mode (default) — creates branch in current repo
+# Status-only (default) — sets in_progress, no git artifacts
 sc claim <spec-id>
+
+# Branch mode — creates and checks out a work branch
+sc claim <spec-id> --branch
 
 # Worktree mode — creates isolated worktree
 sc claim <spec-id> --worktree
@@ -38,7 +41,7 @@ eval "$(sc init bash)"  # One-time setup
 sc claim <spec-id> --worktree
 ```
 
-This sets status to `in_progress`. Branch mode (default) creates and checks out a work branch in your current repo — requires a clean working tree. Worktree mode (`--worktree`) creates a dedicated worktree (sibling to repository root) for isolated work.
+This sets status to `in_progress`. By default, no branch or worktree is created (status-only mode). Branch mode (`--branch`) creates and checks out a work branch in your current repo — requires a clean working tree. Worktree mode (`--worktree`) creates a dedicated worktree (sibling to repository root) for isolated work.
 
 ### 3. Understand Requirements
 
@@ -194,14 +197,14 @@ sc show <spec-id>  # Shows blockers in spec details
 - Never claimed it
 
 ### Dirty Working Tree in Branch Mode
-Branch mode (default) requires a clean working tree since it checks out a new branch in-place. If you have uncommitted changes, `sc claim` will fail with a clear error. Either commit or stash your changes first, or use `--worktree` for an isolated workspace that doesn't affect your current working tree.
+Branch mode (`--branch`) requires a clean working tree since it checks out a new branch in-place. If you have uncommitted changes, `sc claim --branch` will fail with a clear error. Either commit or stash your changes first, or use `--worktree` for an isolated workspace that doesn't affect your current working tree.
 
 ### Validate Early
 Run `sc validate` before marking complete. Invalid EARS requirements indicate unclear specifications.
 
 ## Claim Modes
 
-By default, `sc claim` creates a branch in the current repository (branch mode). Use `--worktree` for an isolated worktree (sibling to repository root) with branch `work-<slug>-<spec-id>`. Branch mode requires a clean working tree. The branch (and worktree if present) is automatically removed when you run `sc done` or `sc release`.
+By default, `sc claim` sets status to `in_progress` without creating git artifacts (status-only mode). Use `--branch` for a dedicated work branch (requires a clean working tree), or `--worktree` for an isolated worktree (sibling to repository root) with branch `work-<slug>-<spec-id>`. Any branch or worktree created is automatically removed when you run `sc done` or `sc release`. In bare repositories, `--branch` auto-escalates to worktree mode.
 
 ## See Also
 

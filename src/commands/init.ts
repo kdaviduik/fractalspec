@@ -59,8 +59,9 @@ export const command: CommandHandler = {
       description: `Output a shell function that wraps sc to auto-cd on claim.
 
   The generated function intercepts all 'sc claim' invocations. In worktree mode
-  (--worktree), it automatically changes directory into the new worktree. In branch
-  mode (default), no cd is needed since the branch is checked out in place.
+  (--worktree), it automatically changes directory into the new worktree. In
+  status-only mode (default) and branch mode (--branch), no cd is needed since
+  you are already in the correct directory.
 
   Supported shells: bash, zsh, fish.
 
