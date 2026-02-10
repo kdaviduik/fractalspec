@@ -85,7 +85,7 @@ Commands can be run from any directory in the repository.`,
     const filteredArgs = args.filter(a => !FLAG_TOKENS.includes(a));
 
     const specId = filteredArgs[0];
-    if (!specId) {
+    if (specId === undefined) {
       printCommandUsage(this.getHelp!());
       return 1;
     }

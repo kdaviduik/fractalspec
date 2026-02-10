@@ -51,7 +51,7 @@ Commands can be run from any directory in the repository.`,
   async execute(args: string[]): Promise<number> {
     const { force, specId } = parseForceFlag(args);
 
-    if (!specId) {
+    if (specId === undefined) {
       printCommandUsage(this.getHelp!());
       return 1;
     }

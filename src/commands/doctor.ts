@@ -62,7 +62,7 @@ async function findOrphans(specs: Spec[]): Promise<HealthIssue[]> {
   const specIds = new Set(specs.map((s) => s.id));
 
   for (const spec of specs) {
-    if (spec.parent && !specIds.has(spec.parent)) {
+    if (spec.parent !== null && !specIds.has(spec.parent)) {
       issues.push({
         type: 'orphan',
         specId: spec.id,

@@ -16,7 +16,7 @@ function displayRequirementResult(
 ): boolean {
   const errors = result.issues.filter((i) => i.severity === 'error');
   const warnings = result.issues.filter((i) => i.severity === 'warning');
-  const patternInfo = result.pattern ? ` (${result.pattern})` : '';
+  const patternInfo = result.pattern !== undefined ? ` (${result.pattern})` : '';
 
   if (errors.length > 0) {
     console.log(`\n✗ Requirement ${index + 1}${patternInfo}`);
@@ -24,7 +24,7 @@ function displayRequirementResult(
 
     for (const error of errors) {
       console.log(`  ❌ ${error.message}`);
-      if (error.suggestion) {
+      if (error.suggestion !== undefined) {
         console.log(`     → ${error.suggestion}`);
       }
     }
@@ -37,7 +37,7 @@ function displayRequirementResult(
 
     for (const warning of warnings) {
       console.log(`  ${dim(`⚠️  ${warning.message}`)}`);
-      if (warning.suggestion) {
+      if (warning.suggestion !== undefined) {
         console.log(`     ${dim(`→ ${warning.suggestion}`)}`);
       }
     }
@@ -107,7 +107,7 @@ Validation passes with warnings but fails with errors.`,
       console.log('Auto-fix not yet implemented. Please fix requirements manually.');
     }
 
-    if (specId) {
+    if (specId !== undefined) {
       return validateSingleSpec(specId);
     }
 
@@ -137,7 +137,7 @@ async function validateSingleSpec(specId: string): Promise<number> {
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const requirement = requirements[i];
-    if (!result || !requirement) continue;
+    if (result === undefined || requirement === undefined) continue;
 
     const hasError = displayRequirementResult(result, requirement, i);
     if (hasError) {

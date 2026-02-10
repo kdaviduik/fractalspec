@@ -30,7 +30,7 @@ function parseRemoveArgs(args: string[]): RemoveArgs {
     cascade: args.includes('--cascade'),
     reparentId: (() => {
       const idx = args.indexOf('--reparent');
-      return idx !== -1 ? args[idx + 1] || null : null;
+      return idx !== -1 ? args[idx + 1] ?? null : null;
     })(),
     dryRun: args.includes('--dry-run'),
   };
@@ -177,7 +177,7 @@ function validateArgs(
   parsedArgs: RemoveArgs,
   helpFn: (() => CommandHelp) | undefined
 ): { valid: boolean; errorCode?: number } {
-  if (!parsedArgs.idArg || !helpFn) {
+  if (parsedArgs.idArg === undefined || !helpFn) {
     if (helpFn) {
       printCommandUsage(helpFn());
     }
@@ -264,8 +264,8 @@ Child handling:
     const parsedArgs = parseRemoveArgs(args);
 
     const argsValidation = validateArgs(parsedArgs, this.getHelp);
-    if (!argsValidation.valid || !parsedArgs.idArg) {
-      return argsValidation.errorCode || 1;
+    if (!argsValidation.valid || parsedArgs.idArg === undefined) {
+      return argsValidation.errorCode ?? 1;
     }
 
     const spec = await findSpecFile(parsedArgs.idArg);

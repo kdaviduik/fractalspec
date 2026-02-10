@@ -38,7 +38,7 @@ interface RunGitOptions {
 async function runGit(args: string[], options: RunGitOptions = {}): Promise<string> {
   const { cwd, timeoutMs = GIT_COMMAND_TIMEOUT_MS } = options;
 
-  const spawnOptions = cwd
+  const spawnOptions = cwd !== undefined
     ? { stdout: 'pipe' as const, stderr: 'pipe' as const, cwd }
     : { stdout: 'pipe' as const, stderr: 'pipe' as const };
 
@@ -78,7 +78,7 @@ async function runGit(args: string[], options: RunGitOptions = {}): Promise<stri
 let cachedGitRoot: string | null = null;
 
 export async function findGitRoot(): Promise<string> {
-  if (cachedGitRoot) return cachedGitRoot;
+  if (cachedGitRoot !== null) return cachedGitRoot;
   const gitRoot = await runGit(['rev-parse', '--show-toplevel']);
   cachedGitRoot = gitRoot;
   return cachedGitRoot;
@@ -90,7 +90,7 @@ function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 30);
-  return slug || 'untitled';
+  return slug !== '' ? slug : 'untitled';
 }
 
 export function getWorkBranchName(specId: string, title: string): string {
@@ -156,7 +156,7 @@ async function listWorktrees(): Promise<WorktreeInfo[]> {
     } else if (line === 'bare') {
       currentWorktree.isBare = true;
     } else if (line === '') {
-      if (currentWorktree.path && currentWorktree.head) {
+      if (currentWorktree.path !== undefined && currentWorktree.head !== undefined) {
         worktrees.push({
           path: currentWorktree.path,
           branch: currentWorktree.branch ?? '',
@@ -169,7 +169,7 @@ async function listWorktrees(): Promise<WorktreeInfo[]> {
   }
 
   // Handle final worktree entry (no trailing empty line after trim())
-  if (currentWorktree.path && currentWorktree.head) {
+  if (currentWorktree.path !== undefined && currentWorktree.head !== undefined) {
     worktrees.push({
       path: currentWorktree.path,
       branch: currentWorktree.branch ?? '',
@@ -243,7 +243,7 @@ export async function hasUncommittedChanges(worktreePath: string): Promise<boole
 export async function hasUnpushedCommits(worktreePath: string): Promise<boolean> {
   try {
     const headRef = await runGit(['symbolic-ref', '-q', 'HEAD'], { cwd: worktreePath });
-    if (!headRef) {
+    if (headRef === '') {
       return true;
     }
 

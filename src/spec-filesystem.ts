@@ -14,7 +14,7 @@ import { findGitRoot } from './git-operations';
 let cachedSpecsRoot: string | null = null;
 
 export async function getSpecsRoot(): Promise<string> {
-  if (cachedSpecsRoot) return cachedSpecsRoot;
+  if (cachedSpecsRoot !== null) return cachedSpecsRoot;
   const gitRoot = await findGitRoot();
   cachedSpecsRoot = join(gitRoot, 'docs', 'specs');
   return cachedSpecsRoot;
@@ -32,7 +32,7 @@ export async function createSpecDirectory(
   const dirName = `${slug}-${id}`;
 
   let basePath = await getSpecsRoot();
-  if (parentId) {
+  if (parentId !== undefined) {
     const allSpecs = await readAllSpecs();
     const parent = allSpecs.find((s) => s.id === parentId);
     if (parent) {

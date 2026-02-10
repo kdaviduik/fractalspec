@@ -37,7 +37,7 @@ function extractTitle(content: string): string {
     }
 
     const headingMatch = trimmed.match(/^#\s+(?:Spec:\s*)?(.+)$/);
-    if (headingMatch?.[1]) {
+    if (headingMatch !== null && headingMatch[1] !== undefined) {
       return headingMatch[1].trim();
     }
   }
@@ -48,7 +48,7 @@ function extractTitle(content: string): string {
 export function parseSpec(filePath: string, rawContent: string): Spec {
   const parsed = matter(rawContent);
 
-  if (!parsed.data || Object.keys(parsed.data).length === 0) {
+  if (Object.keys(parsed.data).length === 0) {
     throw new ParseError('Missing YAML frontmatter', filePath);
   }
 

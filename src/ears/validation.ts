@@ -25,7 +25,7 @@ export function validateRequirement(text: string): ValidationResult {
 
   const pattern = detectEarsPattern(trimmed);
 
-  if (!pattern) {
+  if (pattern === null) {
     const suggestions = generateSuggestions(trimmed);
     return {
       valid: false,
@@ -136,13 +136,13 @@ export function extractRequirements(content: string): string[] {
     }
 
     const numberedMatch = trimmed.match(/^\d+\.\s+(.+)$/);
-    if (numberedMatch?.[1]) {
+    if (numberedMatch !== null && numberedMatch[1] !== undefined) {
       requirements.push(numberedMatch[1]);
       continue;
     }
 
     const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
-    if (bulletMatch?.[1]) {
+    if (bulletMatch !== null && bulletMatch[1] !== undefined) {
       requirements.push(bulletMatch[1]);
     }
   }

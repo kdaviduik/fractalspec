@@ -34,6 +34,22 @@ export default [
         { assertionStyle: 'never' },
       ],
       '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/switch-exhaustiveness-check': [
+        'error',
+        { requireDefaultForNonUnion: true },
+      ],
+      '@typescript-eslint/strict-boolean-expressions': [
+        'error',
+        {
+          allowString: false,
+          allowNumber: false,
+          allowNullableObject: true,
+          allowNullableBoolean: true,
+          allowNullableString: false,
+          allowNullableNumber: false,
+          allowAny: false,
+        },
+      ],
 
       // Complexity limits
       'max-lines': [

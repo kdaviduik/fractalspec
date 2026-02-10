@@ -79,7 +79,7 @@ export function determinePriority(
       return parsed;
     }
   }
-  if (parentId) {
+  if (parentId !== undefined && parentId !== null) {
     const parentSpec = allSpecs.find((s) => s.id === parentId);
     if (parentSpec) {
       return parentSpec.priority;
@@ -248,7 +248,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
     }
 
     const title = values.title ?? (await promptForTitle());
-    if (!title) {
+    if (title === '') {
       console.error('Title is required');
       return 1;
     }

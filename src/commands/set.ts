@@ -258,7 +258,7 @@ export const command: CommandHandler = {
   async execute(args: string[]): Promise<number> {
     const { specId, options } = parseArgs(args);
     const help = getCommandHelp();
-    if (!specId) { printCommandUsage(help); return 1; }
+    if (specId === null) { printCommandUsage(help); return 1; }
     if (!hasAnyOption(options)) {
       console.error('At least one flag is required');
       printCommandUsage(help);

@@ -105,13 +105,13 @@ responses) and warnings (generic "system" usage, very long requirements).`,
   async execute(args: string[]): Promise<number> {
     const text = args.join(' ');
 
-    if (!text) {
+    if (text === '') {
       displayEarsReference();
       return 0;
     }
 
     const existingPattern = detectEarsPattern(text);
-    if (existingPattern) {
+    if (existingPattern !== null) {
       console.log(`✓ Already in EARS format: ${existingPattern}`);
       console.log(`  "${text}"`);
       return 0;
@@ -122,7 +122,7 @@ responses) and warnings (generic "system" usage, very long requirements).`,
 
     const result = await convertToEars(text);
 
-    if (result.converted) {
+    if (result.converted !== undefined) {
       console.log(`Suggested (${result.pattern}):`);
       console.log(`  "${result.converted}"`);
     } else {

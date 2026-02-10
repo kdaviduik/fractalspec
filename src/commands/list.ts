@@ -171,13 +171,13 @@ function printReadySpecs(
   });
 
   if (result.specs.length === 0) {
-    const filterMsg = priorityStr ? ` with priority "${priorityStr}"` : '';
+    const filterMsg = priorityStr !== undefined ? ` with priority "${priorityStr}"` : '';
     console.log(`No specs ready for work${filterMsg}.`);
     return 0;
   }
 
-  const limitMsg = limitValue ? ` (top ${limitValue})` : '';
-  const priorityMsg = priorityStr ? ` [priority ${priorityStr}]` : '';
+  const limitMsg = limitValue !== undefined ? ` (top ${limitValue})` : '';
+  const priorityMsg = priorityStr !== undefined ? ` [priority ${priorityStr}]` : '';
   console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}`);
   console.log('════════════════════');
   for (const spec of result.specs) {

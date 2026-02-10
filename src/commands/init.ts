@@ -90,7 +90,7 @@ export const command: CommandHandler = {
   async execute(args: string[]): Promise<number> {
     const shell = args[0];
 
-    if (!shell) {
+    if (shell === undefined) {
       printCommandUsage(this.getHelp!());
       return 1;
     }

@@ -146,7 +146,7 @@ export async function reparentChildren(
       const failed = moves.slice(failedIndex).map((m) => m.child.id);
       throw new Error(
         `Failed to reparent child ${move.child.id}: ${message}\n` +
-        `Completed: ${completed.join(', ') || 'none'}\n` +
+        `Completed: ${completed.length > 0 ? completed.join(', ') : 'none'}\n` +
         `Failed: ${failed.join(', ')}`
       );
     }

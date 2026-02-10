@@ -23,17 +23,17 @@ export interface CommandHelp {
 
 // ANSI formatting utilities
 export function bold(text: string): string {
-  if (process.env.NO_COLOR) return text;
+  if (process.env['NO_COLOR'] !== undefined) return text;
   return `\x1b[1m${text}\x1b[0m`;
 }
 
 export function underline(text: string): string {
-  if (process.env.NO_COLOR) return text;
+  if (process.env['NO_COLOR'] !== undefined) return text;
   return `\x1b[4m${text}\x1b[0m`;
 }
 
 export function dim(text: string): string {
-  if (process.env.NO_COLOR) return text;
+  if (process.env['NO_COLOR'] !== undefined) return text;
   return `\x1b[2m${text}\x1b[0m`;
 }
 
@@ -146,7 +146,7 @@ export async function displayWithPager(content: string): Promise<void> {
   }
 
   // Get terminal dimensions
-  const terminalHeight = process.stdout.rows || 24;
+  const terminalHeight = process.stdout.rows ?? 24;
   const contentLines = content.split('\n').length;
 
   // If content fits on screen, just print it

@@ -36,7 +36,7 @@ Shows:
 
   async execute(args: string[]): Promise<number> {
     const specId = args[0];
-    if (!specId) {
+    if (specId === undefined) {
       printCommandUsage(this.getHelp!());
       return 1;
     }

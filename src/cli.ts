@@ -21,7 +21,7 @@ async function main(): Promise<number> {
   }
 
   const commandName = args[0];
-  if (!commandName) {
+  if (commandName === undefined) {
     await printHelp();
     return 0;
   }
@@ -44,7 +44,7 @@ async function main(): Promise<number> {
       // Check for subcommand help (e.g., sc command subcommand --help)
       const subcommand = helpIndex > 1 ? args[1] : undefined;
 
-      if (subcommand && help.subcommands?.[subcommand]) {
+      if (subcommand !== undefined && help.subcommands?.[subcommand] !== undefined) {
         await printSubcommandHelp(commandName, subcommand, help.subcommands[subcommand]);
         return 0;
       }
