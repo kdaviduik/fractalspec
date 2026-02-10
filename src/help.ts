@@ -21,19 +21,25 @@ export interface CommandHelp {
   subcommands?: Record<string, SubcommandHelp>;
 }
 
+// Per no-color.org: respect NO_COLOR when present and not an empty string
+export function isNoColorSet(): boolean {
+  const value = process.env['NO_COLOR'];
+  return value !== undefined && value !== '';
+}
+
 // ANSI formatting utilities
 export function bold(text: string): string {
-  if (process.env['NO_COLOR'] !== undefined) return text;
+  if (isNoColorSet()) return text;
   return `\x1b[1m${text}\x1b[0m`;
 }
 
 export function underline(text: string): string {
-  if (process.env['NO_COLOR'] !== undefined) return text;
+  if (isNoColorSet()) return text;
   return `\x1b[4m${text}\x1b[0m`;
 }
 
 export function dim(text: string): string {
-  if (process.env['NO_COLOR'] !== undefined) return text;
+  if (isNoColorSet()) return text;
   return `\x1b[2m${text}\x1b[0m`;
 }
 
