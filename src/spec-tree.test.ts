@@ -2,15 +2,19 @@ import { describe, expect, test } from 'bun:test';
 import { buildSpecTree, renderTree, computeDepths } from './spec-tree';
 import type { Spec, SpecNode } from './types';
 
-function makeSpec(id: string, parent: string | null = null): Spec {
+function makeSpec(
+  id: string,
+  parent: string | null = null,
+  overrides: Partial<Pick<Spec, 'priority' | 'status' | 'title'>> = {}
+): Spec {
   return {
     id,
-    status: 'ready',
+    status: overrides.status ?? 'ready',
     parent,
     blockedBy: [],
-    priority: 5,
+    priority: overrides.priority ?? 5,
     pr: null,
-    title: `Spec ${id}`,
+    title: overrides.title ?? `Spec ${id}`,
     content: `# Spec: Spec ${id}`,
     filePath: `/path/${id}.md`,
   };
@@ -142,15 +146,31 @@ describe('renderTree', () => {
   });
 
   test('shows status icon and text label', () => {
-    const spec = makeSpec('a1b2');
-    spec.status = 'blocked';
+    const spec = makeSpec('a1b2', null, { status: 'blocked' });
     const tree: SpecNode[] = [{ spec, children: [] }];
 
     const result = renderTree(tree);
 
     expect(result).toContain('⊘');
-    expect(result).toContain('blocked');
-    expect(result).not.toContain('(blocked)');
+    expect(result).toContain('[blocked, P5]');
+  });
+
+  test('shows bracketed status and priority format', () => {
+    const spec = makeSpec('x1y2', null, { status: 'ready', priority: 8 });
+    const tree: SpecNode[] = [{ spec, children: [] }];
+
+    const result = renderTree(tree);
+
+    expect(result).toContain('[ready, P8]');
+  });
+
+  test('shows bracketed format for in_progress with high priority', () => {
+    const spec = makeSpec('z9w8', null, { status: 'in_progress', priority: 10 });
+    const tree: SpecNode[] = [{ spec, children: [] }];
+
+    const result = renderTree(tree);
+
+    expect(result).toContain('[in_progress, P10]');
   });
 
   test('includes ID in output', () => {
@@ -326,5 +346,103 @@ describe('computeDepths', () => {
     // Self-reference: visits self, adds to visited, tries parent (self), which is in visited, returns 0
     // So depth = 0 + 1 = 1
     expect(depths.get('self')).toBe(1);
+  });
+});
+
+describe('tree sorting', () => {
+  test('roots sorted by priority descending', () => {
+    const specs = [
+      makeSpec('low', null, { priority: 2, title: 'Low Priority' }),
+      makeSpec('mid', null, { priority: 5, title: 'Mid Priority' }),
+      makeSpec('high', null, { priority: 9, title: 'High Priority' }),
+    ];
+
+    const tree = buildSpecTree(specs);
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const highIdx = lines.findIndex((l) => l.includes('High Priority'));
+    const midIdx = lines.findIndex((l) => l.includes('Mid Priority'));
+    const lowIdx = lines.findIndex((l) => l.includes('Low Priority'));
+
+    expect(highIdx).toBeLessThan(midIdx);
+    expect(midIdx).toBeLessThan(lowIdx);
+  });
+
+  test('children sorted by priority descending', () => {
+    const specs = [
+      makeSpec('parent', null, { priority: 5, title: 'Parent' }),
+      makeSpec('c-low', 'parent', { priority: 3, title: 'Child Low' }),
+      makeSpec('c-high', 'parent', { priority: 8, title: 'Child High' }),
+      makeSpec('c-mid', 'parent', { priority: 5, title: 'Child Mid' }),
+    ];
+
+    const tree = buildSpecTree(specs);
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const highIdx = lines.findIndex((l) => l.includes('Child High'));
+    const midIdx = lines.findIndex((l) => l.includes('Child Mid'));
+    const lowIdx = lines.findIndex((l) => l.includes('Child Low'));
+
+    expect(highIdx).toBeLessThan(midIdx);
+    expect(midIdx).toBeLessThan(lowIdx);
+  });
+
+  test('priority ties broken by alphabetical title', () => {
+    const specs = [
+      makeSpec('z', null, { priority: 5, title: 'Zebra' }),
+      makeSpec('a', null, { priority: 5, title: 'Apple' }),
+      makeSpec('m', null, { priority: 5, title: 'Mango' }),
+    ];
+
+    const tree = buildSpecTree(specs);
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const appleIdx = lines.findIndex((l) => l.includes('Apple'));
+    const mangoIdx = lines.findIndex((l) => l.includes('Mango'));
+    const zebraIdx = lines.findIndex((l) => l.includes('Zebra'));
+
+    expect(appleIdx).toBeLessThan(mangoIdx);
+    expect(mangoIdx).toBeLessThan(zebraIdx);
+  });
+
+  test('grandchildren also sorted by priority descending', () => {
+    const specs = [
+      makeSpec('root', null, { priority: 5, title: 'Root' }),
+      makeSpec('child', 'root', { priority: 5, title: 'Child' }),
+      makeSpec('gc-low', 'child', { priority: 2, title: 'GC Low' }),
+      makeSpec('gc-high', 'child', { priority: 9, title: 'GC High' }),
+    ];
+
+    const tree = buildSpecTree(specs);
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const highIdx = lines.findIndex((l) => l.includes('GC High'));
+    const lowIdx = lines.findIndex((l) => l.includes('GC Low'));
+
+    expect(highIdx).toBeLessThan(lowIdx);
+  });
+
+  test('all children at same priority sorted alphabetically', () => {
+    const specs = [
+      makeSpec('parent', null, { priority: 5, title: 'Parent' }),
+      makeSpec('c', 'parent', { priority: 7, title: 'Charlie' }),
+      makeSpec('a', 'parent', { priority: 7, title: 'Alpha' }),
+      makeSpec('b', 'parent', { priority: 7, title: 'Bravo' }),
+    ];
+
+    const tree = buildSpecTree(specs);
+    const result = renderTree(tree);
+    const lines = result.split('\n');
+
+    const alphaIdx = lines.findIndex((l) => l.includes('Alpha'));
+    const bravoIdx = lines.findIndex((l) => l.includes('Bravo'));
+    const charlieIdx = lines.findIndex((l) => l.includes('Charlie'));
+
+    expect(alphaIdx).toBeLessThan(bravoIdx);
+    expect(bravoIdx).toBeLessThan(charlieIdx);
   });
 });

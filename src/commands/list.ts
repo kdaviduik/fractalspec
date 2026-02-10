@@ -37,7 +37,7 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
         },
         {
           flag: '--tree',
-          description: 'Display hierarchical tree view showing parent-child relationships',
+          description: 'Display hierarchical tree view. Children sorted by priority (highest first), then alphabetically.',
         },
         {
           flag: '--status',

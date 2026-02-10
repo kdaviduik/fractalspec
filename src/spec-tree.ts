@@ -33,13 +33,28 @@ export function buildSpecTree(specs: Spec[]): SpecNode[] {
     }
   }
 
+  sortTree(roots);
   return roots;
+}
+
+function compareByPriorityThenTitle(a: SpecNode, b: SpecNode): number {
+  if (a.spec.priority !== b.spec.priority) {
+    return b.spec.priority - a.spec.priority;
+  }
+  return a.spec.title.localeCompare(b.spec.title);
+}
+
+function sortTree(nodes: SpecNode[]): void {
+  nodes.sort(compareByPriorityThenTitle);
+  for (const node of nodes) {
+    sortTree(node.children);
+  }
 }
 
 function renderNode(node: SpecNode, prefix: string, isLast: boolean): string[] {
   const connector = isLast ? '└─' : '├─';
   const icon = getStatusIcon(node.spec.status);
-  const line = `${prefix}${connector} ${icon} ${node.spec.status} ${node.spec.title} [${node.spec.id}]`;
+  const line = `${prefix}${connector} ${icon} [${node.spec.status}, P${node.spec.priority}] ${node.spec.title} [${node.spec.id}]`;
 
   const childPrefix = prefix + (isLast ? '   ' : '│  ');
   const childLines = node.children.flatMap((child, i) =>

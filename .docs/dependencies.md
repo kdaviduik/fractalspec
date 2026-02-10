@@ -147,6 +147,19 @@ Quick lookup: "I changed X, what docs do I update?"
 - README.md - Quick Start section (sc init mention)
 - .docs/dependencies.md - this file
 
+## Tree View & Sorting
+
+**Code**:
+- src/spec-tree.ts (tree building, sorting, rendering)
+- src/spec-query.ts (ready list sorting, computeDepths usage)
+
+**Docs to Update**:
+- CLAUDE.md - "Discovery & Viewing" commands table (--tree description)
+- CLAUDE.md - "Sorting behavior" paragraph under Priority Values
+- src/commands/list.ts - getHelp() --tree and --ready flag descriptions
+- src/command-router.ts - --tree flag in COMMANDS section, --ready description in COMMANDS section
+- .docs/dependencies.md - this file
+
 ## Parent Spec Handling
 
 **Code**:

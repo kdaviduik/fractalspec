@@ -112,7 +112,7 @@ Content here.
     expect(result.priority).toBe(5);
   });
 
-  test('defaults priority to 5 for invalid (non-numeric) priority value', () => {
+  test('throws ParseError for invalid (non-numeric) priority value', () => {
     const specWithInvalidPriority = `---
 id: x1y2
 status: ready
@@ -125,11 +125,10 @@ priority: invalid_priority
 
 Content here.
 `;
-    const result = parseSpec('/path/to/spec.md', specWithInvalidPriority);
-    expect(result.priority).toBe(5);
+    expect(() => parseSpec('/path/to/spec.md', specWithInvalidPriority)).toThrow(ParseError);
   });
 
-  test('defaults priority to 5 for out-of-range priority value', () => {
+  test('throws ParseError for out-of-range priority value', () => {
     const specWithOutOfRangePriority = `---
 id: x1y2
 status: ready
@@ -142,8 +141,7 @@ priority: 15
 
 Content here.
 `;
-    const result = parseSpec('/path/to/spec.md', specWithOutOfRangePriority);
-    expect(result.priority).toBe(5);
+    expect(() => parseSpec('/path/to/spec.md', specWithOutOfRangePriority)).toThrow(ParseError);
   });
 
   test('throws ParseError for spec without frontmatter', () => {

@@ -160,6 +160,65 @@ describe('SpecFrontmatter validation', () => {
     expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
   });
 
+  test('accepts frontmatter with valid priority', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+      priority: 8,
+    };
+
+    expect(isValidSpecFrontmatter(frontmatter)).toBe(true);
+  });
+
+  test('accepts frontmatter without priority (optional, parser defaults it)', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+    };
+
+    expect(isValidSpecFrontmatter(frontmatter)).toBe(true);
+  });
+
+  test('rejects frontmatter with non-numeric priority', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+      priority: 'banana',
+    };
+
+    expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
+  });
+
+  test('rejects frontmatter with out-of-range priority', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+      priority: 0,
+    };
+
+    expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
+  });
+
+  test('rejects frontmatter with non-integer priority', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+      priority: 5.5,
+    };
+
+    expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
+  });
+
   test('rejects frontmatter with non-array blockedBy', () => {
     const frontmatter = {
       id: 'a1b2',

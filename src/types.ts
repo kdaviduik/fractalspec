@@ -164,5 +164,9 @@ export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter
     return false;
   }
 
+  if (value['priority'] !== undefined && !isValidPriority(value['priority'])) {
+    return false;
+  }
+
   return true;
 }

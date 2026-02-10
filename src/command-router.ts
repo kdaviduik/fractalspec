@@ -113,7 +113,7 @@ ${bold('COMMANDS')}
       --ready              Show specs available for work (sorted by priority)
       --limit ${dim('<n>')}          Limit to top N specs (requires --ready)
       --priority ${dim('<n or n-m>')} Filter by priority (requires --ready). E.g., 8 or 8-10
-      --tree               Display hierarchical tree view
+      --tree               Display hierarchical tree view (sorted by priority)
       --status             Show status count summary
 
     ${underline('show')} ${dim('<id>')}              Display full spec details including metadata
