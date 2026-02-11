@@ -4,6 +4,8 @@ CLI tool for managing hierarchical specifications with EARS (Easy Approach to Re
 
 `sc` enables recursive spec decomposition where large features break down into smaller, manageable specs. Each spec can have child specs (tree hierarchy) and dependencies (blocking relationships).
 
+Inspired by https://github.com/steveyegge/beads :)
+
 ## Quick Start
 
 ```bash
