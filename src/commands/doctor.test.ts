@@ -227,6 +227,42 @@ describe('sc doctor - unclosed parent detection', () => {
     expect(output).toContain('Skipping');
   });
 
+  test('detects stale blocked specs with all blockers resolved', async () => {
+    const blocker = makeSpec('blocker', { status: 'closed' });
+    const blocked = makeSpec('blocked', { status: 'blocked', blockedBy: ['blocker'] });
+    await writeSpec(blocker);
+    await writeSpec(blocked);
+
+    await command.execute([]);
+    const output = logMessages.join('\n');
+
+    expect(output).toContain('stale_blocked');
+    expect(output).toContain('blocked');
+  });
+
+  test('does not flag manually-blocked specs (empty blockedBy)', async () => {
+    const manual = makeSpec('manual', { status: 'blocked', blockedBy: [] });
+    await writeSpec(manual);
+
+    await command.execute([]);
+    const output = logMessages.join('\n');
+
+    expect(output).not.toContain('stale_blocked');
+  });
+
+  test('--fix promotes stale blocked specs to ready', async () => {
+    const blocker = makeSpec('blocker', { status: 'closed' });
+    const blocked = makeSpec('blocked', { status: 'blocked', blockedBy: ['blocker'] });
+    await writeSpec(blocker);
+    await writeSpec(blocked);
+
+    await command.execute(['--fix']);
+
+    const specs = await readAllSpecs();
+    const updated = specs.find(s => s.id === 'blocked');
+    expect(updated?.status).toBe('ready');
+  });
+
   test('cascade: closing mid-level parent triggers grandparent closure', async () => {
     const grandparent = makeSpec('gp', { status: 'ready' });
     const midParent = makeSpec('mid', { status: 'ready', parent: 'gp' });

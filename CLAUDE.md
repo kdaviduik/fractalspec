@@ -110,7 +110,7 @@ sc done ABC123
 | Command | Description | Example |
 |---------|-------------|---------|
 | `sc list` | List all specs | `sc list` |
-| `sc list --ready` | Show leaf specs ready for work (parent specs excluded, sorted by priority) | `sc list --ready` |
+| `sc list --ready` | Show leaf specs ready for work, including blocked specs with resolved blockers (parent specs excluded, sorted by priority) | `sc list --ready` |
 | `sc list --ready --limit N` | Get top N ready specs | `sc list --ready --limit 1` |
 | `sc list --ready --priority P` | Filter by priority (single or range) | `sc list --ready --priority 8-10` |
 | `sc list --tree` | Show hierarchical tree view (sorted by priority) | `sc list --tree` |
@@ -235,7 +235,7 @@ Priority is a numeric value from 1 to 10, where **10 is the highest priority**.
 | `2-4` | Lower priority | Nice-to-have improvements |
 | `1` | Lowest priority | Backlog items, far-future work |
 
-**Sorting behavior**: `sc list --ready` shows only leaf specs (parent specs with children are excluded). Results are sorted by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title. In tree view (`--tree`), children at each level are sorted by priority (highest first), then alphabetically by title.
+**Sorting behavior**: `sc list --ready` shows only leaf specs (parent specs with children are excluded). Blocked specs whose declared blockers are all resolved are automatically included. Results are sorted by priority (10 appears first, descending to 1), then by hierarchy depth (deepest/leaf specs first), then alphabetically by title. In tree view (`--tree`), children at each level are sorted by priority (highest first), then alphabetically by title.
 
 ## Claim Modes
 

@@ -33,7 +33,7 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
       flags: [
         {
           flag: '--ready',
-          description: 'Show only leaf specs available for work. Parent specs (those with children) are excluded. Sorted by priority, then depth (deepest first), then title.',
+          description: 'Show only leaf specs available for work. Includes blocked specs whose blockers are all resolved. Parent specs (those with children) are excluded. Sorted by priority, then depth (deepest first), then title.',
         },
         {
           flag: '--tree',

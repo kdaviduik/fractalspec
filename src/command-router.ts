@@ -110,7 +110,7 @@ ${bold('COMMANDS')}
 
   ${underline('Discovery & Viewing')}
     ${underline('list')}                   List all specs
-      --ready              Show specs available for work (sorted by priority)
+      --ready              Show specs available for work, including blocked specs with resolved blockers (sorted by priority)
       --limit ${dim('<n>')}          Limit to top N specs (requires --ready)
       --priority ${dim('<n or n-m>')} Filter by priority (requires --ready). E.g., 8 or 8-10
       --tree               Display hierarchical tree view (sorted by priority)

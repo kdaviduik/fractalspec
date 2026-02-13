@@ -147,6 +147,20 @@ Quick lookup: "I changed X, what docs do I update?"
 - README.md - Quick Start section (sc init mention)
 - .docs/dependencies.md - this file
 
+## Blocker Resolution & Stale Blocked Detection
+
+**Code**:
+- src/spec-query.ts (isEffectivelyReady logic in findReadySpecs)
+- src/commands/doctor.ts (findStaleBlocked, fixStaleBlocked)
+
+**Docs to Update**:
+- CLAUDE.md - "Discovery & Viewing" commands table (--ready description), "Sorting behavior" paragraph
+- src/commands/list.ts - getHelp() --ready flag description
+- src/commands/doctor.ts - getHelp() detects list and notes
+- src/command-router.ts - --ready description in COMMANDS section
+- .claude/skills/sc-spec-workflow.md - "Find Available Work" section, "Health Checks" section
+- .docs/dependencies.md - this file
+
 ## Tree View & Sorting
 
 **Code**:

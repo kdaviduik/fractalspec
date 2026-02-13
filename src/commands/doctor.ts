@@ -5,13 +5,14 @@
 import { parseArgs } from 'util';
 import type { CommandHandler, Spec, Status } from '../types';
 import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, COMPLETED_STATUSES } from '../types';
+import { isBlocked } from '../spec-query';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs, writeSpec, getSpecsRoot, readRawSpecContent } from '../spec-filesystem';
 import { findGitRoot } from '../git-operations';
 import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent' | 'stale_blocked';
   specId: string;
   message: string;
   fixable: boolean;
@@ -189,6 +190,31 @@ async function fixDeprecatedField(spec: Spec): Promise<void> {
   await writeSpec(spec);
 }
 
+function findStaleBlocked(specs: Spec[]): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+
+  for (const spec of specs) {
+    if (spec.status !== 'blocked') continue;
+    if (spec.blockedBy.length === 0) continue;
+
+    if (!isBlocked(spec, specs)) {
+      issues.push({
+        type: 'stale_blocked',
+        specId: spec.id,
+        message: `Status is "blocked" but all blockers are resolved — should be "ready"`,
+        fixable: true,
+      });
+    }
+  }
+
+  return issues;
+}
+
+async function fixStaleBlocked(spec: Spec): Promise<void> {
+  const updated: Spec = { ...spec, status: 'ready' };
+  await writeSpec(updated);
+}
+
 function findUnclosedParents(specs: Spec[]): HealthIssue[] {
   const issues: HealthIssue[] = [];
   const childrenByParent = new Map<string, Spec[]>();
@@ -288,6 +314,9 @@ async function applyFix(issue: HealthIssue, specs: Spec[]): Promise<void> {
   } else if (issue.type === 'deprecated_field') {
     await fixDeprecatedField(spec);
     console.log(`  ✓ Fixed deprecated field: ${issue.specId} (blocks → blockedBy)`);
+  } else if (issue.type === 'stale_blocked') {
+    await fixStaleBlocked(spec);
+    console.log(`  ✓ Fixed stale blocked: ${issue.specId} (blocked → ready)`);
   } else if (issue.type === 'unclosed_parent') {
     await tryFixUnclosedParent(spec, issue, '  ');
   }
@@ -330,6 +359,7 @@ Detects:
   - Invalid priorities (outside ${MIN_PRIORITY}-${MAX_PRIORITY} range)
   - Circular dependencies (A blocks B, B blocks A)
   - Deprecated field names (blocks → blockedBy migration)
+  - Stale blocked specs (all blockers resolved but status still "blocked")
   - Unclosed parent specs (all children completed but parent still open)
   - Uncommitted spec changes (modified or untracked specs)
 
@@ -352,6 +382,7 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
         'Orphan fix: Sets parent to null, making the spec a root.',
         'Missing blocker fix: Removes the invalid blocker ID from the blockedBy array.',
         'Deprecated field fix: Rewrites spec file using the new blockedBy field name.',
+        'Stale blocked fix: Promotes specs with all blockers resolved from "blocked" to "ready". Specs with empty blockedBy (manually blocked) are not affected.',
         'Unclosed parent fix: Auto-closes with smart status matching (closed/not_planned). Cascades upward through the hierarchy. In-progress parents with active worktrees are skipped.',
         'Uncommitted specs are warnings only and do not cause exit code 1.',
       ],
@@ -377,10 +408,11 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
     const invalidPriorities = findInvalidPriorities(specs);
     const circular = findCircularDeps(specs);
     const deprecatedFields = await findDeprecatedFields(specs);
+    const staleBlocked = findStaleBlocked(specs);
     const unclosedParents = findUnclosedParents(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
-    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...unclosedParents];
+    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...staleBlocked, ...unclosedParents];
 
     if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');

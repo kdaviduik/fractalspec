@@ -42,7 +42,7 @@ export function filterByStatus(specs: Spec[], status: Status): Spec[] {
   return specs.filter((s) => s.status === status);
 }
 
-function isBlocked(spec: Spec, allSpecs: Spec[]): boolean {
+export function isBlocked(spec: Spec, allSpecs: Spec[]): boolean {
   if (spec.blockedBy.length === 0) {
     return false;
   }
@@ -70,12 +70,18 @@ export function findReadySpecs(specs: Spec[]): ReadySpecsResult {
   let excludedParentCount = 0;
 
   const ready = specs.filter((spec) => {
-    if (spec.status !== 'ready') return false;
+    const isReadyAndUnblocked = spec.status === 'ready'
+      && !isBlocked(spec, specs);
+    const isEffectivelyReady = spec.status === 'blocked'
+      && spec.blockedBy.length > 0
+      && !isBlocked(spec, specs);
+
+    if (!isReadyAndUnblocked && !isEffectivelyReady) return false;
     if (parentIds.has(spec.id)) {
       excludedParentCount++;
       return false;
     }
-    return !isBlocked(spec, specs);
+    return true;
   });
 
   return { specs: ready, excludedParentCount };

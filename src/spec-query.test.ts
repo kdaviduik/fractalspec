@@ -224,6 +224,68 @@ describe('findReadySpecs', () => {
     expect(result.specs[0]?.id).toBe('former-parent');
     expect(result.excludedParentCount).toBe(0);
   });
+
+  test('includes blocked spec whose single blocker is closed', () => {
+    const specs = [
+      makeSpec('blocker', 'closed'),
+      makeSpec('blocked', 'blocked', ['blocker']),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('blocked');
+  });
+
+  test('includes blocked spec whose multiple blockers are all in COMPLETED_STATUSES', () => {
+    const specs = [
+      makeSpec('b1', 'closed'),
+      makeSpec('b2', 'deferred'),
+      makeSpec('b3', 'not_planned'),
+      makeSpec('target', 'blocked', ['b1', 'b2', 'b3']),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('target');
+  });
+
+  test('excludes blocked spec with at least one unresolved blocker', () => {
+    const specs = [
+      makeSpec('done', 'closed'),
+      makeSpec('wip', 'in_progress'),
+      makeSpec('target', 'blocked', ['done', 'wip']),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(0);
+  });
+
+  test('excludes manually-blocked spec (status=blocked, blockedBy=[])', () => {
+    const specs = [
+      makeSpec('manual', 'blocked', []),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(0);
+  });
+
+  test('excludes parent specs even if effectively ready via resolved blockers', () => {
+    const specs = [
+      makeSpec('blocker', 'closed'),
+      makeSpec('parent', 'blocked', ['blocker']),
+      makeSpec('child', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = findReadySpecs(specs);
+
+    expect(result.specs).toHaveLength(1);
+    expect(result.specs[0]?.id).toBe('child');
+    expect(result.excludedParentCount).toBe(1);
+  });
 });
 
 describe('getStatusSummary', () => {

@@ -22,7 +22,7 @@ sc list --ready --limit 1
 sc list --ready --priority 8-10
 ```
 
-`--ready` shows only leaf specs (parent specs with children are excluded). Results are sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
+`--ready` shows only leaf specs (parent specs with children are excluded). Blocked specs whose blockers are all resolved are automatically included. Results are sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
 
 ### 2. Claim the Spec
 
@@ -172,7 +172,7 @@ The validator will suggest the appropriate EARS pattern and warn about vague lan
 
 ## Health Checks
 
-Run `sc doctor` periodically to catch structural health issues including orphaned references, missing blockers, circular dependencies, and unclosed parent specs.
+Run `sc doctor` periodically to catch structural health issues including orphaned references, missing blockers, circular dependencies, stale blocked specs (all blockers resolved but still marked "blocked"), and unclosed parent specs.
 
 Use `sc doctor --fix` to auto-repair detected issues where possible.
 
