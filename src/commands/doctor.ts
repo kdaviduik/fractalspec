@@ -8,11 +8,12 @@ import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, COMPLETE
 import { isBlocked } from '../spec-query';
 import type { CommandHelp } from '../help.js';
 import { readAllSpecs, writeSpec, getSpecsRoot, readRawSpecContent } from '../spec-filesystem';
+import { findBoilerplateSections } from '../markdown-sections';
 import { findGitRoot } from '../git-operations';
 import { relative } from 'path';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent' | 'stale_blocked';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent' | 'stale_blocked' | 'boilerplate_content';
   specId: string;
   message: string;
   fixable: boolean;
@@ -278,6 +279,22 @@ function findUnclosedParents(specs: Spec[]): HealthIssue[] {
   return issues;
 }
 
+function findBoilerplateContent(specs: Spec[]): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+  for (const spec of specs) {
+    const sections = findBoilerplateSections(spec.content);
+    if (sections.length > 0) {
+      issues.push({
+        type: 'boilerplate_content',
+        specId: spec.id,
+        message: `Unfilled boilerplate in: ${sections.join(', ')}`,
+        fixable: false,
+      });
+    }
+  }
+  return issues;
+}
+
 async function fixUnclosedParent(spec: Spec, targetStatus: Status = 'closed'): Promise<void> {
   const updated: Spec = { ...spec, status: targetStatus };
   await writeSpec(updated);
@@ -361,9 +378,10 @@ Detects:
   - Deprecated field names (blocks → blockedBy migration)
   - Stale blocked specs (all blockers resolved but status still "blocked")
   - Unclosed parent specs (all children completed but parent still open)
+  - Unfilled boilerplate content (specs with template placeholder text)
   - Uncommitted spec changes (modified or untracked specs)
 
-Circular dependencies and uncommitted changes cannot be auto-fixed.`,
+Circular dependencies, uncommitted changes, and boilerplate content cannot be auto-fixed.`,
       flags: [
         {
           flag: '--fix',
@@ -384,6 +402,7 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
         'Deprecated field fix: Rewrites spec file using the new blockedBy field name.',
         'Stale blocked fix: Promotes specs with all blockers resolved from "blocked" to "ready". Specs with empty blockedBy (manually blocked) are not affected.',
         'Unclosed parent fix: Auto-closes with smart status matching (closed/not_planned). Cascades upward through the hierarchy. In-progress parents with active worktrees are skipped.',
+        'Boilerplate detection: Reports specs with unfilled template sections. Use "sc set <id> --overview/--goals/etc." to fill them programmatically.',
         'Uncommitted specs are warnings only and do not cause exit code 1.',
       ],
     };
@@ -410,9 +429,10 @@ Circular dependencies and uncommitted changes cannot be auto-fixed.`,
     const deprecatedFields = await findDeprecatedFields(specs);
     const staleBlocked = findStaleBlocked(specs);
     const unclosedParents = findUnclosedParents(specs);
+    const boilerplateIssues = findBoilerplateContent(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
-    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...staleBlocked, ...unclosedParents];
+    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...staleBlocked, ...unclosedParents, ...boilerplateIssues];
 
     if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');

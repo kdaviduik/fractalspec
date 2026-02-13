@@ -145,18 +145,31 @@ ${bold('COMMANDS')}
       --parent ${dim('<id>')}, -p    Create as child of specified parent
       --title ${dim('<text>')}, -t   Set spec title (skips prompt)
       --message ${dim('<text>')}, -m Add context line to Overview (repeatable)
-                           Each -m adds a line after the placeholder
+      --overview ${dim('<text>')}     Set Overview section (replaces boilerplate)
+      --goals ${dim('<text>')}        Add goal bullet (repeatable)
+      --tasks ${dim('<text>')}        Add task checkbox (repeatable)
+      --requirements ${dim('<text>')} Set Requirements section
+      --background ${dim('<text>')}   Set Background section
+      --prerequisites ${dim('<text>')} Set Prerequisites section
+      --questions ${dim('<text>')}    Add question bullet (repeatable)
 
     ${underline('edit')} ${dim('<id>')}              Open spec in $EDITOR (defaults to vim)
 
   ${underline('Property Modification')}
-    ${underline('set')} ${dim('<id> [flags]')}        Modify spec properties
+    ${underline('set')} ${dim('<id> [flags]')}        Modify spec properties or content
       --priority ${dim('<1-10>')}    Set priority (10 = highest)
       --status ${dim('<status>')}    Set status (ready, in_progress, blocked, closed, deferred, not_planned)
       --parent ${dim('<id>|none')}  Reparent to another spec or remove parent
       --block ${dim('<id>')}        Add blocking dependency
       --unblock ${dim('<id>')}      Remove blocking dependency
       --pr ${dim('<url>|none')}     Set or clear PR URL for tracking
+      --overview ${dim('<text>')}    Set or append to Overview section
+      --goals ${dim('<text>')}       Add goal bullet (repeatable, smart-append)
+      --tasks ${dim('<text>')}       Add task checkbox (repeatable, smart-append)
+      --requirements ${dim('<text>')} Set or append to Requirements section
+      --background ${dim('<text>')}  Set or append to Background section
+      --prerequisites ${dim('<text>')} Set or append to Prerequisites section
+      --questions ${dim('<text>')}   Add question bullet (repeatable, smart-append)
 
   ${underline('Validation & Health')}
     ${underline('validate')} ${dim('[id]')}          Validate EARS requirement format
@@ -166,6 +179,7 @@ ${bold('COMMANDS')}
 
     ${underline('doctor')}                 Check repository health
                            Detect and report structural health issues
+                           Includes unfilled boilerplate content detection
       --fix                Auto-fix detected issues where possible
                            Exits with code 1 if issues found
 
@@ -225,18 +239,21 @@ ${bold('EXAMPLES')}
   sc create -t "OAuth Flow"     # Create with title
   sc create -t "Security Fix" --priority 10  # Create with highest priority
   sc create -t "Database Migration" -m "Required for schema v2"  # Add context
-  sc create -p a1b2 -t "OAuth Callback Handler"  # Create child (inherits priority)
+  sc create -p a1b2c3 -t "OAuth Callback Handler"  # Create child (inherits priority)
+  sc create -t "Auth" --overview "JWT auth" --goals "Login" --tasks "Add endpoint"  # With content
   sc create -s blocked -t "Premium Features" -m "Waiting on payment gateway"  # With status and context
 
   # Modifying spec properties
-  sc set b3c4 --priority 8      # Set priority
-  sc set b3c4 --status blocked  # Set status
-  sc set b3c4 --block a1b2      # b3c4 blocked by a1b2
-  sc set b3c4 --unblock a1b2    # Remove blocking dependency
-  sc set b3c4 --parent a1b2     # Reparent to a1b2
-  sc set b3c4 --parent none     # Make root spec
-  sc set b3c4 --pr https://github.com/org/repo/pull/123  # Set PR URL
-  sc set b3c4 --pr none         # Clear PR URL
+  sc set b3c4d5 --priority 8      # Set priority
+  sc set b3c4d5 --status blocked  # Set status
+  sc set b3c4d5 --block a1b2c3    # b3c4d5 blocked by a1b2c3
+  sc set b3c4d5 --unblock a1b2c3  # Remove blocking dependency
+  sc set b3c4d5 --parent a1b2c3   # Reparent to a1b2c3
+  sc set b3c4d5 --parent none     # Make root spec
+  sc set b3c4d5 --pr https://github.com/org/repo/pull/123  # Set PR URL
+  sc set b3c4d5 --pr none         # Clear PR URL
+  sc set b3c4d5 --overview "Updated overview"  # Edit content (smart-append)
+  sc set b3c4d5 --goals "New goal" --tasks "New task"  # Add goals and tasks
 
   # Completing work with safety checks
   sc done a1b2c3                # Errors if uncommitted/unpushed work

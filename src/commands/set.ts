@@ -3,6 +3,17 @@ import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
 import { findSpecFile, writeSpec, readAllSpecs } from '../spec-filesystem';
 import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, isValidStatus, isValidPriority } from '../types';
+import { appendToSection, SECTION_HEADINGS } from '../markdown-sections';
+
+interface ContentOverrides {
+  overview?: string;
+  background?: string;
+  goals?: string[];
+  requirements?: string;
+  tasks?: string[];
+  prerequisites?: string;
+  questions?: string[];
+}
 
 interface SetOptions {
   priority?: number;
@@ -11,6 +22,7 @@ interface SetOptions {
   block?: string;
   unblock?: string;
   pr?: string | null;
+  content?: ContentOverrides;
 }
 
 function exitWithError(message: string): never {
@@ -64,6 +76,28 @@ function parsePrFlag(args: string[], index: number): string | null {
   return value;
 }
 
+function parseContentStringFlag(flagName: string, args: string[], index: number): string {
+  const value = getNextArg(args, index);
+  if (value === undefined) return exitWithError(`${flagName} requires a value`);
+  if (value.trim() === '') return exitWithError(`${flagName} requires non-empty text`);
+  return value;
+}
+
+function ensureContent(options: SetOptions): ContentOverrides {
+  if (options.content === undefined) options.content = {};
+  return options.content;
+}
+
+function pushContentArray(options: SetOptions, key: 'goals' | 'tasks' | 'questions', value: string): void {
+  const content = ensureContent(options);
+  const existing = content[key];
+  if (existing !== undefined) {
+    existing.push(value);
+  } else {
+    content[key] = [value];
+  }
+}
+
 function parseArgs(args: string[]): { specId: string | null; options: SetOptions } {
   const options: SetOptions = {};
   let specId: string | null = null;
@@ -77,6 +111,15 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
     if (arg === '--block') { options.block = parseIdFlag('--block', args, i); i += 2; continue; }
     if (arg === '--unblock') { options.unblock = parseIdFlag('--unblock', args, i); i += 2; continue; }
     if (arg === '--pr') { options.pr = parsePrFlag(args, i); i += 2; continue; }
+
+    if (arg === '--overview') { ensureContent(options).overview = parseContentStringFlag(arg, args, i); i += 2; continue; }
+    if (arg === '--background') { ensureContent(options).background = parseContentStringFlag(arg, args, i); i += 2; continue; }
+    if (arg === '--requirements') { ensureContent(options).requirements = parseContentStringFlag(arg, args, i); i += 2; continue; }
+    if (arg === '--prerequisites') { ensureContent(options).prerequisites = parseContentStringFlag(arg, args, i); i += 2; continue; }
+    if (arg === '--goals') { pushContentArray(options, 'goals', parseContentStringFlag(arg, args, i)); i += 2; continue; }
+    if (arg === '--tasks') { pushContentArray(options, 'tasks', parseContentStringFlag(arg, args, i)); i += 2; continue; }
+    if (arg === '--questions') { pushContentArray(options, 'questions', parseContentStringFlag(arg, args, i)); i += 2; continue; }
+
     if (!arg.startsWith('-') && specId === null) {
       if (arg === '') return exitWithError('Spec ID cannot be empty');
       specId = arg;
@@ -90,7 +133,7 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
 
 function hasAnyOption(o: SetOptions): boolean {
   return o.priority !== undefined || o.status !== undefined || o.parent !== undefined ||
-    o.block !== undefined || o.unblock !== undefined || o.pr !== undefined;
+    o.block !== undefined || o.unblock !== undefined || o.pr !== undefined || o.content !== undefined;
 }
 
 function wouldCreateParentCycle(specId: string, newParentId: string, allSpecs: Spec[]): boolean {
@@ -195,6 +238,44 @@ function applyPrChange(spec: Spec, updated: Spec, prValue: string | null, msgs: 
   else msgs.push(`PR set to ${prValue}`);
 }
 
+function sectionHeading(key: string): string {
+  return SECTION_HEADINGS[key] ?? key;
+}
+
+function applyContentChanges(spec: Spec, content: ContentOverrides, msgs: string[]): void {
+  if (content.overview !== undefined) {
+    spec.content = appendToSection(spec.content, sectionHeading('overview'), content.overview + '\n');
+    msgs.push('Updated Overview');
+  }
+  if (content.background !== undefined) {
+    spec.content = appendToSection(spec.content, sectionHeading('background'), content.background + '\n');
+    msgs.push('Updated Background & Context');
+  }
+  if (content.goals !== undefined) {
+    const goalsBody = content.goals.map(g => `- ${g}`).join('\n') + '\n';
+    spec.content = appendToSection(spec.content, sectionHeading('goals'), goalsBody);
+    msgs.push(`Added ${content.goals.length} goal(s)`);
+  }
+  if (content.requirements !== undefined) {
+    spec.content = appendToSection(spec.content, sectionHeading('requirements'), content.requirements + '\n');
+    msgs.push('Updated Requirements');
+  }
+  if (content.tasks !== undefined) {
+    const tasksBody = content.tasks.map(t => `- [ ] ${t}`).join('\n') + '\n';
+    spec.content = appendToSection(spec.content, sectionHeading('tasks'), tasksBody);
+    msgs.push(`Added ${content.tasks.length} task(s)`);
+  }
+  if (content.prerequisites !== undefined) {
+    spec.content = appendToSection(spec.content, sectionHeading('prerequisites'), content.prerequisites + '\n');
+    msgs.push('Updated Prerequisites');
+  }
+  if (content.questions !== undefined) {
+    const questionsBody = content.questions.map(q => `- ${q}`).join('\n') + '\n';
+    spec.content = appendToSection(spec.content, sectionHeading('questions'), questionsBody);
+    msgs.push(`Added ${content.questions.length} question(s)`);
+  }
+}
+
 async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): Promise<ChangeResult> {
   const msgs: string[] = [];
   const updated: Spec = { ...spec, blockedBy: [...spec.blockedBy] };
@@ -210,9 +291,14 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
   }
   if (options.unblock !== undefined) applyUnblockChange(updated, options.unblock, msgs);
   if (options.pr !== undefined) applyPrChange(spec, updated, options.pr, msgs);
+
+  if (options.content !== undefined) {
+    applyContentChanges(updated, options.content, msgs);
+  }
+
   const hasChanges = updated.priority !== spec.priority || updated.status !== spec.status ||
     updated.parent !== spec.parent || JSON.stringify(updated.blockedBy) !== JSON.stringify(spec.blockedBy) ||
-    updated.pr !== spec.pr;
+    updated.pr !== spec.pr || updated.content !== spec.content;
   if (hasChanges) await writeSpec(updated);
   return { success: true, messages: msgs };
 }
@@ -220,8 +306,12 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
 function getCommandHelp(): CommandHelp {
   return {
     name: 'sc set',
-    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>] [--pr <url>|none]',
-    description: `Modify properties of a spec. At least one flag is required.`,
+    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>] [--pr <url>|none] [--overview <text>] [--goals <text>] ...',
+    description: `Modify spec properties or section content. At least one flag is required.
+
+Content flags use smart-append semantics: if the existing section is boilerplate
+(template placeholder), the new content replaces it. If the section already has
+real content, the new content appends to it.`,
     flags: [
       { flag: '--priority <1-10>', description: 'Set priority (10 = highest)' },
       { flag: '--status <status>', description: `Set status: ${STATUSES.join(', ')}` },
@@ -231,22 +321,36 @@ function getCommandHelp(): CommandHelp {
       { flag: '--unblock <id>', description: 'Remove blocking dependency' },
       { flag: '--pr <url>', description: 'Set PR URL for tracking' },
       { flag: '--pr none', description: 'Clear PR URL' },
+      { flag: '--overview <text>', description: 'Set or append to Overview section' },
+      { flag: '--background <text>', description: 'Set or append to Background & Context section' },
+      { flag: '--goals <text>', description: 'Add a goal bullet (repeatable)' },
+      { flag: '--requirements <text>', description: 'Set or append to Requirements section' },
+      { flag: '--tasks <text>', description: 'Add a task checkbox under Inline Tasks (repeatable)' },
+      { flag: '--prerequisites <text>', description: 'Set or append to Prerequisites section' },
+      { flag: '--questions <text>', description: 'Add an open question bullet (repeatable)' },
     ],
     examples: [
-      'sc set a1b2 --priority 8',
-      'sc set a1b2 --status blocked',
-      'sc set a1b2 --parent jk2n',
-      'sc set a1b2 --parent none',
-      'sc set a1b2 --block xyz9',
-      'sc set a1b2 --unblock xyz9',
-      'sc set a1b2 --pr https://github.com/org/repo/pull/123',
-      'sc set a1b2 --pr none',
-      'sc set a1b2 --priority 10 --status ready',
+      '# Property changes',
+      'sc set a1b2c3 --priority 8',
+      'sc set a1b2c3 --status blocked',
+      'sc set a1b2c3 --parent jk2nm4',
+      'sc set a1b2c3 --block xyz9q7',
+      'sc set a1b2c3 --pr https://github.com/org/repo/pull/123',
+      '',
+      '# Content editing (replaces boilerplate, appends to real content)',
+      'sc set a1b2c3 --overview "Implement user authentication with JWT"',
+      'sc set a1b2c3 --goals "Support email/password login" --goals "Add session persistence"',
+      'sc set a1b2c3 --tasks "Create login endpoint" --tasks "Add auth middleware"',
+      'sc set a1b2c3 --questions "Should we support OAuth?"',
+      '',
+      '# Combine property and content changes',
+      'sc set a1b2c3 --priority 10 --overview "Critical security fix needed"',
     ],
     notes: [
       'Operations are idempotent: setting same value twice succeeds silently.',
       'Cycle detection prevents circular parent/blocker references.',
       'Parent specs (specs with children) cannot be set to in_progress. Work on their child specs instead.',
+      'Content flags use smart-append: boilerplate is replaced, real content is appended to.',
     ],
   };
 }

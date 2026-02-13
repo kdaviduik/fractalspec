@@ -14,6 +14,7 @@ import {
   readAllSpecs,
   writeSpec,
 } from '../spec-filesystem';
+import { SECTION_HEADINGS, setSection } from '../markdown-sections';
 
 const MAX_MESSAGE_COUNT = 100;
 const MAX_MESSAGE_LENGTH_BYTES = 10_000;
@@ -88,27 +89,71 @@ export function determinePriority(
   return DEFAULT_PRIORITY;
 }
 
+export interface SectionOverrides {
+  overview?: string;
+  background?: string;
+  goals?: string[];
+  requirements?: string;
+  tasks?: string[];
+  prerequisites?: string;
+  questions?: string[];
+}
+
+function heading(key: string): string {
+  return SECTION_HEADINGS[key] ?? key;
+}
+
+function applyOverrides(content: string, overrides: SectionOverrides): string {
+  let result = content;
+  if (overrides.overview !== undefined) {
+    result = setSection(result, heading('overview'), overrides.overview + '\n');
+  }
+  if (overrides.background !== undefined) {
+    result = setSection(result, heading('background'), overrides.background + '\n');
+  }
+  if (overrides.goals !== undefined) {
+    result = setSection(result, heading('goals'), overrides.goals.map(g => `- ${g}`).join('\n') + '\n');
+  }
+  if (overrides.requirements !== undefined) {
+    result = setSection(result, heading('requirements'), overrides.requirements + '\n');
+  }
+  if (overrides.tasks !== undefined) {
+    result = setSection(result, heading('tasks'), overrides.tasks.map(t => `- [ ] ${t}`).join('\n') + '\n');
+  }
+  if (overrides.prerequisites !== undefined) {
+    result = setSection(result, heading('prerequisites'), overrides.prerequisites + '\n');
+  }
+  if (overrides.questions !== undefined) {
+    result = setSection(result, heading('questions'), overrides.questions.map(q => `- ${q}`).join('\n') + '\n');
+  }
+  return result;
+}
+
+function applyMessages(content: string, messages: string[], overviewText: string | undefined): string {
+  const messagesStr = messages.join('\n') + '\n';
+  if (overviewText !== undefined) {
+    return setSection(content, heading('overview'), overviewText + '\n\n' + messagesStr);
+  }
+  return setSection(content, heading('overview'), '[2-3 sentences: what this is and why it matters]\n\n' + messagesStr);
+}
+
 export function generateSpecTemplate(
   title: string,
   messages?: string[],
+  overrides?: SectionOverrides,
 ): string {
-  let overview = `## Overview\n[2-3 sentences: what this is and why it matters]`;
-  if (messages && messages.length > 0) {
-    overview += '\n\n' + messages.join('\n');
-  }
-  overview += '\n';
+  let content = `# Spec: ${title}
 
-  return `# Spec: ${title}
+## ${heading('overview')}
+[2-3 sentences: what this is and why it matters]
 
-${overview}
-
-## Background & Context
+## ${heading('background')}
 [Why this is being built now. Business context, user pain points.]
 
-## Goals
+## ${heading('goals')}
 - [Specific, measurable objective]
 
-## Requirements (EARS format)
+## ${heading('requirements')}
 
 ### Feature Area
 1. When [trigger], [component] shall [response].
@@ -123,19 +168,72 @@ Avoid vague responses like "shall work well" - use measurable, testable criteria
 
 ## Tasks
 
-### Inline Tasks
+### ${heading('tasks')}
 - [ ] First small task
 - [ ] Second small task
 
 ### Child Specs
 [None yet]
 
-## Prerequisites
+## ${heading('prerequisites')}
 [What must be done first, if any]
 
-## Open Questions
+## ${heading('questions')}
 - [Unresolved items]
 `;
+
+  if (overrides !== undefined) {
+    content = applyOverrides(content, overrides);
+  }
+
+  if (messages !== undefined && messages.length > 0) {
+    content = applyMessages(content, messages, overrides?.overview);
+  }
+
+  return content;
+}
+
+interface ParsedValues {
+  overview?: string;
+  background?: string;
+  goals?: string[];
+  requirements?: string;
+  tasks?: string[];
+  prerequisites?: string;
+  questions?: string[];
+  [key: string]: unknown;
+}
+
+function validateContentFlags(values: ParsedValues): string | null {
+  const stringFlags = ['overview', 'background', 'requirements', 'prerequisites'] as const;
+  for (const flag of stringFlags) {
+    const val = values[flag];
+    if (typeof val === 'string' && val.trim() === '') {
+      return `Error: --${flag} requires non-empty text`;
+    }
+  }
+  const arrayFlags = ['goals', 'tasks', 'questions'] as const;
+  for (const flag of arrayFlags) {
+    const vals = values[flag];
+    if (!Array.isArray(vals)) continue;
+    const emptyItem = vals.find(v => v.trim() === '');
+    if (emptyItem !== undefined) {
+      return `Error: --${flag} requires non-empty text`;
+    }
+  }
+  return null;
+}
+
+function buildOverrides(values: ParsedValues): SectionOverrides {
+  const overrides: SectionOverrides = {};
+  if (values.overview !== undefined) overrides.overview = values.overview;
+  if (values.background !== undefined) overrides.background = values.background;
+  if (values.goals !== undefined) overrides.goals = values.goals;
+  if (values.requirements !== undefined) overrides.requirements = values.requirements;
+  if (values.tasks !== undefined) overrides.tasks = values.tasks;
+  if (values.prerequisites !== undefined) overrides.prerequisites = values.prerequisites;
+  if (values.questions !== undefined) overrides.questions = values.questions;
+  return overrides;
 }
 
 export const command: CommandHandler = {
@@ -146,7 +244,7 @@ export const command: CommandHandler = {
     return {
       name: 'sc create',
       synopsis:
-        'sc create [--status <status>] [--priority <level>] [--parent <id>] [--title <text>] [--message <text>]',
+        'sc create [--status <status>] [--priority <level>] [--parent <id>] [--title <text>] [--message <text>] [--overview <text>] [--goals <text>] ...',
       description: `Create a new spec with auto-generated ID and template content.
 
 Without --parent, creates a root-level spec.
@@ -155,7 +253,12 @@ With --parent, creates a child spec in the hierarchy.
 The spec is created with a status (default: ready) and populated with a standard template
 including sections for Overview, Requirements (EARS format), and Tasks.
 
-Optional --message flags append context lines to the Overview section (e.g., PR links, issue references).`,
+Content flags (--overview, --goals, etc.) replace the boilerplate placeholder text in
+the corresponding section. Repeatable flags (--goals, --tasks, --questions) can be
+specified multiple times to add multiple items.
+
+Optional --message flags append context lines to the Overview section. If --overview is
+also provided, -m lines append after the overview text.`,
       flags: [
         {
           flag: '--status <status>, -s',
@@ -176,7 +279,35 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         {
           flag: '--message <text>, -m',
           description:
-            'Add context line to Overview section (repeatable). Each -m adds a separate line after the placeholder.',
+            'Add context line to Overview section (repeatable). Each -m adds a separate line after the placeholder or overview text.',
+        },
+        {
+          flag: '--overview <text>',
+          description: 'Set Overview section content (replaces boilerplate)',
+        },
+        {
+          flag: '--background <text>',
+          description: 'Set Background & Context section content (replaces boilerplate)',
+        },
+        {
+          flag: '--goals <text>',
+          description: 'Add a goal bullet (repeatable). Each --goals adds a "- " line.',
+        },
+        {
+          flag: '--requirements <text>',
+          description: 'Set entire Requirements section body (replaces boilerplate including EARS examples)',
+        },
+        {
+          flag: '--tasks <text>',
+          description: 'Add a task checkbox (repeatable). Each --tasks adds a "- [ ] " line under Inline Tasks.',
+        },
+        {
+          flag: '--prerequisites <text>',
+          description: 'Set Prerequisites section content (replaces boilerplate)',
+        },
+        {
+          flag: '--questions <text>',
+          description: 'Add an open question bullet (repeatable). Each --questions adds a "- " line.',
         },
       ],
       examples: [
@@ -186,20 +317,26 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         '# Create with title',
         'sc create -t "Implement OAuth Flow"',
         '',
+        '# Create with content (no boilerplate)',
+        'sc create -t "User Auth" --overview "Add JWT-based authentication" --goals "Support login/logout" --goals "Session persistence" --tasks "Implement login endpoint" --tasks "Add JWT middleware"',
+        '',
         '# Create high-priority spec (10 = highest)',
         'sc create -t "Critical Bug Fix" --priority 10',
         '',
-        '# Create with title and context message',
+        '# Create with context messages',
         'sc create -t "Database Migration" -m "Required for schema v2"',
         '',
-        '# Multiple context messages (like git commit -m)',
-        'sc create -t "API Rate Limiting" -m "PR: https://github.com/org/repo/pull/789" -m "Blocks user dashboard work"',
+        '# Overview + context messages (messages append after overview)',
+        'sc create -t "API Refactor" --overview "Restructure API layer" -m "PR: https://github.com/org/repo/pull/789"',
         '',
         '# Create spec with specific status',
-        'sc create --status blocked -t "Premium Features" -m "Waiting on payment gateway integration"',
+        'sc create --status blocked -t "Premium Features" -m "Waiting on payment gateway"',
         '',
         '# Create as child spec with parent ID (inherits parent priority)',
-        'sc create -p a1b2c3 -t "OAuth Callback Handler" -m "Child of OAuth Flow spec"',
+        'sc create -p a1b2c3 -t "OAuth Callback Handler"',
+        '',
+        '# EARS requirements inline',
+        'sc create -t "Form Validation" --requirements "### Input Validation\\n1. When user submits form, the validator shall check all required fields."',
       ],
       notes: [
         'IDs are auto-generated as 6-character alphanumeric identifiers.',
@@ -220,6 +357,13 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
         status: { type: 'string', short: 's' },
         priority: { type: 'string' },
         message: { type: 'string', short: 'm', multiple: true },
+        overview: { type: 'string' },
+        background: { type: 'string' },
+        goals: { type: 'string', multiple: true },
+        requirements: { type: 'string' },
+        tasks: { type: 'string', multiple: true },
+        prerequisites: { type: 'string' },
+        questions: { type: 'string', multiple: true },
       },
       allowPositionals: true,
     });
@@ -249,7 +393,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
 
     const title = values.title ?? (await promptForTitle());
     if (title === '') {
-      console.error('Title is required');
+      console.error('Error: Title is required');
       return 1;
     }
 
@@ -263,8 +407,15 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
     const fileName = `${slug}-${id}.md`;
     const filePath = join(dirPath, fileName);
 
+    const contentError = validateContentFlags(values);
+    if (contentError !== null) {
+      console.error(contentError);
+      return 1;
+    }
+
     const validatedMessages = validateMessages(values.message);
     const priority = determinePriority(values.priority, values.parent, specs);
+    const overrides = buildOverrides(values);
 
     const spec: Spec = {
       id,
@@ -274,7 +425,7 @@ Optional --message flags append context lines to the Overview section (e.g., PR 
       priority,
       pr: null,
       title,
-      content: generateSpecTemplate(title, validatedMessages),
+      content: generateSpecTemplate(title, validatedMessages, overrides),
       filePath,
     };
 

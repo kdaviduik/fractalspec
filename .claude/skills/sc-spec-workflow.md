@@ -104,9 +104,9 @@ sc set <spec-id> --pr none
 
 The `pr` field is preserved after `sc done`, useful for history.
 
-## Creating Specs with Priority
+## Creating Specs
 
-When creating specs, you can set priority explicitly or rely on inheritance:
+When creating specs, you can set priority, content sections, and context programmatically:
 
 ```bash
 # Create with explicit high priority (10 = highest)
@@ -115,8 +115,14 @@ sc create -t "Critical Security Fix" --priority 10
 # Child specs inherit parent's priority by default
 sc create -p ABC123 -t "Sub-task"
 
-# Override inherited priority
-sc create -p ABC123 -t "Low-priority cleanup" --priority 2
+# Create with content (replaces boilerplate placeholders)
+sc create -t "User Auth" --overview "Add JWT authentication" --goals "Login support" --goals "Session persistence" --tasks "Add login endpoint" --tasks "Add JWT middleware"
+
+# Create with EARS requirements inline
+sc create -t "Form Validation" --requirements "When user submits form, the validator shall check all required fields."
+
+# Combine content flags with messages
+sc create -t "API Refactor" --overview "Restructure API layer" -m "PR: https://github.com/org/repo/pull/789"
 ```
 
 **Priority values**: Numeric 1-10, where 10 is highest priority.
@@ -172,9 +178,9 @@ The validator will suggest the appropriate EARS pattern and warn about vague lan
 
 ## Health Checks
 
-Run `sc doctor` periodically to catch structural health issues including orphaned references, missing blockers, circular dependencies, stale blocked specs (all blockers resolved but still marked "blocked"), and unclosed parent specs.
+Run `sc doctor` periodically to catch structural health issues including orphaned references, missing blockers, circular dependencies, stale blocked specs (all blockers resolved but still marked "blocked"), unclosed parent specs, and unfilled boilerplate content.
 
-Use `sc doctor --fix` to auto-repair detected issues where possible.
+Use `sc doctor --fix` to auto-repair detected issues where possible. Boilerplate content requires manual filling — use `sc set <id> --overview/--goals/etc.` to fill sections programmatically.
 
 ## Common Pitfalls
 

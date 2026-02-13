@@ -195,3 +195,22 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/commands/doctor.ts - getHelp() detects list and notes
 - src/command-router.ts - doctor description in printHelp()
 - .docs/dependencies.md - this file
+
+## Spec Content Editing (Section Overrides)
+
+**Code**:
+- src/markdown-sections.ts (core section parsing, boilerplate detection)
+- src/commands/create.ts (--overview, --goals, --tasks, etc. content flags)
+- src/commands/set.ts (--overview, --goals, --tasks, etc. smart-append flags)
+- src/commands/doctor.ts (boilerplate_content health check)
+
+**Docs to Update**:
+- CLAUDE.md - "Creation & Editing" table (content flags for create)
+- CLAUDE.md - "Property Modification" table (content flags for set)
+- CLAUDE.md - "Validation & Health" table (boilerplate detection in doctor)
+- .claude/skills/sc-spec-workflow.md - "Creating Specs" section, "Health Checks" section
+- src/commands/create.ts - getHelp() (content flags)
+- src/commands/set.ts - getHelp() (content flags with smart-append)
+- src/commands/doctor.ts - getHelp() (boilerplate detection)
+- src/command-router.ts - create, set, and doctor sections in printHelp()
+- .docs/dependencies.md - this file

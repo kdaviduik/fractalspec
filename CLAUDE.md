@@ -139,6 +139,13 @@ sc done ABC123
 | `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
 | `sc create --priority <1-10>` | Create with specific priority | `sc create --priority 10 -t "Security Fix"` |
 | `sc create -m "message"` | Add context line to Overview (repeatable) | `sc create -t "API Refactor" -m "Blocks dashboard work" -m "PR: https://github.com/org/repo/pull/456"` |
+| `sc create --overview <text>` | Set Overview section content | `sc create -t "Auth" --overview "Add JWT auth"` |
+| `sc create --goals <text>` | Add goal bullet (repeatable) | `sc create -t "Auth" --goals "Login" --goals "Logout"` |
+| `sc create --tasks <text>` | Add task checkbox (repeatable) | `sc create -t "Auth" --tasks "Add endpoint"` |
+| `sc create --requirements <text>` | Set Requirements section | `sc create -t "Auth" --requirements "When user logs in, the auth module shall create a session."` |
+| `sc create --background <text>` | Set Background section | `sc create -t "Auth" --background "Users need secure access"` |
+| `sc create --prerequisites <text>` | Set Prerequisites section | `sc create -t "Auth" --prerequisites "Database schema v2"` |
+| `sc create --questions <text>` | Add question bullet (repeatable) | `sc create -t "Auth" --questions "OAuth support?"` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
 ### Property Modification
@@ -153,6 +160,13 @@ sc done ABC123
 | `sc set <id> --unblock <id>` | Remove blocking dependency | `sc set ABC123 --unblock DEF456` |
 | `sc set <id> --pr <url>` | Set PR URL for tracking | `sc set ABC123 --pr https://github.com/org/repo/pull/123` |
 | `sc set <id> --pr none` | Clear PR URL | `sc set ABC123 --pr none` |
+| `sc set <id> --overview <text>` | Set or append to Overview (smart-append) | `sc set ABC123 --overview "Updated overview"` |
+| `sc set <id> --goals <text>` | Add goal bullet (repeatable, smart-append) | `sc set ABC123 --goals "New goal"` |
+| `sc set <id> --tasks <text>` | Add task checkbox (repeatable, smart-append) | `sc set ABC123 --tasks "Implement feature"` |
+| `sc set <id> --requirements <text>` | Set or append to Requirements (smart-append) | `sc set ABC123 --requirements "When user logs in..."` |
+| `sc set <id> --background <text>` | Set or append to Background (smart-append) | `sc set ABC123 --background "Business context"` |
+| `sc set <id> --prerequisites <text>` | Set or append to Prerequisites (smart-append) | `sc set ABC123 --prerequisites "DB migration"` |
+| `sc set <id> --questions <text>` | Add question bullet (repeatable, smart-append) | `sc set ABC123 --questions "OAuth needed?"` |
 
 ### Validation & Health
 
@@ -160,7 +174,7 @@ sc done ABC123
 |---------|-------------|---------|
 | `sc validate` | Validate all specs' EARS format | `sc validate` |
 | `sc validate <id>` | Validate single spec | `sc validate ABC123` |
-| `sc doctor` | Check repo health | `sc doctor` |
+| `sc doctor` | Check repo health (includes unfilled boilerplate detection) | `sc doctor` |
 | `sc doctor --fix` | Auto-fix issues where possible | `sc doctor --fix` |
 | `sc ears` | Show EARS pattern reference | `sc ears` |
 | `sc ears "<text>"` | Convert text to EARS format | `sc ears "users can login"` |
@@ -190,6 +204,12 @@ pr: null
 ## Overview
 [2-3 sentences describing what and why]
 
+## Background & Context
+[Why this is being built now. Business context, user pain points.]
+
+## Goals
+- [Specific, measurable objective]
+
 ## Requirements (EARS format)
 
 ### User Authentication
@@ -197,9 +217,22 @@ pr: null
 2. If authentication fails, then the login UI shall display an error message.
 
 ## Tasks
+
+### Inline Tasks
 - [ ] Implementation task 1
 - [ ] Implementation task 2
+
+### Child Specs
+[None yet]
+
+## Prerequisites
+[What must be done first, if any]
+
+## Open Questions
+- [Unresolved items]
 ```
+
+Note: The `--tasks` flag targets the `### Inline Tasks` sub-section, not the `## Tasks` parent heading.
 
 ### Frontmatter Schema
 
