@@ -4,6 +4,7 @@ import {
   isValidEarsPattern,
   isValidPriority,
   isValidSpecFrontmatter,
+  validateSpecFrontmatter,
   getStatusIcon,
   STATUSES,
   EARS_PATTERNS,
@@ -238,6 +239,120 @@ describe('SpecFrontmatter validation', () => {
     expect(isValidSpecFrontmatter('string')).toBe(false);
     expect(isValidSpecFrontmatter(123)).toBe(false);
     expect(isValidSpecFrontmatter(undefined)).toBe(false);
+  });
+});
+
+describe('validateSpecFrontmatter', () => {
+  test('returns empty array for valid frontmatter', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+    };
+    expect(validateSpecFrontmatter(frontmatter)).toEqual([]);
+  });
+
+  test('returns error with field "status" for invalid status', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'done',
+      parent: null,
+      blockedBy: [],
+    };
+    const errors = validateSpecFrontmatter(frontmatter);
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    const statusError = errors.find(e => e.field === 'status');
+    if (statusError === undefined) { expect(statusError).toBeDefined(); return; }
+    expect(statusError.message).toContain('ready');
+    expect(statusError.message).toContain('closed');
+    expect(statusError.actualValue).toBe('done');
+  });
+
+  test('returns error with field "id" for missing id', () => {
+    const frontmatter = {
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+    };
+    const errors = validateSpecFrontmatter(frontmatter);
+    const idError = errors.find(e => e.field === 'id');
+    if (idError === undefined) { expect(idError).toBeDefined(); return; }
+    expect(idError.message).toContain('non-empty string');
+  });
+
+  test('returns error with field "id" for empty id', () => {
+    const frontmatter = {
+      id: '',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+    };
+    const errors = validateSpecFrontmatter(frontmatter);
+    const idError = errors.find(e => e.field === 'id');
+    expect(idError).toBeDefined();
+  });
+
+  test('returns error with field "parent" for invalid parent type', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: 123,
+      blockedBy: [],
+    };
+    const errors = validateSpecFrontmatter(frontmatter);
+    const parentError = errors.find(e => e.field === 'parent');
+    if (parentError === undefined) { expect(parentError).toBeDefined(); return; }
+    expect(parentError.message).toContain('string or null');
+  });
+
+  test('returns multiple errors when multiple fields are invalid', () => {
+    const frontmatter = {
+      id: '',
+      status: 'done',
+      parent: 123,
+      blockedBy: 'not-an-array',
+    };
+    const errors = validateSpecFrontmatter(frontmatter);
+    expect(errors.length).toBeGreaterThanOrEqual(4);
+    const fields = errors.map(e => e.field);
+    expect(fields).toContain('id');
+    expect(fields).toContain('status');
+    expect(fields).toContain('parent');
+    expect(fields).toContain('blockedBy');
+  });
+
+  test('isValidSpecFrontmatter returns false when validateSpecFrontmatter returns errors', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'done',
+      parent: null,
+      blockedBy: [],
+    };
+    expect(validateSpecFrontmatter(frontmatter).length).toBeGreaterThan(0);
+    expect(isValidSpecFrontmatter(frontmatter)).toBe(false);
+  });
+
+  test('returns error for non-object value', () => {
+    const errors = validateSpecFrontmatter('not-an-object');
+    expect(errors.length).toBe(1);
+    const firstError = errors[0];
+    if (firstError === undefined) { expect(firstError).toBeDefined(); return; }
+    expect(firstError.field).toBe('frontmatter');
+  });
+
+  test('returns error for invalid priority', () => {
+    const frontmatter = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+      priority: 99,
+    };
+    const errors = validateSpecFrontmatter(frontmatter);
+    const priorityError = errors.find(e => e.field === 'priority');
+    if (priorityError === undefined) { expect(priorityError).toBeDefined(); return; }
+    expect(priorityError.actualValue).toBe('99');
   });
 });
 

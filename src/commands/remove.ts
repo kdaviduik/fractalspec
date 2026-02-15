@@ -274,7 +274,7 @@ Child handling:
       return 1;
     }
 
-    const allSpecs = await readAllSpecs();
+    const { specs: allSpecs } = await readAllSpecs();
     const validation = await validateRemovalPreconditions(spec, allSpecs);
 
     if (!validation.canRemove) {

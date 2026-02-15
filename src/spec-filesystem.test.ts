@@ -101,9 +101,10 @@ describe('writeSpec', () => {
 });
 
 describe('readAllSpecs', () => {
-  test('returns empty array when no specs exist', async () => {
-    const specs = await readAllSpecs();
-    expect(specs).toEqual([]);
+  test('returns { specs, failures } with empty arrays when no specs exist', async () => {
+    const result = await readAllSpecs();
+    expect(result.specs).toEqual([]);
+    expect(result.failures).toEqual([]);
   });
 
   test('reads all specs from directory tree', async () => {
@@ -136,7 +137,7 @@ describe('readAllSpecs', () => {
     await writeSpec(spec1);
     await writeSpec(spec2);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
 
     expect(specs).toHaveLength(2);
     const ids = specs.map((s) => s.id).sort();
@@ -173,9 +174,91 @@ describe('readAllSpecs', () => {
     await writeSpec(parent);
     await writeSpec(child);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
 
     expect(specs).toHaveLength(2);
+  });
+
+  test('returns parse failures for broken spec files', async () => {
+    const validSpec: Spec = {
+      id: 'a1b2',
+      status: 'ready',
+      parent: null,
+      blockedBy: [],
+      priority: 5,
+      pr: null,
+      title: 'Valid',
+      content: '# Spec: Valid',
+      filePath: join(specsDir, 'valid-a1b2', 'valid-a1b2.md'),
+    };
+    await createSpecDirectory('valid', 'a1b2');
+    await writeSpec(validSpec);
+
+    const brokenDir = join(specsDir, 'broken-x1y2');
+    const { mkdir } = await import('fs/promises');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'broken-x1y2.md'), `---
+id: x1y2
+status: done
+parent: null
+blockedBy: []
+---
+
+# Spec: Broken
+`);
+
+    const { specs, failures } = await readAllSpecs();
+    expect(specs).toHaveLength(1);
+    const firstSpec = specs[0];
+    if (firstSpec === undefined) { expect(firstSpec).toBeDefined(); return; }
+    expect(firstSpec.id).toBe('a1b2');
+    expect(failures).toHaveLength(1);
+    const firstFailure = failures[0];
+    if (firstFailure === undefined) { expect(firstFailure).toBeDefined(); return; }
+    expect(firstFailure.filePath).toContain('broken-x1y2');
+    expect(firstFailure.error).toContain('status');
+  });
+
+  test('includes field and actualValue in failures for ParseErrors', async () => {
+    const brokenDir = join(specsDir, 'broken-z9z9');
+    const { mkdir } = await import('fs/promises');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'broken-z9z9.md'), `---
+id: z9z9
+status: wip
+parent: null
+blockedBy: []
+---
+
+# Spec: WIP
+`);
+
+    const { failures } = await readAllSpecs();
+    expect(failures).toHaveLength(1);
+    const failure = failures[0];
+    if (failure === undefined) { expect(failure).toBeDefined(); return; }
+    expect(failure.field).toBe('status');
+    expect(failure.actualValue).toBe('wip');
+  });
+
+  test('captures malformed YAML errors in failures', async () => {
+    const brokenDir = join(specsDir, 'bad-yaml-q1q1');
+    const { mkdir } = await import('fs/promises');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'bad-yaml-q1q1.md'), `---
+id: [invalid yaml
+status: ready
+---
+
+# Spec: Bad YAML
+`);
+
+    const { failures } = await readAllSpecs();
+    expect(failures).toHaveLength(1);
+    const failure = failures[0];
+    if (failure === undefined) { expect(failure).toBeDefined(); return; }
+    expect(failure.filePath).toContain('bad-yaml-q1q1');
+    expect(failure.field).toBeUndefined();
   });
 });
 

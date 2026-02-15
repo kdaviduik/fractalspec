@@ -156,6 +156,48 @@ Content here.
     );
   });
 
+  test('invalid status error includes the bad value and valid values in message', () => {
+    try {
+      parseSpec('/path/to/spec.md', SPEC_WITH_INVALID_STATUS);
+      expect(true).toBe(false);
+    } catch (err) {
+      if (!(err instanceof ParseError)) { expect(err).toBeInstanceOf(ParseError); return; }
+      expect(err.message).toContain('invalid_status');
+      expect(err.message).toContain('ready');
+      expect(err.field).toBe('status');
+      expect(err.actualValue).toBe('invalid_status');
+    }
+  });
+
+  test('missing id error mentions "id" field', () => {
+    const specWithMissingId = `---
+status: ready
+parent: null
+blocks: []
+---
+
+# Spec: No ID
+`;
+    try {
+      parseSpec('/path/to/spec.md', specWithMissingId);
+      expect(true).toBe(false);
+    } catch (err) {
+      if (!(err instanceof ParseError)) { expect(err).toBeInstanceOf(ParseError); return; }
+      expect(err.field).toBe('id');
+    }
+  });
+
+  test('ParseError exposes field and actualValue as strings', () => {
+    try {
+      parseSpec('/path/to/spec.md', SPEC_WITH_INVALID_STATUS);
+      expect(true).toBe(false);
+    } catch (err) {
+      if (!(err instanceof ParseError)) { expect(err).toBeInstanceOf(ParseError); return; }
+      expect(typeof err.field).toBe('string');
+      expect(typeof err.actualValue).toBe('string');
+    }
+  });
+
   test('extracts title from "# Spec: Title" format', () => {
     const result = parseSpec('/path/to/spec.md', VALID_SPEC);
     expect(result.title).toBe('My Feature');

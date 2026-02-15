@@ -5,7 +5,7 @@
 import type { CommandHandler } from '../types';
 import type { CommandHelp } from '../help.js';
 import { printCommandUsage } from '../help.js';
-import { findSpecFile } from '../spec-filesystem';
+import { findSpecFileWithFailures } from '../spec-filesystem';
 
 export const command: CommandHandler = {
   name: 'show',
@@ -41,9 +41,16 @@ Shows:
       return 1;
     }
 
-    const spec = await findSpecFile(specId);
-    if (!spec) {
-      console.error(`Spec not found: ${specId}`);
+    const { spec, failures } = await findSpecFileWithFailures(specId);
+    if (spec === null) {
+      const matchingFailure = failures.find(f => f.filePath.includes(specId));
+      if (matchingFailure) {
+        console.error(`Spec file found but failed to parse: ${matchingFailure.filePath}`);
+        console.error(`Error: ${matchingFailure.error}`);
+        console.error(`Run 'sc doctor --fix' to attempt auto-repair.`);
+      } else {
+        console.error(`Spec not found: ${specId}`);
+      }
       return 1;
     }
 

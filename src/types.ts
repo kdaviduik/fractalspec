@@ -143,30 +143,42 @@ export function isValidPriority(value: unknown): value is Priority {
   return Number.isInteger(value) && value >= MIN_PRIORITY && value <= MAX_PRIORITY;
 }
 
-export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter {
+export interface FrontmatterValidationError {
+  field: string;
+  message: string;
+  actualValue: string;
+}
+
+export function validateSpecFrontmatter(value: unknown): FrontmatterValidationError[] {
+  const errors: FrontmatterValidationError[] = [];
+
   if (!isRecord(value)) {
-    return false;
+    return [{ field: 'frontmatter', message: 'Not a valid object', actualValue: String(value) }];
   }
 
   if (typeof value['id'] !== 'string' || value['id'] === '') {
-    return false;
+    errors.push({ field: 'id', message: 'Must be a non-empty string', actualValue: String(value['id'] ?? '') });
   }
 
   if (!isValidStatus(value['status'])) {
-    return false;
+    errors.push({ field: 'status', message: `Invalid value — valid values: ${STATUSES.join(', ')}`, actualValue: String(value['status'] ?? '') });
   }
 
   if (value['parent'] !== null && typeof value['parent'] !== 'string') {
-    return false;
+    errors.push({ field: 'parent', message: 'Must be a string or null', actualValue: String(value['parent']) });
   }
 
   if (!Array.isArray(value['blockedBy'])) {
-    return false;
+    errors.push({ field: 'blockedBy', message: 'Must be an array', actualValue: String(value['blockedBy']) });
   }
 
   if (value['priority'] !== undefined && !isValidPriority(value['priority'])) {
-    return false;
+    errors.push({ field: 'priority', message: `Must be an integer from ${MIN_PRIORITY} to ${MAX_PRIORITY}`, actualValue: String(value['priority']) });
   }
 
-  return true;
+  return errors;
+}
+
+export function isValidSpecFrontmatter(value: unknown): value is SpecFrontmatter {
+  return validateSpecFrontmatter(value).length === 0;
 }

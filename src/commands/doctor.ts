@@ -3,22 +3,52 @@
  */
 
 import { parseArgs } from 'util';
+import matter from 'gray-matter';
 import type { CommandHandler, Spec, Status } from '../types';
 import { isValidPriority, MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, COMPLETED_STATUSES } from '../types';
 import { isBlocked } from '../spec-query';
 import type { CommandHelp } from '../help.js';
-import { readAllSpecs, writeSpec, getSpecsRoot, readRawSpecContent } from '../spec-filesystem';
+import { readAllSpecs, writeSpec, getSpecsRoot, readRawSpecContent, type SpecParseFailure } from '../spec-filesystem';
 import { findBoilerplateSections } from '../markdown-sections';
 import { findGitRoot } from '../git-operations';
-import { relative } from 'path';
+import { relative, dirname, join } from 'path';
+import { rename } from 'fs/promises';
+
+function rejectJavaScriptEngine(): object {
+  throw new Error('JavaScript frontmatter engine is disabled for security');
+}
+const GRAY_MATTER_OPTIONS = {
+  language: 'yaml' as const,
+  engines: { javascript: rejectJavaScriptEngine },
+};
+import { randomUUID } from 'crypto';
 
 interface HealthIssue {
-  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent' | 'stale_blocked' | 'boilerplate_content';
+  type: 'orphan' | 'circular' | 'missing_blocker' | 'stale_branch' | 'uncommitted' | 'invalid_priority' | 'deprecated_field' | 'unclosed_parent' | 'stale_blocked' | 'boilerplate_content' | 'parse_failure';
   specId: string;
   message: string;
   fixable: boolean;
   targetStatus?: Status;
+  filePath?: string | undefined;
+  suggestedFix?: string | undefined;
 }
+
+const STATUS_ALIASES: ReadonlyMap<string, Status> = new Map([
+  ['done', 'closed'],
+  ['complete', 'closed'],
+  ['completed', 'closed'],
+  ['wip', 'in_progress'],
+  ['in-progress', 'in_progress'],
+  ['inprogress', 'in_progress'],
+  ['todo', 'ready'],
+  ['pending', 'ready'],
+  ['skip', 'not_planned'],
+  ['skipped', 'not_planned'],
+  ['cancelled', 'not_planned'],
+  ['canceled', 'not_planned'],
+  ['not-planned', 'not_planned'],
+  ['notplanned', 'not_planned'],
+]);
 
 interface UncommittedSpec {
   path: string;
@@ -279,6 +309,60 @@ function findUnclosedParents(specs: Spec[]): HealthIssue[] {
   return issues;
 }
 
+const ANSI_ESCAPE_PATTERN = new RegExp(String.raw`\x1b\[[0-9;]*[a-zA-Z]`, 'g');
+const CONTROL_CHAR_PATTERN = new RegExp(String.raw`[\x00-\x1f\x7f]`, 'g');
+
+function sanitizeForDisplay(value: string): string {
+  return value.replace(ANSI_ESCAPE_PATTERN, '').replace(CONTROL_CHAR_PATTERN, '');
+}
+
+function findParseFailureIssues(failures: SpecParseFailure[]): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+
+  for (const failure of failures) {
+    const isStatusField = failure.field === 'status';
+    const actualLower = isStatusField && failure.actualValue !== undefined
+      ? failure.actualValue.toLowerCase()
+      : undefined;
+    const canonicalStatus = actualLower !== undefined ? STATUS_ALIASES.get(actualLower) : undefined;
+    const fixable = canonicalStatus !== undefined;
+
+    const displayValue = failure.actualValue !== undefined
+      ? sanitizeForDisplay(failure.actualValue)
+      : undefined;
+
+    const suggestedFix = fixable && canonicalStatus !== undefined
+      ? `${displayValue} → ${canonicalStatus}`
+      : undefined;
+
+    issues.push({
+      type: 'parse_failure',
+      specId: failure.filePath,
+      message: displayValue !== undefined
+        ? `${failure.error} (got "${displayValue}")`
+        : failure.error,
+      fixable,
+      filePath: failure.filePath,
+      suggestedFix,
+    });
+  }
+
+  return issues;
+}
+
+async function fixParseFailureStatus(filePath: string, canonicalStatus: Status): Promise<void> {
+  const rawContent = await Bun.file(filePath).text();
+  const parsed = matter(rawContent, GRAY_MATTER_OPTIONS);
+  parsed.data['status'] = canonicalStatus;
+  const fixed = matter.stringify(parsed.content, parsed.data);
+
+  // Atomic write: write to temp file, then rename
+  const dirPath = dirname(filePath);
+  const tempPath = join(dirPath, `.tmp-${randomUUID()}.md`);
+  await Bun.write(tempPath, fixed);
+  await rename(tempPath, filePath);
+}
+
 function findBoilerplateContent(specs: Spec[]): HealthIssue[] {
   const issues: HealthIssue[] = [];
   for (const spec of specs) {
@@ -310,9 +394,30 @@ async function tryFixUnclosedParent(spec: Spec, issue: HealthIssue, prefix: stri
   return true;
 }
 
+async function applyParseFailureFix(issue: HealthIssue): Promise<void> {
+  if (issue.filePath === undefined) return;
+
+  // Re-read the raw file and extract the actual status value
+  const rawContent = await Bun.file(issue.filePath).text();
+  const parsed = matter(rawContent, GRAY_MATTER_OPTIONS);
+  const rawStatus: unknown = parsed.data['status'];
+  if (typeof rawStatus !== 'string') return;
+
+  const canonicalStatus = STATUS_ALIASES.get(rawStatus.toLowerCase());
+  if (canonicalStatus === undefined) return;
+
+  await fixParseFailureStatus(issue.filePath, canonicalStatus);
+  console.log(`  ✓ Fixed parse failure: ${issue.suggestedFix}`);
+}
+
 async function applyFix(issue: HealthIssue, specs: Spec[]): Promise<void> {
   if (!issue.fixable) {
     console.log(`  ✗ Cannot auto-fix: ${issue.specId} (${issue.type})`);
+    return;
+  }
+
+  if (issue.type === 'parse_failure') {
+    await applyParseFailureFix(issue);
     return;
   }
 
@@ -344,7 +449,7 @@ const MAX_CASCADE_ROUNDS = 10;
 async function cascadeUnclosedParentFixes(): Promise<void> {
   let cascadeRound = 0;
   while (cascadeRound < MAX_CASCADE_ROUNDS) {
-    const freshSpecs = await readAllSpecs();
+    const { specs: freshSpecs } = await readAllSpecs();
     const moreUnclosed = findUnclosedParents(freshSpecs).filter(i => i.fixable);
     if (moreUnclosed.length === 0) break;
 
@@ -371,6 +476,7 @@ export const command: CommandHandler = {
       description: `Check repository health and detect structural issues.
 
 Detects:
+  - Parse failures (spec files with invalid/missing frontmatter — invisible to other commands)
   - Orphaned parent references (parent spec doesn't exist)
   - Missing blockers (blocker spec doesn't exist)
   - Invalid priorities (outside ${MIN_PRIORITY}-${MAX_PRIORITY} range)
@@ -403,6 +509,7 @@ Circular dependencies, uncommitted changes, and boilerplate content cannot be au
         'Stale blocked fix: Promotes specs with all blockers resolved from "blocked" to "ready". Specs with empty blockedBy (manually blocked) are not affected.',
         'Unclosed parent fix: Auto-closes with smart status matching (closed/not_planned). Cascades upward through the hierarchy. In-progress parents with active worktrees are skipped.',
         'Boilerplate detection: Reports specs with unfilled template sections. Use "sc set <id> --overview/--goals/etc." to fill them programmatically.',
+        'Parse failure fix: Corrects common status aliases (done→closed, todo→ready, wip→in_progress, etc.). Case-insensitive.',
         'Uncommitted specs are warnings only and do not cause exit code 1.',
       ],
     };
@@ -417,11 +524,12 @@ Circular dependencies, uncommitted changes, and boilerplate content cannot be au
       allowPositionals: false,
     });
 
-    const specs = await readAllSpecs();
+    const { specs, failures: parseFailures } = await readAllSpecs();
 
     console.log('\nRepository Health Check');
     console.log('═══════════════════════');
 
+    const parseFailureIssues = findParseFailureIssues(parseFailures);
     const orphans = await findOrphans(specs);
     const missingBlockers = await findMissingBlockers(specs);
     const invalidPriorities = findInvalidPriorities(specs);
@@ -432,7 +540,8 @@ Circular dependencies, uncommitted changes, and boilerplate content cannot be au
     const boilerplateIssues = findBoilerplateContent(specs);
     const uncommittedSpecs = await findUncommittedSpecs();
 
-    const allIssues = [...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...staleBlocked, ...unclosedParents, ...boilerplateIssues];
+    // Parse failures first so they're impossible to miss
+    const allIssues = [...parseFailureIssues, ...orphans, ...missingBlockers, ...invalidPriorities, ...circular, ...deprecatedFields, ...staleBlocked, ...unclosedParents, ...boilerplateIssues];
 
     if (allIssues.length === 0 && uncommittedSpecs.length === 0) {
       console.log('✓ No issues found');
@@ -456,7 +565,7 @@ Circular dependencies, uncommitted changes, and boilerplate content cannot be au
     console.log(`Found ${allIssues.length} issue(s):\n`);
 
     for (const issue of allIssues) {
-      const icon = issue.fixable ? '⚠' : '✗';
+      const icon = issue.fixable ? '⚠ warning' : '✗ error';
       console.log(`${icon} [${issue.type}] ${issue.specId}: ${issue.message}`);
     }
 

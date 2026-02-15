@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach, mock } from 'bun:test';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, rm, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { command } from './doctor';
@@ -173,7 +173,7 @@ describe('sc doctor - unclosed parent detection', () => {
 
     await command.execute(['--fix']);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const updatedParent = specs.find(s => s.id === 'parent');
     expect(updatedParent?.status).toBe('closed');
   });
@@ -188,7 +188,7 @@ describe('sc doctor - unclosed parent detection', () => {
 
     await command.execute(['--fix']);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const updatedParent = specs.find(s => s.id === 'parent');
     expect(updatedParent?.status).toBe('not_planned');
   });
@@ -203,7 +203,7 @@ describe('sc doctor - unclosed parent detection', () => {
 
     await command.execute(['--fix']);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const updatedParent = specs.find(s => s.id === 'parent');
     expect(updatedParent?.status).toBe('ready');
   });
@@ -218,7 +218,7 @@ describe('sc doctor - unclosed parent detection', () => {
 
     await command.execute(['--fix']);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const updatedParent = specs.find(s => s.id === 'parent');
     expect(updatedParent?.status).toBe('in_progress');
 
@@ -258,9 +258,156 @@ describe('sc doctor - unclosed parent detection', () => {
 
     await command.execute(['--fix']);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const updated = specs.find(s => s.id === 'blocked');
     expect(updated?.status).toBe('ready');
+  });
+
+  test('detects spec with invalid status as parse_failure', async () => {
+    const brokenDir = join(specsDir, 'broken-ofkg00');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'broken-ofkg00.md'), `---
+id: ofkg00
+status: done
+parent: null
+blockedBy: []
+---
+
+# Spec: Broken Status
+`);
+
+    const exitCode = await command.execute([]);
+    const output = logMessages.join('\n');
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('parse_failure');
+    expect(output).toContain('status');
+  });
+
+  test('detects spec with missing frontmatter', async () => {
+    const brokenDir = join(specsDir, 'no-front-aabb11');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'no-front-aabb11.md'), `# Spec: No Frontmatter
+
+Content without frontmatter.
+`);
+
+    const exitCode = await command.execute([]);
+    const output = logMessages.join('\n');
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('parse_failure');
+  });
+
+  test('parse failures do not suppress healthy specs', async () => {
+    const validSpec = makeSpec('valid1', { status: 'ready' });
+    await writeSpec(validSpec);
+
+    const brokenDir = join(specsDir, 'broken-xx1122');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'broken-xx1122.md'), `---
+id: xx1122
+status: done
+parent: null
+blockedBy: []
+---
+
+# Spec: Broken
+`);
+
+    await command.execute([]);
+    const output = logMessages.join('\n');
+
+    expect(output).toContain('parse_failure');
+    // The valid spec should still be processed
+    const { specs } = await readAllSpecs();
+    expect(specs.some(s => s.id === 'valid1')).toBe(true);
+  });
+
+  test('--fix corrects done to closed', async () => {
+    const brokenDir = join(specsDir, 'fix-done-aa1122');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'fix-done-aa1122.md'), `---
+id: aa1122
+status: done
+parent: null
+blockedBy: []
+priority: 5
+---
+
+# Spec: Fix Done
+`);
+
+    await command.execute(['--fix']);
+
+    const { specs } = await readAllSpecs();
+    const fixed = specs.find(s => s.id === 'aa1122');
+    expect(fixed).toBeDefined();
+    expect(fixed?.status).toBe('closed');
+  });
+
+  test('--fix corrects todo to ready', async () => {
+    const brokenDir = join(specsDir, 'fix-todo-bb2233');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'fix-todo-bb2233.md'), `---
+id: bb2233
+status: todo
+parent: null
+blockedBy: []
+priority: 5
+---
+
+# Spec: Fix Todo
+`);
+
+    await command.execute(['--fix']);
+
+    const { specs } = await readAllSpecs();
+    const fixed = specs.find(s => s.id === 'bb2233');
+    expect(fixed).toBeDefined();
+    expect(fixed?.status).toBe('ready');
+  });
+
+  test('--fix is case-insensitive for status aliases', async () => {
+    const brokenDir = join(specsDir, 'fix-case-cc3344');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'fix-case-cc3344.md'), `---
+id: cc3344
+status: Done
+parent: null
+blockedBy: []
+priority: 5
+---
+
+# Spec: Case Insensitive
+`);
+
+    await command.execute(['--fix']);
+
+    const { specs } = await readAllSpecs();
+    const fixed = specs.find(s => s.id === 'cc3344');
+    expect(fixed).toBeDefined();
+    expect(fixed?.status).toBe('closed');
+  });
+
+  test('non-fixable parse failure shown with unfixable icon', async () => {
+    const brokenDir = join(specsDir, 'unfixable-dd4455');
+    await mkdir(brokenDir, { recursive: true });
+    await Bun.write(join(brokenDir, 'unfixable-dd4455.md'), `---
+id: dd4455
+status: banana
+parent: null
+blockedBy: []
+---
+
+# Spec: Unfixable
+`);
+
+    await command.execute([]);
+    const output = logMessages.join('\n');
+
+    expect(output).toContain('✗');
+    expect(output).toContain('parse_failure');
   });
 
   test('cascade: closing mid-level parent triggers grandparent closure', async () => {
@@ -273,7 +420,7 @@ describe('sc doctor - unclosed parent detection', () => {
 
     await command.execute(['--fix']);
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const updatedMid = specs.find(s => s.id === 'mid');
     const updatedGp = specs.find(s => s.id === 'gp');
     expect(updatedMid?.status).toBe('closed');

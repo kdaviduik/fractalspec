@@ -174,8 +174,8 @@ sc done ABC123
 |---------|-------------|---------|
 | `sc validate` | Validate all specs' EARS format | `sc validate` |
 | `sc validate <id>` | Validate single spec | `sc validate ABC123` |
-| `sc doctor` | Check repo health (includes unfilled boilerplate detection) | `sc doctor` |
-| `sc doctor --fix` | Auto-fix issues where possible | `sc doctor --fix` |
+| `sc doctor` | Check repo health (includes parse failure detection, unfilled boilerplate, and more) | `sc doctor` |
+| `sc doctor --fix` | Auto-fix issues where possible (including common status aliases like done→closed) | `sc doctor --fix` |
 | `sc ears` | Show EARS pattern reference | `sc ears` |
 | `sc ears "<text>"` | Convert text to EARS format | `sc ears "users can login"` |
 
@@ -526,6 +526,42 @@ interface SpecFrontmatter {
   priority: Priority;
   pr: string | null;
 }
+```
+
+From `src/spec-filesystem.ts` and `src/spec-parser.ts`:
+
+```typescript
+// readAllSpecs() returns both parsed specs and parse failures
+interface SpecParseFailure {
+  filePath: string;
+  error: string;
+  field?: string;
+  actualValue?: string;
+}
+
+interface ReadAllSpecsResult {
+  specs: Spec[];
+  failures: SpecParseFailure[];
+}
+
+// ParseError carries structured info for diagnostics
+class ParseError extends Error {
+  readonly filePath: string;
+  readonly field?: string;       // which frontmatter field failed
+  readonly actualValue?: string; // what value was found
+}
+```
+
+From `src/types.ts`:
+
+```typescript
+// Single source of truth for frontmatter validation
+interface FrontmatterValidationError {
+  field: string;
+  message: string;
+  actualValue: string;
+}
+function validateSpecFrontmatter(value: unknown): FrontmatterValidationError[];
 ```
 
 ## Help System Standards

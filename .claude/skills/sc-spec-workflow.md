@@ -178,9 +178,9 @@ The validator will suggest the appropriate EARS pattern and warn about vague lan
 
 ## Health Checks
 
-Run `sc doctor` periodically to catch structural health issues including orphaned references, missing blockers, circular dependencies, stale blocked specs (all blockers resolved but still marked "blocked"), unclosed parent specs, and unfilled boilerplate content.
+Run `sc doctor` periodically to catch structural health issues. It detects parse failures (broken spec files invisible to other commands), orphaned references, and various other issues. Run `sc doctor --help` for the full list of checks.
 
-Use `sc doctor --fix` to auto-repair detected issues where possible. Boilerplate content requires manual filling — use `sc set <id> --overview/--goals/etc.` to fill sections programmatically.
+Use `sc doctor --fix` to auto-repair detected issues where possible, including common status aliases (e.g., `done` → `closed`). Boilerplate content requires manual filling — use `sc set <id> --overview/--goals/etc.` to fill sections programmatically.
 
 ## Common Pitfalls
 

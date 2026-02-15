@@ -178,8 +178,8 @@ ${bold('COMMANDS')}
       --fix                ${dim('(Planned)')} Auto-fix format issues
 
     ${underline('doctor')}                 Check repository health
-                           Detect and report structural health issues
-                           Includes unfilled boilerplate content detection
+                           Detect and report structural and content issues
+                           Surfaces spec files that fail to parse (invisible to other commands)
       --fix                Auto-fix detected issues where possible
                            Exits with code 1 if issues found
 

@@ -196,6 +196,23 @@ Quick lookup: "I changed X, what docs do I update?"
 - src/command-router.ts - doctor description in printHelp()
 - .docs/dependencies.md - this file
 
+## Parse Failure Detection
+
+**Code**:
+- src/types.ts (validateSpecFrontmatter, FrontmatterValidationError)
+- src/spec-parser.ts (ParseError with field/actualValue)
+- src/spec-filesystem.ts (readAllSpecs returns failures, SpecParseFailure type)
+- src/commands/doctor.ts (parse_failure detection, STATUS_ALIASES, --fix auto-repair)
+- src/commands/list.ts (one-line warning when failures exist)
+- src/commands/show.ts (parse error details for broken specs)
+
+**Docs to Update**:
+- CLAUDE.md - "Validation & Health" section (doctor description)
+- src/commands/doctor.ts - getHelp() detects list and notes
+- src/command-router.ts - doctor description in printHelp()
+- .claude/skills/sc-spec-workflow.md - "Health Checks" section
+- .docs/dependencies.md - this file
+
 ## Spec Content Editing (Section Overrides)
 
 **Code**:

@@ -90,31 +90,37 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
       allowPositionals: false,
     });
 
-    const specs = await readAllSpecs();
+    const { specs, failures } = await readAllSpecs();
 
-    if (specs.length === 0) {
+    if (specs.length === 0 && failures.length === 0) {
       console.log('No specs found. Create one with: sc create');
       return 0;
     }
 
-    if (values.status) {
-      return printStatusSummary(specs);
-    }
-
-    if (values.ready) {
-      return printReadySpecs(specs, values.limit, values.priority);
-    }
-
     if (values.limit !== undefined || values.priority !== undefined) {
-      console.error('Error: --limit and --priority require --ready flag');
-      return 1;
+      if (!values.ready) {
+        console.error('Error: --limit and --priority require --ready flag');
+        return 1;
+      }
     }
 
-    if (values.tree) {
-      return printTreeView(specs);
+    let exitCode: number;
+    if (values.status) {
+      exitCode = printStatusSummary(specs);
+    } else if (values.ready) {
+      exitCode = printReadySpecs(specs, values.limit, values.priority);
+    } else if (values.tree) {
+      exitCode = printTreeView(specs);
+    } else {
+      exitCode = await printAllSpecs(specs);
     }
 
-    return printAllSpecs(specs);
+    if (failures.length > 0) {
+      const specWord = failures.length === 1 ? 'file' : 'files';
+      console.log(`\nWarning: ${failures.length} spec ${specWord} failed to parse and are hidden. Run 'sc doctor' for details.`);
+    }
+
+    return exitCode;
   },
 };
 

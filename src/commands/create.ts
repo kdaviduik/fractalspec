@@ -397,7 +397,7 @@ also provided, -m lines append after the overview text.`,
       return 1;
     }
 
-    const specs = await readAllSpecs();
+    const { specs } = await readAllSpecs();
     const existingIds = new Set(specs.map((s) => s.id));
     const id = generateId(existingIds, specs.length);
 

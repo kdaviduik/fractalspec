@@ -6,10 +6,22 @@
 import { mkdir, readdir, rm, rename } from 'fs/promises';
 import { join, basename, dirname } from 'path';
 import { randomUUID } from 'crypto';
-import { parseSpec } from './spec-parser';
+import { parseSpec, ParseError } from './spec-parser';
 import { serializeSpec } from './spec-serializer';
 import type { Spec } from './types';
 import { findGitRoot } from './git-operations';
+
+export interface SpecParseFailure {
+  filePath: string;
+  error: string;
+  field?: string | undefined;
+  actualValue?: string | undefined;
+}
+
+export interface ReadAllSpecsResult {
+  specs: Spec[];
+  failures: SpecParseFailure[];
+}
 
 let cachedSpecsRoot: string | null = null;
 
@@ -33,7 +45,7 @@ export async function createSpecDirectory(
 
   let basePath = await getSpecsRoot();
   if (parentId !== undefined) {
-    const allSpecs = await readAllSpecs();
+    const { specs: allSpecs } = await readAllSpecs();
     const parent = allSpecs.find((s) => s.id === parentId);
     if (parent) {
       basePath = dirname(parent.filePath);
@@ -84,43 +96,66 @@ async function findSpecFilesRecursive(dir: string): Promise<string[]> {
   return results;
 }
 
-export async function readAllSpecs(): Promise<Spec[]> {
+export async function readAllSpecs(): Promise<ReadAllSpecsResult> {
   const specsRootPath = await getSpecsRoot();
   const specFiles = await findSpecFilesRecursive(specsRootPath);
   const specs: Spec[] = [];
+  const failures: SpecParseFailure[] = [];
 
   for (const filePath of specFiles) {
     try {
       const content = await Bun.file(filePath).text();
       const spec = parseSpec(filePath, content);
       specs.push(spec);
-    } catch {
-      continue;
+    } catch (err: unknown) {
+      if (err instanceof ParseError) {
+        failures.push({
+          filePath,
+          error: err.message,
+          field: err.field,
+          actualValue: err.actualValue,
+        });
+      } else {
+        failures.push({
+          filePath,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   }
 
-  return specs;
+  return { specs, failures };
 }
 
 export async function getSpecCount(): Promise<number> {
-  const specs = await readAllSpecs();
+  const { specs } = await readAllSpecs();
   return specs.length;
 }
 
+export interface FindSpecResult {
+  spec: Spec | null;
+  failures: SpecParseFailure[];
+}
+
 export async function findSpecFile(idPrefix: string): Promise<Spec | null> {
-  const specs = await readAllSpecs();
+  const { spec } = await findSpecFileWithFailures(idPrefix);
+  return spec;
+}
+
+export async function findSpecFileWithFailures(idPrefix: string): Promise<FindSpecResult> {
+  const { specs, failures } = await readAllSpecs();
 
   const exactMatch = specs.find((s) => s.id === idPrefix);
   if (exactMatch) {
-    return exactMatch;
+    return { spec: exactMatch, failures };
   }
 
   const prefixMatches = specs.filter((s) => s.id.startsWith(idPrefix));
   if (prefixMatches.length === 1 && prefixMatches[0]) {
-    return prefixMatches[0];
+    return { spec: prefixMatches[0], failures };
   }
 
-  return null;
+  return { spec: null, failures };
 }
 
 export async function deleteSpec(spec: Spec): Promise<void> {

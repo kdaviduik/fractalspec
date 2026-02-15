@@ -370,7 +370,7 @@ export const command: CommandHandler = {
     }
     const spec = await findSpecFile(specId);
     if (!spec) { console.error(`Spec not found: ${specId}`); return 1; }
-    const allSpecs = await readAllSpecs();
+    const { specs: allSpecs } = await readAllSpecs();
     if (options.status === 'in_progress' && allSpecs.some(s => s.parent === spec.id)) {
       console.error(`Cannot set "${spec.title}" to in_progress: it has child specs and is not directly actionable.`);
       console.error('Work on its child specs instead. See: sc list --tree');

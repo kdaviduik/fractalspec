@@ -152,7 +152,7 @@ async function validateSingleSpec(specId: string): Promise<number> {
 }
 
 async function validateAllSpecs(): Promise<number> {
-  const specs = await readAllSpecs();
+  const { specs } = await readAllSpecs();
 
   if (specs.length === 0) {
     console.log('No specs found.');

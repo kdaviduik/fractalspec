@@ -3,12 +3,23 @@
  */
 
 import matter from 'gray-matter';
-import { isValidSpecFrontmatter, isValidPriority, DEFAULT_PRIORITY, type Spec, type Priority } from './types';
+import { validateSpecFrontmatter, isValidStatus, isValidPriority, DEFAULT_PRIORITY, type Spec, type Priority } from './types';
+
+// Force YAML-only parsing to prevent RCE via gray-matter's JavaScript engine
+function rejectJavaScriptEngine(): object {
+  throw new Error('JavaScript frontmatter engine is disabled for security');
+}
+const GRAY_MATTER_OPTIONS = {
+  language: 'yaml' as const,
+  engines: { javascript: rejectJavaScriptEngine },
+};
 
 export class ParseError extends Error {
   constructor(
     message: string,
-    public readonly filePath: string
+    public readonly filePath: string,
+    public readonly field?: string,
+    public readonly actualValue?: string
   ) {
     super(`${message} in ${filePath}`);
     this.name = 'ParseError';
@@ -46,7 +57,7 @@ function extractTitle(content: string): string {
 }
 
 export function parseSpec(filePath: string, rawContent: string): Spec {
-  const parsed = matter(rawContent);
+  const parsed = matter(rawContent, GRAY_MATTER_OPTIONS);
 
   if (Object.keys(parsed.data).length === 0) {
     throw new ParseError('Missing YAML frontmatter', filePath);
@@ -62,24 +73,34 @@ export function parseSpec(filePath: string, rawContent: string): Spec {
     blockedBy,
   };
 
-  if (!isValidSpecFrontmatter(normalizedData)) {
-    throw new ParseError('Invalid frontmatter structure or values', filePath);
+  const validationErrors = validateSpecFrontmatter(normalizedData);
+  const firstError = validationErrors[0];
+  if (firstError !== undefined) {
+    throw new ParseError(
+      `Invalid "${firstError.field}": ${firstError.message} (got "${firstError.actualValue}")`,
+      filePath,
+      firstError.field,
+      firstError.actualValue
+    );
   }
 
   const content = parsed.content.trim();
   const title = extractTitle(content);
 
-  const rawPriority = parsed.data['priority'];
+  const rawPriority: unknown = parsed.data['priority'];
   const priority: Priority = isValidPriority(rawPriority) ? rawPriority : DEFAULT_PRIORITY;
 
-  const rawPr = parsed.data['pr'];
+  const rawPr: unknown = parsed.data['pr'];
   const pr: string | null = typeof rawPr === 'string' ? rawPr : null;
 
+  const rawId: unknown = parsed.data['id'];
+  const rawParent: unknown = parsed.data['parent'];
+
   return {
-    id: normalizedData.id,
-    status: normalizedData.status,
-    parent: normalizedData.parent,
-    blockedBy: normalizedData.blockedBy,
+    id: String(rawId),
+    status: isValidStatus(parsed.data['status']) ? parsed.data['status'] : 'ready',
+    parent: rawParent === null ? null : String(rawParent),
+    blockedBy,
     priority,
     pr,
     title,

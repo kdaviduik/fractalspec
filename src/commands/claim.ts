@@ -90,7 +90,7 @@ Commands can be run from any directory in the repository.`,
       return 1;
     }
 
-    const allSpecs = await readAllSpecs();
+    const { specs: allSpecs } = await readAllSpecs();
     const spec = findSpecById(allSpecs, specId);
     if (!spec) {
       console.error(`Spec not found: ${specId}`);
