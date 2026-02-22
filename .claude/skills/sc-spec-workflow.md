@@ -212,6 +212,33 @@ Run `sc validate` before marking complete. Invalid EARS requirements indicate un
 
 By default, `sc claim` sets status to `in_progress` without creating git artifacts (status-only mode). Use `--branch` for a dedicated work branch (requires a clean working tree), or `--worktree` for an isolated worktree (sibling to repository root) with branch `work-<slug>-<spec-id>`. Any branch or worktree created is automatically removed when you run `sc done` or `sc release`. In bare repositories, `--branch` auto-escalates to worktree mode.
 
+## EARS Requirements → Test Type Mapping
+
+When planning test coverage for EARS requirements, the requirement language itself indicates the appropriate test type:
+
+| Requirement Language | Test Type | Rationale |
+|---------------------|-----------|-----------|
+| "UI shall display...", "form shall show..." | E2E only | Tests user-visible behavior |
+| "repository shall...", "handler shall..." | Integration required | Tests data layer behavior |
+| "validator shall..." (client-side) | E2E only | Browser-side validation |
+| "validator shall..." (server-side) | Integration required | Server logic |
+| "database shall use CASCADE..." | Integration only | Schema constraint |
+| Pure display formatting (dates, locale) | E2E only | JavaScript/browser API |
+
+**Key heuristic:** If the requirement mentions a specific code layer (repository, handler, server, database), test that layer directly. If it describes what the user sees, E2E is sufficient.
+
+**Example analysis:**
+```
+R1: "When a post's event date is today, the post shall display 'Today'"
+    → E2E only (pure UI formatting)
+
+R2: "The user repository shall set scheduledForDeletionAt to 14 days in future"
+    → Integration required (requirement explicitly names repository)
+
+R3: "While deletion is scheduled, the UI shall display a countdown banner"
+    → E2E only (requirement describes UI behavior)
+```
+
 ## See Also
 
 Full command reference: `main/CLAUDE.md`
