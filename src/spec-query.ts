@@ -3,8 +3,125 @@
  */
 
 import type { Spec, Status, Priority } from './types';
-import { MIN_PRIORITY, MAX_PRIORITY, COMPLETED_STATUSES, isValidPriority } from './types';
+import { COMPLETED_STATUSES, isValidPriority } from './types';
 import { computeDepths } from './spec-tree';
+
+/**
+ * Computes effective status for all specs.
+ *
+ * For leaf specs, returns the stored status.
+ * For parent specs, derives status from children using these priority rules:
+ *
+ * 1. All children in COMPLETED_STATUSES:
+ *    - All `closed` → `closed`
+ *    - All `not_planned` → `not_planned`
+ *    - All `deferred` → `deferred`
+ *    - Mixed terminal → `closed`
+ * 2. Any child effectively `in_progress` → `in_progress`
+ * 3. ALL non-terminal children are `blocked` → `blocked`
+ * 4. Any child `closed` AND any `ready` → `in_progress` (partial completion)
+ * 5. Any child effectively `ready` → `ready`
+ * 6. Fallback → `in_progress`
+ *
+ * Note: For parent specs, `in_progress` means "this subtree has active or partial work"
+ * — different from a leaf spec's `in_progress` meaning "someone claimed this."
+ *
+ * @returns Map from spec ID to effective status
+ */
+export function computeEffectiveStatuses(allSpecs: Spec[]): Map<string, Status> {
+  const effectiveStatuses = new Map<string, Status>();
+  const childrenByParent = new Map<string, Spec[]>();
+
+  // Build parent → children lookup (O(N) once)
+  for (const spec of allSpecs) {
+    if (spec.parent !== null) {
+      const siblings = childrenByParent.get(spec.parent) ?? [];
+      siblings.push(spec);
+      childrenByParent.set(spec.parent, siblings);
+    }
+  }
+
+  function compute(spec: Spec, visited: Set<string>): Status {
+    // Cycle detection: break cycle by using stored status
+    if (visited.has(spec.id)) {
+      return spec.status;
+    }
+
+    // Memoization: return cached result if already computed
+    const cached = effectiveStatuses.get(spec.id);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const children = childrenByParent.get(spec.id) ?? [];
+
+    // Leaf spec: use stored status
+    if (children.length === 0) {
+      effectiveStatuses.set(spec.id, spec.status);
+      return spec.status;
+    }
+
+    // Parent spec: derive from children
+    visited.add(spec.id);
+    const childStatuses = children.map(c => compute(c, visited));
+    visited.delete(spec.id);
+
+    const result = deriveParentStatus(childStatuses);
+    effectiveStatuses.set(spec.id, result);
+    return result;
+  }
+
+  // Compute effective status for all specs
+  for (const spec of allSpecs) {
+    compute(spec, new Set());
+  }
+
+  return effectiveStatuses;
+}
+
+/**
+ * Derives parent status from child statuses using priority-ordered rules.
+ */
+function deriveParentStatus(childStatuses: Status[]): Status {
+  // Rule 1: All children in terminal statuses
+  const allTerminal = childStatuses.every(s => COMPLETED_STATUSES.includes(s));
+  if (allTerminal) {
+    if (childStatuses.every(s => s === 'closed')) return 'closed';
+    if (childStatuses.every(s => s === 'not_planned')) return 'not_planned';
+    if (childStatuses.every(s => s === 'deferred')) return 'deferred';
+    return 'closed'; // Mixed terminal
+  }
+
+  // Rule 2: Any in_progress → in_progress
+  if (childStatuses.some(s => s === 'in_progress')) {
+    return 'in_progress';
+  }
+
+  // Rule 3: ALL non-terminal children are blocked → blocked
+  const nonTerminalChildren = childStatuses.filter(
+    s => !COMPLETED_STATUSES.includes(s)
+  );
+  const allNonTerminalBlocked = nonTerminalChildren.length > 0 &&
+    nonTerminalChildren.every(s => s === 'blocked');
+  if (allNonTerminalBlocked) {
+    return 'blocked';
+  }
+
+  // Rule 4: Partial completion (some closed + some ready)
+  const hasClosed = childStatuses.some(s => s === 'closed');
+  const hasReady = childStatuses.some(s => s === 'ready');
+  if (hasClosed && hasReady) {
+    return 'in_progress';
+  }
+
+  // Rule 5: Any ready → ready
+  if (hasReady) {
+    return 'ready';
+  }
+
+  // Rule 6: Fallback
+  return 'in_progress';
+}
 
 export interface StatusSummary {
   ready: number;

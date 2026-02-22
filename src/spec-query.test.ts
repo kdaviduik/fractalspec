@@ -8,6 +8,7 @@ import {
   getStatusSummary,
   parsePriorityFilter,
   getParentSpecIds,
+  computeEffectiveStatuses,
 } from './spec-query';
 import type { Spec, Status, Priority } from './types';
 import { DEFAULT_PRIORITY } from './types';
@@ -539,5 +540,239 @@ describe('getParentSpecIds', () => {
     expect(result.has('root')).toBe(true);
     expect(result.has('mid1')).toBe(true);
     expect(result.has('mid2')).toBe(true);
+  });
+});
+
+describe('computeEffectiveStatuses', () => {
+  // Rule: Leaf specs return stored status
+  test('leaf spec returns stored status', () => {
+    const specs = [makeSpec('leaf', 'in_progress')];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('leaf')).toBe('in_progress');
+  });
+
+  test('root spec without children returns stored status', () => {
+    const specs = [makeSpec('root', 'ready')];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('root')).toBe('ready');
+  });
+
+  // Rule 1: All terminal statuses
+  test('parent with all children closed → closed', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'closed', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'closed', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('closed');
+  });
+
+  test('parent with all children not_planned → not_planned', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'not_planned', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'not_planned', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('not_planned');
+  });
+
+  test('parent with all children deferred → deferred', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'deferred', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'deferred', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('deferred');
+  });
+
+  test('parent with mixed terminal children → closed', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'closed', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'deferred', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child3', 'not_planned', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('closed');
+  });
+
+  // Rule 2: Any in_progress
+  test('parent with any child in_progress → in_progress', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'in_progress', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child3', 'blocked', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('in_progress');
+  });
+
+  // Rule 3: All non-terminal blocked
+  test('parent with all non-terminal children blocked → blocked', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'blocked', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'blocked', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child3', 'closed', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('blocked');
+  });
+
+  test('parent with blocked + ready children → ready (not blocked)', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'blocked', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('ready');
+  });
+
+  // Rule 4: Partial completion
+  test('parent with some closed + some ready → in_progress (partial)', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child1', 'closed', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('in_progress');
+  });
+
+  // Rule 5: Any ready
+  test('parent with only ready children → ready', () => {
+    const specs = [
+      makeSpec('parent', 'blocked'),
+      makeSpec('child1', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('ready');
+  });
+
+  // Recursive derivation
+  test('grandparent status derived recursively from grandchildren', () => {
+    const specs = [
+      makeSpec('grandparent', 'ready'),
+      makeSpec('parent', 'ready', [], DEFAULT_PRIORITY, 'grandparent'),
+      makeSpec('child1', 'in_progress', [], DEFAULT_PRIORITY, 'parent'),
+      makeSpec('child2', 'ready', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('in_progress');
+    expect(result.get('grandparent')).toBe('in_progress');
+  });
+
+  test('deep hierarchy (10+ levels) computes correctly', () => {
+    const specs: Spec[] = [];
+    const depth = 12;
+
+    // Create a chain: root → level1 → level2 → ... → leaf
+    for (let i = 0; i < depth; i++) {
+      const parent = i === 0 ? null : `level${i - 1}`;
+      specs.push(makeSpec(`level${i}`, 'ready', [], DEFAULT_PRIORITY, parent));
+    }
+    // Make the deepest level in_progress
+    const leaf = specs[specs.length - 1];
+    if (leaf) {
+      leaf.status = 'in_progress';
+    }
+
+    const result = computeEffectiveStatuses(specs);
+
+    // All ancestors should be in_progress due to recursive derivation
+    for (let i = 0; i < depth - 1; i++) {
+      expect(result.get(`level${i}`)).toBe('in_progress');
+    }
+    expect(result.get(`level${depth - 1}`)).toBe('in_progress');
+  });
+
+  // Cycle detection
+  test('circular parent references are handled (cycle detection)', () => {
+    const specA = makeSpec('a', 'ready', [], DEFAULT_PRIORITY, 'b');
+    const specB = makeSpec('b', 'ready', [], DEFAULT_PRIORITY, 'a');
+
+    const specs = [specA, specB];
+
+    // Should not throw or infinite loop
+    const result = computeEffectiveStatuses(specs);
+
+    // Both should have some status (breaks cycle with stored status)
+    expect(result.has('a')).toBe(true);
+    expect(result.has('b')).toBe(true);
+  });
+
+  // Orphaned children (parent ID doesn't exist)
+  test('orphaned child (missing parent) treated as root', () => {
+    const specs = [
+      makeSpec('orphan', 'ready', [], DEFAULT_PRIORITY, 'nonexistent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('orphan')).toBe('ready');
+  });
+
+  // Multiple root specs
+  test('multiple root specs computed independently', () => {
+    const specs = [
+      makeSpec('root1', 'ready'),
+      makeSpec('child1', 'closed', [], DEFAULT_PRIORITY, 'root1'),
+      makeSpec('root2', 'ready'),
+      makeSpec('child2', 'in_progress', [], DEFAULT_PRIORITY, 'root2'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('root1')).toBe('closed');
+    expect(result.get('root2')).toBe('in_progress');
+  });
+
+  // Edge case: Single child
+  test('parent with single child inherits that child status', () => {
+    const specs = [
+      makeSpec('parent', 'ready'),
+      makeSpec('child', 'blocked', [], DEFAULT_PRIORITY, 'parent'),
+    ];
+
+    const result = computeEffectiveStatuses(specs);
+
+    expect(result.get('parent')).toBe('blocked');
+  });
+
+  // Edge case: Empty specs array
+  test('empty specs returns empty map', () => {
+    const result = computeEffectiveStatuses([]);
+
+    expect(result.size).toBe(0);
   });
 });

@@ -3,8 +3,10 @@
  * Tree hierarchy is determined by parent references.
  */
 
-import type { Spec, SpecNode } from './types';
+import type { Spec, SpecNode, Status } from './types';
 import { getStatusIcon } from './types';
+import { isNoColorSet } from './help.js';
+import { computeEffectiveStatuses } from './spec-query';
 
 export function buildSpecTree(specs: Spec[]): SpecNode[] {
   const nodeMap = new Map<string, SpecNode>();
@@ -51,26 +53,53 @@ function sortTree(nodes: SpecNode[]): void {
   }
 }
 
-function renderNode(node: SpecNode, prefix: string, isLast: boolean): string[] {
-  const connector = isLast ? '└─' : '├─';
-  const icon = getStatusIcon(node.spec.status);
-  const line = `${prefix}${connector} ${icon} [${node.spec.status}, P${node.spec.priority}] ${node.spec.title} [${node.spec.id}]`;
+function renderNode(
+  node: SpecNode,
+  prefix: string,
+  isLast: boolean,
+  effectiveStatuses: Map<string, Status>
+): string[] {
+  const accessible = isNoColorSet();
 
-  const childPrefix = prefix + (isLast ? '   ' : '│  ');
+  // Use ASCII tree characters for better screen reader compatibility
+  const connector = accessible
+    ? (isLast ? 'L ' : '+ ')
+    : (isLast ? '└─' : '├─');
+
+  const effectiveStatus = effectiveStatuses.get(node.spec.id) ?? node.spec.status;
+  // Omit icons in accessible mode, status text is always present
+  const icon = accessible ? '' : `${getStatusIcon(effectiveStatus)} `;
+  const line = `${prefix}${connector}${icon}[${effectiveStatus}, P${node.spec.priority}] ${node.spec.title} [${node.spec.id}]`;
+
+  const childPrefix = prefix + (isLast
+    ? (accessible ? '  ' : '   ')
+    : (accessible ? '| ' : '│  ')
+  );
   const childLines = node.children.flatMap((child, i) =>
-    renderNode(child, childPrefix, i === node.children.length - 1)
+    renderNode(child, childPrefix, i === node.children.length - 1, effectiveStatuses)
   );
 
   return [line, ...childLines];
 }
 
-export function renderTree(tree: SpecNode[]): string {
+/**
+ * Renders the spec tree to a string.
+ *
+ * Parent specs show their "effective status" derived from children's states,
+ * not their stored status. This helps users understand the actual state of
+ * a subtree at a glance.
+ *
+ * When NO_COLOR is set, uses ASCII characters for accessibility.
+ */
+export function renderTree(tree: SpecNode[], allSpecs: Spec[]): string {
   if (tree.length === 0) {
     return '';
   }
 
+  const effectiveStatuses = computeEffectiveStatuses(allSpecs);
+
   const lines = tree.flatMap((root, i) =>
-    renderNode(root, '', i === tree.length - 1)
+    renderNode(root, '', i === tree.length - 1, effectiveStatuses)
   );
   return lines.join('\n');
 }

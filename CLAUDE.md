@@ -109,11 +109,12 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc list` | List all specs | `sc list` |
+| `sc list` | Show spec tree with effective status (default) | `sc list` |
 | `sc list --ready` | Show leaf specs ready for work, including blocked specs with resolved blockers (parent specs excluded, sorted by priority) | `sc list --ready` |
 | `sc list --ready --limit N` | Get top N ready specs | `sc list --ready --limit 1` |
 | `sc list --ready --priority P` | Filter by priority (single or range) | `sc list --ready --priority 8-10` |
-| `sc list --tree` | Show hierarchical tree view (sorted by priority) | `sc list --tree` |
+| `sc list --flat` | Show flat list with stored status (for screen readers) | `sc list --flat` |
+| `sc list --tree` | Show hierarchical tree view with effective status (default) | `sc list --tree` |
 | `sc list --status` | Show status counts | `sc list --status` |
 | `sc show <id>` | Display spec details | `sc show ABC123` |
 
@@ -360,14 +361,14 @@ The validator distinguishes between critical errors and style warnings:
 ### Finding Work
 
 ```bash
+# See hierarchy with effective status (default view)
+sc list
+
 # See what's available
 sc list --ready
 
 # Check overall project status
 sc list --status
-
-# See hierarchy
-sc list --tree
 ```
 
 ### Claiming & Working

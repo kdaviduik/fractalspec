@@ -12,6 +12,9 @@ Guide for working with the `sc` spec management CLI. Use this skill when impleme
 ### 1. Find Available Work
 
 ```bash
+# See spec hierarchy with effective status (default view)
+sc list
+
 # See all ready specs (sorted by priority)
 sc list --ready
 
@@ -22,7 +25,11 @@ sc list --ready --limit 1
 sc list --ready --priority 8-10
 ```
 
-`--ready` shows only leaf specs (parent specs with children are excluded). Blocked specs whose blockers are all resolved are automatically included. Results are sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
+**Default view (tree)**: Shows spec hierarchy with "effective status" for parent specs. Parent specs derive their status from children: all children closed → parent shows closed; any child in_progress → parent shows in_progress; some closed + some ready → parent shows in_progress (partial completion). This helps you understand project state at a glance.
+
+**Ready list**: `--ready` shows only leaf specs (parent specs with children are excluded). Blocked specs whose blockers are all resolved are automatically included. Results are sorted by priority (10 highest → 1 lowest), then by depth (leaf specs first), then alphabetically. Use `--limit 1` for "what should I work on next?" behavior.
+
+**Accessibility**: Set `NO_COLOR=1` for ASCII output without Unicode icons (recommended for screen readers).
 
 ### 2. Claim the Spec
 

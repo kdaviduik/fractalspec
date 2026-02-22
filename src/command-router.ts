@@ -109,11 +109,12 @@ ${bold('COMMANDS')}
                            Outputs a shell function to eval/source in your startup file
 
   ${underline('Discovery & Viewing')}
-    ${underline('list')}                   List all specs
+    ${underline('list')}                   List specs (tree view by default, shows effective status)
       --ready              Show specs available for work, including blocked specs with resolved blockers (sorted by priority)
       --limit ${dim('<n>')}          Limit to top N specs (requires --ready)
       --priority ${dim('<n or n-m>')} Filter by priority (requires --ready). E.g., 8 or 8-10
-      --tree               Display hierarchical tree view (sorted by priority)
+      --flat               Display flat list with stored status (for screen readers)
+      --tree               Display hierarchical tree view (default)
       --status             Show status count summary
 
     ${underline('show')} ${dim('<id>')}              Display full spec details including metadata
@@ -209,11 +210,12 @@ ${bold('EARS PATTERNS')}
 
 ${bold('EXAMPLES')}
   # Finding work
+  sc list                       # Show spec hierarchy (default, with effective status)
   sc list --status              # Check overall project health
   sc list --ready               # Show available work (sorted by priority)
   sc list --ready --limit 1     # Get THE next task to work on
   sc list --ready --priority 8-10  # Show only highest-priority ready specs
-  sc list --tree                # Understand hierarchy
+  sc list --flat                # Flat list with stored status (for screen readers)
 
   # Working on a spec (status-only - default)
   sc claim a1b2c3               # Sets status to in_progress

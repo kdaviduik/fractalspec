@@ -20,6 +20,19 @@ function makeSpec(
   };
 }
 
+/**
+ * Extracts all specs from a tree structure for passing to renderTree.
+ */
+function extractSpecsFromTree(nodes: SpecNode[]): Spec[] {
+  const specs: Spec[] = [];
+  function collect(node: SpecNode): void {
+    specs.push(node.spec);
+    node.children.forEach(collect);
+  }
+  nodes.forEach(collect);
+  return specs;
+}
+
 describe('buildSpecTree', () => {
   test('returns empty array for empty input', () => {
     const tree = buildSpecTree([]);
@@ -106,7 +119,7 @@ describe('buildSpecTree', () => {
 
 describe('renderTree', () => {
   test('renders empty tree', () => {
-    const result = renderTree([]);
+    const result = renderTree([], []);
     expect(result).toBe('');
   });
 
@@ -116,7 +129,7 @@ describe('renderTree', () => {
       { spec: makeSpec('c3d4'), children: [] },
     ];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
 
     expect(result).toContain('Spec a1b2');
     expect(result).toContain('Spec c3d4');
@@ -128,14 +141,14 @@ describe('renderTree', () => {
         spec: makeSpec('root'),
         children: [
           {
-            spec: makeSpec('child'),
-            children: [{ spec: makeSpec('grandchild'), children: [] }],
+            spec: makeSpec('child', 'root'),
+            children: [{ spec: makeSpec('grandchild', 'child'), children: [] }],
           },
         ],
       },
     ];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
     const lines = result.split('\n');
 
     expect(lines[0]).toContain('Spec root');
@@ -149,7 +162,7 @@ describe('renderTree', () => {
     const spec = makeSpec('a1b2', null, { status: 'blocked' });
     const tree: SpecNode[] = [{ spec, children: [] }];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
 
     expect(result).toContain('⊘');
     expect(result).toContain('[blocked, P5]');
@@ -159,7 +172,7 @@ describe('renderTree', () => {
     const spec = makeSpec('x1y2', null, { status: 'ready', priority: 8 });
     const tree: SpecNode[] = [{ spec, children: [] }];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
 
     expect(result).toContain('[ready, P8]');
   });
@@ -168,7 +181,7 @@ describe('renderTree', () => {
     const spec = makeSpec('z9w8', null, { status: 'in_progress', priority: 10 });
     const tree: SpecNode[] = [{ spec, children: [] }];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
 
     expect(result).toContain('[in_progress, P10]');
   });
@@ -176,7 +189,7 @@ describe('renderTree', () => {
   test('includes ID in output', () => {
     const tree: SpecNode[] = [{ spec: makeSpec('xyz123'), children: [] }];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
 
     expect(result).toContain('xyz123');
   });
@@ -186,14 +199,14 @@ describe('renderTree', () => {
       {
         spec: makeSpec('root'),
         children: [
-          { spec: makeSpec('child1'), children: [] },
-          { spec: makeSpec('child2'), children: [] },
-          { spec: makeSpec('child3'), children: [] },
+          { spec: makeSpec('child1', 'root'), children: [] },
+          { spec: makeSpec('child2', 'root'), children: [] },
+          { spec: makeSpec('child3', 'root'), children: [] },
         ],
       },
     ];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
     const lines = result.split('\n');
 
     const child1Line = lines.find((l) => l.includes('child1'));
@@ -211,18 +224,18 @@ describe('renderTree', () => {
         spec: makeSpec('root'),
         children: [
           {
-            spec: makeSpec('branch1'),
-            children: [{ spec: makeSpec('leaf1'), children: [] }],
+            spec: makeSpec('branch1', 'root'),
+            children: [{ spec: makeSpec('leaf1', 'branch1'), children: [] }],
           },
           {
-            spec: makeSpec('branch2'),
-            children: [{ spec: makeSpec('leaf2'), children: [] }],
+            spec: makeSpec('branch2', 'root'),
+            children: [{ spec: makeSpec('leaf2', 'branch2'), children: [] }],
           },
         ],
       },
     ];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
     const lines = result.split('\n');
 
     const leaf1Line = lines.find((l) => l.includes('leaf1'));
@@ -246,7 +259,7 @@ describe('renderTree', () => {
       { spec: closedSpec, children: [] },
     ];
 
-    const result = renderTree(tree);
+    const result = renderTree(tree, extractSpecsFromTree(tree));
 
     expect(result).toContain('○');
     expect(result).toContain('◐');
@@ -358,7 +371,7 @@ describe('tree sorting', () => {
     ];
 
     const tree = buildSpecTree(specs);
-    const result = renderTree(tree);
+    const result = renderTree(tree, specs);
     const lines = result.split('\n');
 
     const highIdx = lines.findIndex((l) => l.includes('High Priority'));
@@ -378,7 +391,7 @@ describe('tree sorting', () => {
     ];
 
     const tree = buildSpecTree(specs);
-    const result = renderTree(tree);
+    const result = renderTree(tree, specs);
     const lines = result.split('\n');
 
     const highIdx = lines.findIndex((l) => l.includes('Child High'));
@@ -397,7 +410,7 @@ describe('tree sorting', () => {
     ];
 
     const tree = buildSpecTree(specs);
-    const result = renderTree(tree);
+    const result = renderTree(tree, specs);
     const lines = result.split('\n');
 
     const appleIdx = lines.findIndex((l) => l.includes('Apple'));
@@ -417,7 +430,7 @@ describe('tree sorting', () => {
     ];
 
     const tree = buildSpecTree(specs);
-    const result = renderTree(tree);
+    const result = renderTree(tree, specs);
     const lines = result.split('\n');
 
     const highIdx = lines.findIndex((l) => l.includes('GC High'));
@@ -435,7 +448,7 @@ describe('tree sorting', () => {
     ];
 
     const tree = buildSpecTree(specs);
-    const result = renderTree(tree);
+    const result = renderTree(tree, specs);
     const lines = result.split('\n');
 
     const alphaIdx = lines.findIndex((l) => l.includes('Alpha'));

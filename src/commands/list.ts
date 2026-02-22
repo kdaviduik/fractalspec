@@ -6,6 +6,7 @@ import { parseArgs } from 'util';
 import type { CommandHandler, Spec } from '../types';
 import { MIN_PRIORITY, MAX_PRIORITY, DEFAULT_PRIORITY, getStatusIcon } from '../types';
 import type { CommandHelp } from '../help.js';
+import { isNoColorSet } from '../help.js';
 import { readAllSpecs } from '../spec-filesystem';
 import { buildSpecTree, renderTree } from '../spec-tree';
 import { findReadySpecsSorted, getStatusSummary, parsePriorityFilter } from '../spec-query';
@@ -18,26 +19,38 @@ export const command: CommandHandler = {
   getHelp(): CommandHelp {
     return {
       name: 'sc list',
-      synopsis: 'sc list [--ready] [--tree] [--status] [--limit <n>] [--priority <level>]',
-      description: `List specs in various formats. By default, shows all specs with status icons.
+      synopsis: 'sc list [--ready] [--flat] [--tree] [--status] [--limit <n>] [--priority <level>]',
+      description: `List specs in various formats. By default, shows a hierarchical tree view with effective status.
 
-Status icons:
-  ○  ready       - No blockers, available for work
-  ◐  in_progress - Currently being worked on
-  ⊘  blocked     - Waiting on dependencies
-  ●  closed      - Complete
-  ◇  deferred    - Postponed
-  ✕  not_planned - Will not implement
+Parent specs display their "effective status" derived from children:
+  - All children closed → parent shows closed
+  - Any child in_progress → parent shows in_progress
+  - Some closed + some ready → parent shows in_progress (partial completion)
+  - Any child ready → parent shows ready
 
-Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_PRIORITY} is highest priority)`,
+Status indicators:
+  ready (○)       - No blockers, available for work
+  in_progress (◐) - Currently being worked on
+  blocked (⊘)     - Waiting on dependencies
+  closed (●)      - Complete
+  deferred (◇)    - Postponed
+  not_planned (✕) - Will not implement
+
+Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_PRIORITY} is highest priority)
+
+Accessibility: Set NO_COLOR=1 for ASCII tree characters without icons (recommended for screen readers).`,
       flags: [
         {
           flag: '--ready',
           description: 'Show only leaf specs available for work. Includes blocked specs whose blockers are all resolved. Parent specs (those with children) are excluded. Sorted by priority, then depth (deepest first), then title.',
         },
         {
+          flag: '--flat',
+          description: 'Display flat list with stored status (not derived). Recommended for screen reader users.',
+        },
+        {
           flag: '--tree',
-          description: 'Display hierarchical tree view. Children sorted by priority (highest first), then alphabetically.',
+          description: 'Display hierarchical tree view (default). Children sorted by priority (highest first), then alphabetically.',
         },
         {
           flag: '--status',
@@ -53,8 +66,11 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
         },
       ],
       examples: [
-        '# See all specs with status icons',
+        '# See spec hierarchy (default view)',
         'sc list',
+        '',
+        '# Flat list with stored status values',
+        'sc list --flat',
         '',
         '# Find available work (sorted by priority)',
         'sc list --ready',
@@ -68,11 +84,11 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
         '# Show only highest-priority ready specs (8-10)',
         'sc list --ready --priority 8-10',
         '',
-        '# Understand hierarchy',
-        'sc list --tree',
-        '',
         '# Check overall project health',
         'sc list --status',
+        '',
+        '# Accessible mode (screen readers)',
+        'NO_COLOR=1 sc list',
       ],
     };
   },
@@ -82,6 +98,7 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
       args,
       options: {
         ready: { type: 'boolean' },
+        flat: { type: 'boolean' },
         tree: { type: 'boolean' },
         status: { type: 'boolean' },
         limit: { type: 'string' },
@@ -109,10 +126,12 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
       exitCode = printStatusSummary(specs);
     } else if (values.ready) {
       exitCode = printReadySpecs(specs, values.limit, values.priority);
-    } else if (values.tree) {
-      exitCode = printTreeView(specs);
-    } else {
+    } else if (values.flat) {
+      // Flat view shows stored status (not derived)
       exitCode = await printAllSpecs(specs);
+    } else {
+      // Tree is now the default view (--tree kept for backward compatibility)
+      exitCode = printTreeView(specs);
     }
 
     if (failures.length > 0) {
@@ -126,15 +145,19 @@ Priority: numeric ${MIN_PRIORITY}-${MAX_PRIORITY} (higher = more urgent, ${MAX_P
 
 function printStatusSummary(specs: Spec[]): number {
   const summary = getStatusSummary(specs);
+  const accessible = isNoColorSet();
+  const headerLine = accessible ? '-------------------' : '═══════════════════';
+  const dividerLine = accessible ? '-----------------' : '─────────────────';
+
   console.log('\nSpec Status Summary');
-  console.log('═══════════════════');
+  console.log(headerLine);
   console.log(`  Ready:       ${summary.ready}`);
   console.log(`  In Progress: ${summary.in_progress}`);
   console.log(`  Blocked:     ${summary.blocked}`);
   console.log(`  Closed:      ${summary.closed}`);
   console.log(`  Deferred:    ${summary.deferred}`);
   console.log(`  Not Planned: ${summary.not_planned}`);
-  console.log(`  ─────────────────`);
+  console.log(`  ${dividerLine}`);
   console.log(`  Total:       ${summary.total}`);
   return 0;
 }
@@ -182,10 +205,12 @@ function printReadySpecs(
     return 0;
   }
 
+  const accessible = isNoColorSet();
+  const headerLine = accessible ? '====================' : '════════════════════';
   const limitMsg = limitValue !== undefined ? ` (top ${limitValue})` : '';
   const priorityMsg = priorityStr !== undefined ? ` [priority ${priorityStr}]` : '';
   console.log(`\nSpecs Ready for Work${limitMsg}${priorityMsg}`);
-  console.log('════════════════════');
+  console.log(headerLine);
   for (const spec of result.specs) {
     const priorityIndicator = spec.priority !== DEFAULT_PRIORITY ? ` [P${spec.priority}]` : '';
     console.log(`  ${spec.id}  ${spec.title}${priorityIndicator}`);
@@ -201,17 +226,21 @@ function printReadySpecs(
 
 function printTreeView(specs: Spec[]): number {
   const tree = buildSpecTree(specs);
+  const accessible = isNoColorSet();
+  const headerLine = accessible ? '=========' : '═════════';
   console.log('\nSpec Tree');
-  console.log('═════════');
-  console.log(renderTree(tree));
+  console.log(headerLine);
+  console.log(renderTree(tree, specs));
   return 0;
 }
 
 async function printAllSpecs(specs: Spec[]): Promise<number> {
+  const accessible = isNoColorSet();
+  const headerLine = accessible ? '=========' : '═════════';
   console.log('\nAll Specs');
-  console.log('═════════');
+  console.log(headerLine);
   for (const spec of specs) {
-    const icon = getStatusIcon(spec.status);
+    const icon = accessible ? '' : `${getStatusIcon(spec.status)} `;
     let suffix = '';
     if (spec.status === 'in_progress') {
       const branchName = getWorkBranchName(spec.id, spec.title);
@@ -222,7 +251,7 @@ async function printAllSpecs(specs: Spec[]): Promise<number> {
         suffix = ` [branch: ${branchName}]`;
       }
     }
-    console.log(`  ${icon} ${spec.status.padEnd(11)} ${spec.id}  ${spec.title}${suffix}`);
+    console.log(`  ${icon}${spec.status.padEnd(11)} ${spec.id}  ${spec.title}${suffix}`);
   }
   return 0;
 }

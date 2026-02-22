@@ -24,10 +24,10 @@ sc create -t "My First Spec"
 # Create spec with specific status (optional)
 sc create -s blocked -t "Future Feature"
 
-# View all specs
+# View spec hierarchy (tree view with effective status)
 sc list
 
-# Find work to do
+# Find work to do (leaf specs ready for work)
 sc list --ready
 
 # Set up shell integration (auto-cd on claim)
