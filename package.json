@@ -2,6 +2,7 @@
   "name": "sc",
   "version": "0.1.0",
   "description": "CLI tool for managing recursive spec documents with EARS requirements format",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "bin": {
     "sc": "./src/cli.ts"
