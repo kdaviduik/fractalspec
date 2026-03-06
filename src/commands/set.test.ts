@@ -88,8 +88,8 @@ describe('sc set - help', () => {
     expect(help?.synopsis).toContain('--priority');
     expect(help?.synopsis).toContain('--status');
     expect(help?.synopsis).toContain('--parent');
-    expect(help?.synopsis).toContain('--block');
-    expect(help?.synopsis).toContain('--unblock');
+    expect(help?.synopsis).toContain('--blocked-by');
+    expect(help?.synopsis).toContain('--not-blocked-by');
   });
 
   test('includes all status values in help', () => {
@@ -337,7 +337,7 @@ describe('sc set --parent', () => {
   });
 });
 
-describe('sc set --block', () => {
+describe('sc set --blocked-by', () => {
   test('adds blocking dependency', async () => {
     const spec = makeSpec('a1b2', { blockedBy: [] });
     const blocker = makeSpec('b3c4');
@@ -346,7 +346,7 @@ describe('sc set --block', () => {
     await writeSpec(spec);
     await writeSpec(blocker);
 
-    const result = await command.execute(['a1b2', '--block', 'b3c4']);
+    const result = await command.execute(['a1b2', '--blocked-by', 'b3c4']);
     expect(result).toBe(0);
     expect(logMessages.join(' ')).toContain('Added blocker b3c4');
 
@@ -359,7 +359,7 @@ describe('sc set --block', () => {
     await createSpecDirectory('spec', 'a1b2');
     await writeSpec(spec);
 
-    const result = await command.execute(['a1b2', '--block', 'nonexistent']);
+    const result = await command.execute(['a1b2', '--blocked-by', 'nonexistent']);
     expect(result).toBe(1);
     expect(errorMessages.join(' ')).toContain('Blocker spec not found');
   });
@@ -369,13 +369,13 @@ describe('sc set --block', () => {
     await createSpecDirectory('spec', 'a1b2');
     await writeSpec(spec);
 
-    const result = await command.execute(['a1b2', '--block', 'a1b2']);
+    const result = await command.execute(['a1b2', '--blocked-by', 'a1b2']);
     expect(result).toBe(1);
     expect(errorMessages.join(' ')).toContain('cannot block itself');
   });
 
-  test('rejects empty block ID', async () => {
-    expect(() => command.execute(['a1b2', '--block', ''])).toThrow();
+  test('rejects empty blocked-by ID', async () => {
+    expect(() => command.execute(['a1b2', '--blocked-by', ''])).toThrow();
     expect(exitCode).toBe(1);
     expect(errorMessages.join(' ')).toContain('cannot be empty');
   });
@@ -388,7 +388,7 @@ describe('sc set --block', () => {
     await writeSpec(spec);
     await writeSpec(blocker);
 
-    const result = await command.execute(['a1b2', '--block', 'b3c4']);
+    const result = await command.execute(['a1b2', '--blocked-by', 'b3c4']);
     expect(result).toBe(0);
     expect(logMessages.join(' ')).toContain('Already blocked by b3c4');
   });
@@ -401,19 +401,19 @@ describe('sc set --block', () => {
     await writeSpec(specA);
     await writeSpec(specB);
 
-    const result = await command.execute(['aaa1', '--block', 'bbb2']);
+    const result = await command.execute(['aaa1', '--blocked-by', 'bbb2']);
     expect(result).toBe(1);
     expect(errorMessages.join(' ')).toContain('would create a cycle');
   });
 });
 
-describe('sc set --unblock', () => {
+describe('sc set --not-blocked-by', () => {
   test('removes blocking dependency', async () => {
     const spec = makeSpec('a1b2', { blockedBy: ['b3c4'] });
     await createSpecDirectory('spec', 'a1b2');
     await writeSpec(spec);
 
-    const result = await command.execute(['a1b2', '--unblock', 'b3c4']);
+    const result = await command.execute(['a1b2', '--not-blocked-by', 'b3c4']);
     expect(result).toBe(0);
     expect(logMessages.join(' ')).toContain('Removed blocker b3c4');
 
@@ -421,8 +421,8 @@ describe('sc set --unblock', () => {
     expect(updated?.blockedBy).not.toContain('b3c4');
   });
 
-  test('rejects empty unblock ID', async () => {
-    expect(() => command.execute(['a1b2', '--unblock', ''])).toThrow();
+  test('rejects empty not-blocked-by ID', async () => {
+    expect(() => command.execute(['a1b2', '--not-blocked-by', ''])).toThrow();
     expect(exitCode).toBe(1);
     expect(errorMessages.join(' ')).toContain('cannot be empty');
   });
@@ -432,7 +432,7 @@ describe('sc set --unblock', () => {
     await createSpecDirectory('spec', 'a1b2');
     await writeSpec(spec);
 
-    const result = await command.execute(['a1b2', '--unblock', 'b3c4']);
+    const result = await command.execute(['a1b2', '--not-blocked-by', 'b3c4']);
     expect(result).toBe(0);
     expect(logMessages.join(' ')).toContain('Not blocked by b3c4');
   });

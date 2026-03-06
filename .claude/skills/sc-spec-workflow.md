@@ -246,6 +246,93 @@ R3: "While deletion is scheduled, the UI shall display a countdown banner"
     → E2E only (requirement describes UI behavior)
 ```
 
+## Spec Coverage Verification
+
+### Dual Labels for Shared Tests
+
+When a single test covers requirements from multiple specs (e.g., parent/child spec relationship), use **separate bracket labels**:
+
+```typescript
+// CORRECT: Separate brackets for each spec
+test('[jelg-R2] [npon-R5] displays user own posts', async () => { });
+
+// WRONG: Comma-separated specs in one bracket (fails silently!)
+test('[jelg-R2,npon-R5] displays user own posts', async () => { });
+```
+
+**Why:** The coverage script regex `/\[([a-z]{4})-(R\d+(?:,R\d+)*)\]/g` captures only ONE spec ID per bracket. The pattern `[jelg-R2,npon-R5]` would capture `jelg` as the spec and try to parse `R2,npon-R5` as requirement numbers, which fails.
+
+### Testing Removal/Deletion Specs
+
+Specs that REMOVE features (like removing deprecated routes or API methods) require "deletion verification" tests that prove things DON'T exist:
+
+**Export introspection** (unit test):
+```typescript
+it('[oemb-R4] does NOT export getIncomingRequests', () => {
+  expect('getIncomingRequests' in connectionRequestRepo).toBe(false);
+});
+```
+
+**Schema introspection** (integration test):
+```typescript
+it('[oemb-R9] declined_at column does NOT exist', async () => {
+  const result = await db.execute(sql`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'connection_requests' AND column_name = 'declined_at'
+  `);
+  expect(result).toHaveLength(0);
+});
+```
+
+**Route 404 verification** (E2E test):
+```typescript
+test('[oemb-R1] /connection-requests route returns 404', async ({ page }) => {
+  const response = await page.goto('/connection-requests');
+  expect(response?.status()).toBe(404);
+});
+```
+
+### Testing Superseded Specs
+
+When spec A is **superseded** by spec B (meaning B removes the feature A described), both specs need coverage:
+
+- **Spec B (removal spec)**: Tests verify the removal was done correctly
+- **Spec A (superseded spec)**: Tests verify the feature no longer exists
+
+Use **dual labels** to link superseded requirements to the removal tests:
+
+```typescript
+// hogf described "incoming requests" feature, oemb removed it
+// Both specs get coverage from the same test
+
+test('[hogf-R1] [oemb-R1] incoming requests list route was removed', async ({ page }) => {
+  const response = await page.goto('/connection-requests');
+  expect(response?.status()).toBe(404);
+});
+
+// Unit test for method removal - covers both specs
+it('[oemb-R4] [hogf-R6] does NOT export accept method', () => {
+  expect('accept' in connectionRequestRepo).toBe(false);
+});
+```
+
+**Why dual labeling matters:**
+- Coverage verification tracks both specs correctly
+- The removal spec (oemb) proves the work was done
+- The superseded spec (hogf) proves its requirements are no longer applicable
+- Traceability shows WHY hogf requirements have coverage (they were superseded)
+
+**Documentation pattern:**
+```typescript
+/**
+ * Coverage tests for hogf (View Incoming Requests) - SUPERSEDED by oemb.
+ *
+ * The incoming requests feature described in hogf was completely removed
+ * by spec oemb. These tests verify hogf requirements are NO LONGER
+ * APPLICABLE by confirming the feature does not exist.
+ */
+```
+
 ## See Also
 
 Full command reference: `main/CLAUDE.md`

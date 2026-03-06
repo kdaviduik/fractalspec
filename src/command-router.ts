@@ -161,8 +161,8 @@ ${bold('COMMANDS')}
       --priority ${dim('<1-10>')}    Set priority (10 = highest)
       --status ${dim('<status>')}    Set status (ready, in_progress, blocked, closed, deferred, not_planned)
       --parent ${dim('<id>|none')}  Reparent to another spec or remove parent
-      --block ${dim('<id>')}        Add blocking dependency
-      --unblock ${dim('<id>')}      Remove blocking dependency
+      --blocked-by ${dim('<id>')}   Add blocking dependency (this spec is blocked by <id>)
+      --not-blocked-by ${dim('<id>')} Remove blocking dependency
       --pr ${dim('<url>|none')}     Set or clear PR URL for tracking
       --overview ${dim('<text>')}    Set or append to Overview section
       --goals ${dim('<text>')}       Add goal bullet (repeatable, smart-append)
@@ -248,8 +248,8 @@ ${bold('EXAMPLES')}
   # Modifying spec properties
   sc set b3c4d5 --priority 8      # Set priority
   sc set b3c4d5 --status blocked  # Set status
-  sc set b3c4d5 --block a1b2c3    # b3c4d5 blocked by a1b2c3
-  sc set b3c4d5 --unblock a1b2c3  # Remove blocking dependency
+  sc set b3c4d5 --blocked-by a1b2c3    # b3c4d5 is blocked by a1b2c3
+  sc set b3c4d5 --not-blocked-by a1b2c3  # Remove blocking dependency
   sc set b3c4d5 --parent a1b2c3   # Reparent to a1b2c3
   sc set b3c4d5 --parent none     # Make root spec
   sc set b3c4d5 --pr https://github.com/org/repo/pull/123  # Set PR URL

@@ -19,8 +19,8 @@ interface SetOptions {
   priority?: number;
   status?: Status;
   parent?: string | null;
-  block?: string;
-  unblock?: string;
+  blockedBy?: string;
+  notBlockedBy?: string;
   pr?: string | null;
   content?: ContentOverrides;
 }
@@ -108,8 +108,8 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
     if (arg === '--priority') { options.priority = parsePriorityFlag(args, i); i += 2; continue; }
     if (arg === '--status') { options.status = parseStatusFlag(args, i); i += 2; continue; }
     if (arg === '--parent') { options.parent = parseParentFlag(args, i); i += 2; continue; }
-    if (arg === '--block') { options.block = parseIdFlag('--block', args, i); i += 2; continue; }
-    if (arg === '--unblock') { options.unblock = parseIdFlag('--unblock', args, i); i += 2; continue; }
+    if (arg === '--blocked-by') { options.blockedBy = parseIdFlag('--blocked-by', args, i); i += 2; continue; }
+    if (arg === '--not-blocked-by') { options.notBlockedBy = parseIdFlag('--not-blocked-by', args, i); i += 2; continue; }
     if (arg === '--pr') { options.pr = parsePrFlag(args, i); i += 2; continue; }
 
     if (arg === '--overview') { ensureContent(options).overview = parseContentStringFlag(arg, args, i); i += 2; continue; }
@@ -133,7 +133,7 @@ function parseArgs(args: string[]): { specId: string | null; options: SetOptions
 
 function hasAnyOption(o: SetOptions): boolean {
   return o.priority !== undefined || o.status !== undefined || o.parent !== undefined ||
-    o.block !== undefined || o.unblock !== undefined || o.pr !== undefined || o.content !== undefined;
+    o.blockedBy !== undefined || o.notBlockedBy !== undefined || o.pr !== undefined || o.content !== undefined;
 }
 
 function wouldCreateParentCycle(specId: string, newParentId: string, allSpecs: Spec[]): boolean {
@@ -285,11 +285,11 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
     const result = await applyParentChange(spec, updated, options.parent, allSpecs, msgs);
     if (!result.success) return result;
   }
-  if (options.block !== undefined) {
-    const result = await applyBlockChange(spec, updated, options.block, allSpecs, msgs);
+  if (options.blockedBy !== undefined) {
+    const result = await applyBlockChange(spec, updated, options.blockedBy, allSpecs, msgs);
     if (!result.success) return result;
   }
-  if (options.unblock !== undefined) applyUnblockChange(updated, options.unblock, msgs);
+  if (options.notBlockedBy !== undefined) applyUnblockChange(updated, options.notBlockedBy, msgs);
   if (options.pr !== undefined) applyPrChange(spec, updated, options.pr, msgs);
 
   if (options.content !== undefined) {
@@ -306,7 +306,7 @@ async function applyChanges(spec: Spec, options: SetOptions, allSpecs: Spec[]): 
 function getCommandHelp(): CommandHelp {
   return {
     name: 'sc set',
-    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--block <id>] [--unblock <id>] [--pr <url>|none] [--overview <text>] [--goals <text>] ...',
+    synopsis: 'sc set <id> [--priority <1-10>] [--status <status>] [--parent <id>|none] [--blocked-by <id>] [--not-blocked-by <id>] [--pr <url>|none] [--overview <text>] [--goals <text>] ...',
     description: `Modify spec properties or section content. At least one flag is required.
 
 Content flags use smart-append semantics: if the existing section is boilerplate
@@ -317,8 +317,8 @@ real content, the new content appends to it.`,
       { flag: '--status <status>', description: `Set status: ${STATUSES.join(', ')}` },
       { flag: '--parent <id>', description: 'Reparent to another spec' },
       { flag: '--parent none', description: 'Make root spec (remove parent)' },
-      { flag: '--block <id>', description: 'Add blocking dependency' },
-      { flag: '--unblock <id>', description: 'Remove blocking dependency' },
+      { flag: '--blocked-by <id>', description: 'Add blocking dependency (this spec is blocked by <id>)' },
+      { flag: '--not-blocked-by <id>', description: 'Remove blocking dependency' },
       { flag: '--pr <url>', description: 'Set PR URL for tracking' },
       { flag: '--pr none', description: 'Clear PR URL' },
       { flag: '--overview <text>', description: 'Set or append to Overview section' },
@@ -334,7 +334,7 @@ real content, the new content appends to it.`,
       'sc set a1b2c3 --priority 8',
       'sc set a1b2c3 --status blocked',
       'sc set a1b2c3 --parent jk2nm4',
-      'sc set a1b2c3 --block xyz9q7',
+      'sc set a1b2c3 --blocked-by xyz9q7',
       'sc set a1b2c3 --pr https://github.com/org/repo/pull/123',
       '',
       '# Content editing (replaces boilerplate, appends to real content)',

@@ -157,8 +157,8 @@ sc done ABC123
 | `sc set <id> --status <status>` | Set status (in_progress blocked for parent specs) | `sc set ABC123 --status blocked` |
 | `sc set <id> --parent <id>` | Reparent to another spec | `sc set ABC123 --parent DEF456` |
 | `sc set <id> --parent none` | Make root spec (remove parent) | `sc set ABC123 --parent none` |
-| `sc set <id> --block <id>` | Add blocking dependency | `sc set ABC123 --block DEF456` |
-| `sc set <id> --unblock <id>` | Remove blocking dependency | `sc set ABC123 --unblock DEF456` |
+| `sc set <id> --blocked-by <id>` | Add blocking dependency (this spec is blocked by <id>) | `sc set ABC123 --blocked-by DEF456` |
+| `sc set <id> --not-blocked-by <id>` | Remove blocking dependency | `sc set ABC123 --not-blocked-by DEF456` |
 | `sc set <id> --pr <url>` | Set PR URL for tracking | `sc set ABC123 --pr https://github.com/org/repo/pull/123` |
 | `sc set <id> --pr none` | Clear PR URL | `sc set ABC123 --pr none` |
 | `sc set <id> --overview <text>` | Set or append to Overview (smart-append) | `sc set ABC123 --overview "Updated overview"` |
