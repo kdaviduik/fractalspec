@@ -4,6 +4,7 @@ import { printCommandUsage } from '../help.js';
 import { findSpecFile, writeSpec, readAllSpecs } from '../spec-filesystem';
 import { STATUSES, MIN_PRIORITY, MAX_PRIORITY, isValidStatus, isValidPriority } from '../types';
 import { appendToSection, SECTION_HEADINGS } from '../markdown-sections';
+import { printPostCommandHealth } from '../post-command-health';
 
 interface ContentOverrides {
   overview?: string;
@@ -379,6 +380,14 @@ export const command: CommandHandler = {
     const result = await applyChanges(spec, options, allSpecs);
     if (!result.success) return 1;
     for (const message of result.messages) console.log(message);
+
+    if (options.content !== undefined) {
+      const freshSpec = await findSpecFile(specId);
+      if (freshSpec) {
+        printPostCommandHealth(freshSpec.id, freshSpec.content);
+      }
+    }
+
     return 0;
   },
 };

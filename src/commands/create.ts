@@ -15,6 +15,7 @@ import {
   writeSpec,
 } from '../spec-filesystem';
 import { SECTION_HEADINGS, setSection } from '../markdown-sections';
+import { printPostCommandHealth } from '../post-command-health';
 
 const MAX_MESSAGE_COUNT = 100;
 const MAX_MESSAGE_LENGTH_BYTES = 10_000;
@@ -436,6 +437,7 @@ also provided, -m lines append after the overview text.`,
     console.log(`  Title: ${spec.title}`);
     console.log(`  Priority: ${spec.priority}`);
     console.log('');
+    printPostCommandHealth(spec.id, spec.content);
     console.log('📝 Remember to commit your new spec:');
     console.log(`   git add ${dirPath}/`);
     console.log(`   git commit -m "spec: add ${slug}"`);

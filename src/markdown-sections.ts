@@ -17,6 +17,16 @@ export const SECTION_HEADINGS: Record<string, string> = {
 /** All known heading names that should be checked for boilerplate. */
 const CHECKABLE_SECTIONS = Object.values(SECTION_HEADINGS);
 
+/** Reverse mapping: heading name → CLI flag name. Computed from SECTION_HEADINGS. */
+const HEADING_TO_FLAG = new Map(
+  Object.entries(SECTION_HEADINGS).map(([flag, heading]) => [heading, flag]),
+);
+
+/** Get the CLI flag name for a section heading (e.g., "Requirements (EARS format)" → "requirements"). */
+export function getSectionFlag(headingName: string): string | undefined {
+  return HEADING_TO_FLAG.get(headingName);
+}
+
 /**
  * Boilerplate patterns — lines matching ANY of these are considered template placeholders.
  * A section is boilerplate if ALL its non-empty lines match at least one pattern.

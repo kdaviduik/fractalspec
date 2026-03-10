@@ -149,6 +149,8 @@ sc done ABC123
 | `sc create --questions <text>` | Add question bullet (repeatable) | `sc create -t "Auth" --questions "OAuth support?"` |
 | `sc edit <id>` | Open in $EDITOR | `sc edit ABC123` |
 
+After creation, `sc create` displays any unfilled boilerplate sections with a suggested `sc set` or `sc edit` command to fill them.
+
 ### Property Modification
 
 | Command | Description | Example |
@@ -168,6 +170,8 @@ sc done ABC123
 | `sc set <id> --background <text>` | Set or append to Background (smart-append) | `sc set ABC123 --background "Business context"` |
 | `sc set <id> --prerequisites <text>` | Set or append to Prerequisites (smart-append) | `sc set ABC123 --prerequisites "DB migration"` |
 | `sc set <id> --questions <text>` | Add question bullet (repeatable, smart-append) | `sc set ABC123 --questions "OAuth needed?"` |
+
+When content flags are used, `sc set` displays any remaining unfilled boilerplate sections with a suggested command to fill them.
 
 ### Validation & Health
 

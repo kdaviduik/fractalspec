@@ -141,6 +141,8 @@ sc create -t "API Refactor" --overview "Restructure API layer" -m "PR: https://g
 
 **Default behavior**: Root specs default to `5`. Child specs inherit their parent's priority unless overridden with `--priority`.
 
+**Inline health warnings**: After creation, `sc create` shows any unfilled boilerplate sections with a suggested `sc set` or `sc edit` command. This replaces the need to manually run `sc doctor` to discover missing content.
+
 ## Writing EARS Requirements
 
 When creating or editing specs, use EARS patterns for clear, testable requirements.
@@ -188,6 +190,8 @@ The validator will suggest the appropriate EARS pattern and warn about vague lan
 Run `sc doctor` periodically to catch structural health issues. It detects parse failures (broken spec files invisible to other commands), orphaned references, and various other issues. Run `sc doctor --help` for the full list of checks.
 
 Use `sc doctor --fix` to auto-repair detected issues where possible, including common status aliases (e.g., `done` → `closed`). Boilerplate content requires manual filling — use `sc set <id> --overview/--goals/etc.` to fill sections programmatically.
+
+**Note**: Boilerplate detection is now surfaced inline after `sc create` and `sc set` (when content flags are used), so you'll see unfilled sections immediately without needing a separate `sc doctor` run.
 
 ## Common Pitfalls
 

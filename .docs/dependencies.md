@@ -216,7 +216,8 @@ Quick lookup: "I changed X, what docs do I update?"
 ## Spec Content Editing (Section Overrides)
 
 **Code**:
-- src/markdown-sections.ts (core section parsing, boilerplate detection)
+- src/markdown-sections.ts (core section parsing, boilerplate detection, reverse flag mapping)
+- src/post-command-health.ts (inline health warnings after create/set)
 - src/commands/create.ts (--overview, --goals, --tasks, etc. content flags)
 - src/commands/set.ts (--overview, --goals, --tasks, etc. smart-append flags)
 - src/commands/doctor.ts (boilerplate_content health check)
