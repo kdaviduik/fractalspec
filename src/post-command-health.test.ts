@@ -212,22 +212,21 @@ describe('printPostCommandHealth', () => {
     printPostCommandHealth('abc123', FULLY_FILLED);
     const healthCalls = spy.mock.calls.filter(
       (call): call is [string, ...unknown[]] =>
-        typeof call[0] === 'string' && call[0].includes('Unfilled'),
+        typeof call[0] === 'string' && call[0].includes('incomplete'),
     );
     expect(healthCalls).toHaveLength(0);
     spy.mockRestore();
   });
 
-  it('prints warning with section names and suggestion for unfilled sections', () => {
+  it('prints warning with suggestion for unfilled sections', () => {
     const spy = spyOn(console, 'log');
     printPostCommandHealth('abc123', PARTIALLY_FILLED);
     const output = spy.mock.calls
       .map((c): string => (typeof c[0] === 'string' ? c[0] : ''))
       .join('\n');
-    expect(output).toContain('Unfilled sections');
+    expect(output).toContain('Spec abc123 is currently incomplete');
     expect(output).toContain('Background & Context');
-    expect(output).toContain('Prerequisites');
-    expect(output).toContain('sc set abc123');
+    expect(output).toContain('Fill these sections directly, or use: sc set abc123');
     spy.mockRestore();
   });
 });

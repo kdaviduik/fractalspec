@@ -39,6 +39,6 @@ export function printPostCommandHealth(specId: string, content: string): void {
   const result = getUnfilledSections(specId, content);
   if (result === null) return;
 
-  console.log(`\u26A0 Unfilled sections: ${result.sections.join(', ')}`);
-  console.log(`  Fill: ${result.suggestion}`);
+  console.log(`\u26A0 Spec ${specId} is currently incomplete. Unfilled sections: ${result.sections.join(', ')}`);
+  console.log(`  Fill these sections directly, or use: ${result.suggestion}`);
 }
