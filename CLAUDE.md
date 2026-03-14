@@ -27,9 +27,6 @@ cd /path/to/sc
 # Install dependencies
 bun install
 
-# Build CLI
-bun run build
-
 # Link for global usage
 bun link
 
@@ -122,9 +119,9 @@ sc done ABC123
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sc claim <id> [--branch] [--worktree] [--cd]` | Claim leaf spec, set to `in_progress`. Status-only by default; `--branch`/`-B` creates a work branch; `--worktree`/`-W` creates an isolated worktree. Parent specs cannot be claimed. | `sc claim ABC123` |
-| `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work) | `sc done ABC123` |
-| `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work) | `sc release ABC123` |
+| `sc claim <id> [--branch] [--worktree] [--cd]` | Claim leaf spec, set to `in_progress`. Status-only by default; `--branch`/`-B` creates a work branch; `--worktree`/`-W` creates an isolated worktree; `--cd`/`-C` outputs cd command. Parent specs cannot be claimed. | `sc claim ABC123` |
+| `sc done <id> [--force]` | Mark complete (safety checks for uncommitted/unpushed work). `--force`/`-f` bypasses checks. | `sc done ABC123` |
+| `sc release <id> [--force]` | Abandon work (safety checks for uncommitted/unpushed work). `--force`/`-f` bypasses checks. | `sc release ABC123` |
 
 **Auto-cd**: Set up shell integration with `sc init` for automatic cd in worktree mode. Without shell integration, use `eval "$(sc claim --cd --worktree ABC123)"`. In status-only mode (default) and branch mode, no cd is needed.
 
@@ -137,7 +134,7 @@ sc done ABC123
 | `sc create` | Create new spec (interactive) | `sc create` |
 | `sc create -t "Title"` | Create with title | `sc create -t "User Auth"` |
 | `sc create -p PARENT_ID` | Create as child of parent (inherits parent priority) | `sc create -p ABC123 -t "OAuth Flow"` |
-| `sc create --status <status>` | Create with specific initial status | `sc create --status blocked -t "Future Task"` |
+| `sc create --status <status>, -s` | Create with specific initial status | `sc create -s blocked -t "Future Task"` |
 | `sc create --priority <1-10>` | Create with specific priority | `sc create --priority 10 -t "Security Fix"` |
 | `sc create -m "message"` | Add context line to Overview (repeatable) | `sc create -t "API Refactor" -m "Blocks dashboard work" -m "PR: https://github.com/org/repo/pull/456"` |
 | `sc create --overview <text>` | Set Overview section content | `sc create -t "Auth" --overview "Add JWT auth"` |

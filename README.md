@@ -12,9 +12,6 @@ Inspired by https://github.com/steveyegge/beads :)
 # Install dependencies
 bun install
 
-# Build the CLI
-bun run build
-
 # Link for global usage
 bun link
 
